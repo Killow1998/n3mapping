@@ -67,7 +67,7 @@ Eigen::Isometry3d poseAt(double x, double y = 0.0, double yaw = 0.0)
     return pose;
 }
 
-}  // namespace
+}
 
 TEST(LoopRefereeTest, AcceptsOnlyConsistentFeatureBundles)
 {
@@ -81,8 +81,6 @@ TEST(LoopRefereeTest, AcceptsOnlyConsistentFeatureBundles)
     good.segment_support = 1.0;
     EXPECT_EQ(LoopReferee::decide(good), LoopDecision::Accept);
 
-    // A descriptor hit is now enough on its own, so a bundle that is weak
-    // everywhere else has to be weak there too before it can be rejected.
     LoopFeatures bad;
     bad.descriptor_score = 0.0;
     bad.spatial_score = 0.1;
@@ -93,8 +91,6 @@ TEST(LoopRefereeTest, AcceptsOnlyConsistentFeatureBundles)
     bad.segment_support = 1.0;
     EXPECT_EQ(LoopReferee::decide(bad), LoopDecision::Reject);
 
-    // What the same bundle does once a descriptor backs it, stated here so the
-    // loosening is visible rather than implied.
     LoopFeatures bad_but_recognised = bad;
     bad_but_recognised.descriptor_score = 0.8;
     EXPECT_EQ(LoopReferee::decide(bad_but_recognised), LoopDecision::Accept);
@@ -115,10 +111,6 @@ TEST(LoopRefereeTest, RejectsInconsistentSegmentsOnlyWithoutADescriptor)
     EXPECT_EQ(decision.reason, "unconfirmed_weak_segment");
     EXPECT_EQ(decision.risk_flags, "segment");
 
-    // The segment statistic rests on two neighbour pairs. With the window sized
-    // to the drift it is the descriptor that carries the independent
-    // confirmation, and requiring both discarded 86 candidates that registered
-    // at a median fitness of 0.052.
     features.descriptor_score = 1.0;
     EXPECT_EQ(LoopReferee::evaluate(features).decision, LoopDecision::Accept);
 }
@@ -137,20 +129,13 @@ TEST(LoopRefereeTest, RejectsSpatialOnlyWithoutDescriptorSupport)
     EXPECT_EQ(decision.reason, "spatial_only_unconfirmed");
     EXPECT_EQ(decision.risk_flags, "source");
 
-    // A spatial candidate is proposed by the drifted poses, so it needs
-    // confirmation from somewhere those poses cannot reach. Neighbouring
-    // keyframes that all register against the same match are such a source, and
-    // a stronger one than a descriptor hit; insisting on the descriptor
-    // specifically discarded 26 of the session's 57 best-evidenced candidates.
     features.segment_consistency = 1.0;
     EXPECT_EQ(LoopReferee::evaluate(features).decision, LoopDecision::Accept);
 }
 
 TEST(LoopRefereeTest, DoesNotJudgeALoopByHowFarItAsksToMove)
 {
-    // predicted_translation_norm is the separation the drifted poses report,
-    // which grows precisely for the loops that would repair the drift. Using it
-    // as evidence against a candidate rejected the corrections worth making.
+
     LoopFeatures features;
     features.descriptor_supported = true;
     features.descriptor_score = 1.0;
@@ -163,7 +148,6 @@ TEST(LoopRefereeTest, DoesNotJudgeALoopByHowFarItAsksToMove)
     EXPECT_EQ(decision.decision, LoopDecision::Accept);
     EXPECT_EQ(decision.reason, "descriptor_geometry_consistent");
 
-    // What still rejects it is the absence of any confirmation, at any distance.
     features.descriptor_supported = false;
     features.descriptor_score = 0.0;
     const auto unconfirmed = LoopReferee::evaluate(features);
@@ -190,9 +174,6 @@ TEST(LoopRefereeTest, RejectsAYawFlipWhateverTheSegmentSays)
     EXPECT_EQ(decision.reason, "yaw_flip");
     EXPECT_EQ(decision.risk_flags, "yaw");
 
-    // A correction near half a turn is a flipped match on its own evidence, so
-    // this rule keeps rejecting once the segment agrees -- the one place the
-    // referee was made stricter rather than looser.
     features.segment_translation_median = 0.0;
     EXPECT_EQ(LoopReferee::evaluate(features).reason, "yaw_flip");
 }
@@ -355,8 +336,7 @@ TEST(LoopVerificationPipelineTest, CoarseSupportCannotReplaceFineEvidence)
     config.loop_min_inlier_ratio = 0.7;
     const auto target = makeRegistrationCloud();
     auto source = pcl::make_shared<Keyframe::PointCloudT>(*target);
-    // Two displaced sheets straddle each target surface. A wide search sees
-    // every point, but no rigid pose makes both sheets agree with the surface.
+
     for (std::size_t i = 0; i < source->size(); ++i) {
         const int normal_axis = (i % 3 + 2) % 3;
         source->points[i].getVector3fMap()[normal_axis] +=
@@ -398,8 +378,7 @@ TEST(LoopVerificationPipelineTest, PartialPairRefinementKeepsFullSubmapAdmission
     for (const auto& point : *query)
         if (point.x < 0.f) partial->push_back(point);
     KeyframeManager keyframes(config);
-    // The neighbor's pose error blurs the submap. The original scan pair is
-    // accurate but covers less than the full query's observed scene.
+
     keyframes.loadKeyframes({
         Keyframe::create(0, 1.0, Eigen::Isometry3d::Identity(), partial),
         Keyframe::create(1, 1.1, poseAt(0., 0.08), query),
@@ -624,7 +603,7 @@ TEST(LoopVerificationPipelineTest, DebugTrialDoesNotChangeConstraintDecision)
     EXPECT_TRUE(debug.has_consensus_estimator_trial);
     EXPECT_TRUE(debug.consensus_estimator_trial.success);
     EXPECT_TRUE(quiet.edge.measurement.isApprox(debug.edge.measurement, 1.0e-12));
-    EXPECT_EQ(optimizer.getEdges().size(), edges.size());  // Trials do not commit.
+    EXPECT_EQ(optimizer.getEdges().size(), edges.size());
 }
 
 TEST(LoopVerificationPipelineTest, SharedFloorCannotCertifyHorizontalLoopPrecision)
@@ -668,8 +647,7 @@ TEST(LoopVerificationPipelineTest, SharedFloorCannotCertifyHorizontalLoopPrecisi
         config, keyframes, matcher, optimizer, manager).evaluateConstraints(
             {loop}, LoopEdgeDirection::MatchToQuery).front();
     ASSERT_TRUE(result.has_edge);
-    // Floor height and orientation retain evidence. Sampling along the floor
-    // cannot turn a 25 cm horizontal alias into a centimetre-precision edge.
+
     EXPECT_LT(result.edge.information(0, 0), 1.);
     EXPECT_LT(result.edge.information(1, 1), 1.);
     EXPECT_GT(result.edge.information(2, 2), 1000.);
@@ -741,8 +719,7 @@ TEST(LoopSegmentConsistencyTest, AssociatesPositionAndHeadingBeforeCheckingConsi
     auto result = computeLoopSegmentConsistency(config, manager, loop, 2);
     EXPECT_EQ(result.consensus_inlier_count, 2);
     EXPECT_EQ(result.recommendation, "consistent");
-    // A small summed score can still violate one axis gate. Prefer a valid
-    // alternative over a closer point whose heading is outside the same gate.
+
     frames[0]->pose_optimized = poseAt(-3.8, 0.0, 0.4);
     frames[1]->pose_optimized = poseAt(-2.8, 0.0, 0.4);
     frames[2]->pose_optimized = poseAt(-2.0, 0.0, 0.55);
@@ -750,7 +727,7 @@ TEST(LoopSegmentConsistencyTest, AssociatesPositionAndHeadingBeforeCheckingConsi
     ASSERT_TRUE(manager.loadKeyframes(frames));
     result = computeLoopSegmentConsistency(config, manager, loop, 2);
     EXPECT_EQ(result.consensus_inlier_count, 2);
-    // With no heading-consistent alternative, the same yaw gate still rejects.
+
     frames[0]->pose_optimized = poseAt(-2.02, 0.0, 1.0);
     frames[1]->pose_optimized = poseAt(-1.02, 0.0, 1.0);
     ASSERT_TRUE(manager.loadKeyframes(frames));
@@ -786,8 +763,6 @@ TEST(LoopSegmentConsistencyTest, SupportedDirectionSurvivesAnAdditionalObservati
     EXPECT_EQ(observed.direction, "same");
     EXPECT_EQ(observed.recommendation, "consistent");
 
-    // If neither direction explains the observed neighbor, it still counts
-    // against support; selecting a direction cannot erase that contradiction.
     frames[3]->pose_optimized = poseAt(20.0, 0.0, 0.4);
     ASSERT_TRUE(manager.loadKeyframes(frames));
     const auto contradicting = computeLoopSegmentConsistency(config, manager, loop, 2);
@@ -818,7 +793,6 @@ TEST(LoopSegmentConsistencyTest, UnobservedFutureIsNotAContradictingMeasurement)
     EXPECT_EQ(complete.valid_pair_count, 4);
     EXPECT_DOUBLE_EQ(live.consensus_ratio, complete.consensus_ratio);
 
-    // Once contradictory motion is observed it must count against the loop.
     keyframes[11]->pose_optimized = poseAt(100.0);
     keyframes[12]->pose_optimized = poseAt(200.0);
     manager.loadKeyframes(keyframes);
@@ -864,7 +838,7 @@ TEST(LoopSegmentConsistencyTest, ChoosesReverseDirectionWhenTraversalIsOpposite)
         keyframe->pose_optimized = poseAt(id);
         keyframes.push_back(keyframe);
     }
-    // Make the match segment around id=2 run opposite to the query segment around id=10.
+
     keyframes[0]->pose_optimized = poseAt(2.0);
     keyframes[1]->pose_optimized = poseAt(1.0);
     keyframes[2]->pose_optimized = poseAt(0.0);
@@ -1083,7 +1057,7 @@ TEST(LoopClosureManagerTest, SameQueryConsensusRejectsOnePoseOutlier)
         loop.T_match_query = match_pose.inverse() * poseAt(implied_x);
         loops.push_back(loop);
     }
-    // Make the geometric outlier look best to the historical scalar ranking.
+
     loops[1].fitness_score = 0.001;
 
     const auto selection =
@@ -1394,4 +1368,4 @@ TEST(LoopClosureManagerTest, ApplyEdgesEmptyDoesNothing)
     EXPECT_FALSE(optimized);
 }
 
-} // namespace n3mapping
+}

@@ -75,8 +75,6 @@ class LoopConsensusVerifier {
 public:
     explicit LoopConsensusVerifier(const Config& config);
 
-    // The caller holds the map unchanged for this batch. Grouping independent
-    // neighbor solves by target avoids retaining a long-lived geometry cache.
     std::vector<LoopConsensusResult> evaluate(
         const KeyframeManager& keyframes, PointCloudMatcher& matcher,
         const std::vector<VerifiedLoop>& central_loops,
@@ -100,4 +98,4 @@ private:
 
 void assignLoopConsensus(VerifiedLoop* loop, const LoopConsensusResult& result);
 
-}  // namespace n3mapping
+}

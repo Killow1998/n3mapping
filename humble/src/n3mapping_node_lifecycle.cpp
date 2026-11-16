@@ -43,17 +43,14 @@ N3MappingNode::N3MappingNode(
         RCLCPP_WARN(this->get_logger(), "Unknown mode '%s', defaulting to mapping", config_.mode.c_str());
     }
 
-    // 初始化组件
     initializeComponents();
 
-    // 初始化 ROS 接口
     initializeROS();
 
     if (coreRunModeSavesMap(run_mode_)) {
         initializeOptimizationLogging();
     }
 
-    // 根据模式加载地图
     if (coreRunModeLoadsMap(run_mode_)) {
         loadMap();
     }
@@ -78,12 +75,10 @@ void N3MappingNode::shutdown()
         return;
     }
 
-    // 保存地图
     if (coreRunModeSavesMap(run_mode_)) {
         saveMapOnShutdown();
     }
 
-    // 输出统计信息
     printStatistics();
 }
 
@@ -126,7 +121,7 @@ void N3MappingNode::handleStartMapExtension(
     if (!response->success) return;
     response->message = "map_extension";
     if (run_mode_ == CoreRunMode::MAP_EXTENSION) return;
-    // A queued localization pair must not run after a newer extension pair.
+
     pending_localization_frame_.take();
     run_mode_ = CoreRunMode::MAP_EXTENSION;
     config_.mode = coreRunModeName(run_mode_);
@@ -137,14 +132,13 @@ void N3MappingNode::handleStartMapExtension(
 
 void N3MappingNode::initializeROS()
 {
-    // TF 广播器
+
     tf_broadcaster_ = std::make_unique<tf2_ros::TransformBroadcaster>(*this);
 
     const int sync_queue_size = std::max(1, config_.sync_queue_size);
     rmw_qos_profile_t sync_qos = rmw_qos_profile_default;
     sync_qos.depth = static_cast<std::size_t>(sync_queue_size);
 
-    // 订阅者
     cloud_sub_.subscribe(this, config_.cloud_topic, sync_qos);
     odom_sub_.subscribe(this, config_.odom_topic, sync_qos);
     if (run_mode_ == CoreRunMode::MAPPING) {
@@ -186,7 +180,6 @@ void N3MappingNode::initializeROS()
 
     initializeLiveSubscriptions();
 
-    // 发布者
     odom_pub_ = this->create_publisher<nav_msgs::msg::Odometry>(config_.output_odom_topic, 10);
     path_pub_ = this->create_publisher<nav_msgs::msg::Path>(config_.output_path_topic, 10);
     cloud_body_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>(config_.output_cloud_body_topic, 10);
@@ -205,7 +198,7 @@ void N3MappingNode::initializeROS()
     relocalization_pose_qos.durability_volatile();
     relocalization_pose_pub_ = this->create_publisher<geometry_msgs::msg::PoseStamped>(
       "/n3mapping/relocalization_pose", relocalization_pose_qos);
-    // MapArtifacts rejects save while localization remains read-only.
+
     save_map_srv_ = this->create_service<std_srvs::srv::Trigger>(
         "/n3mapping/save_map",
         std::bind(&N3MappingNode::handleSaveMap, this,
@@ -215,7 +208,6 @@ void N3MappingNode::initializeROS()
         std::bind(&N3MappingNode::handleStartMapExtension, this,
                   std::placeholders::_1, std::placeholders::_2));
 
-    // 全局地图发布者 (transient_local QoS，等价于 latched topic 语义)
     rclcpp::QoS global_map_qos(1);
     global_map_qos.transient_local();
     global_map_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("/n3mapping/global_map", global_map_qos);
@@ -239,4 +231,4 @@ void N3MappingNode::printStatistics()
 
 N3MappingNode::~N3MappingNode() { shutdown(); }
 
-}  // namespace n3mapping
+}

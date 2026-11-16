@@ -20,7 +20,7 @@ bool samePlace(const std::shared_ptr<const RHPDPlace> &a,
       return false;
   return true;
 }
-} // namespace
+}
 
 RelocalizationPlaceCatalog compileRelocalizationPlaceCatalog(
     const Config &config, const std::vector<Keyframe::Ptr> &keyframes,
@@ -29,8 +29,7 @@ RelocalizationPlaceCatalog compileRelocalizationPlaceCatalog(
   using Cell = std::tuple<int, int, int>;
   std::map<Cell, std::vector<Keyframe::Ptr>> representatives;
   std::map<int64_t, std::vector<int64_t>> place_views;
-  // Preserve separately observed headings and floors. The representative is
-  // only a retrieval identity; all views retain their own pose and descriptor.
+
   constexpr double viewpoint_radius = 0.25;
   const double angle =
       (360.0 / std::max(4, config.sc_num_sectors)) * M_PI / 180.0;
@@ -63,8 +62,7 @@ RelocalizationPlaceCatalog compileRelocalizationPlaceCatalog(
         }
     if (owner == keyframe->id)
       representatives[{cell.x(), cell.y(), cell.z()}].push_back(keyframe);
-    // Equal features always have equal query scores. Keep the lowest-ID view,
-    // exactly as the ranking tie-break would; retain every differing view.
+
     auto &members = place_views[owner];
     const auto duplicate =
         std::find_if(members.begin(), members.end(), [&](int64_t id) {
@@ -99,4 +97,4 @@ RelocalizationPlaceCatalog compileRelocalizationPlaceCatalog(
   return result;
 }
 
-} // namespace n3mapping
+}

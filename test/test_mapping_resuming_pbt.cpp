@@ -14,16 +14,6 @@
 namespace n3mapping {
 namespace test {
 
-/**
- * @brief MappingResuming 属性测试
- *
- * Feature: n3mapping-backend
- * Property 9: 地图续建关键帧 ID 连续性
- *
- * *For any* 地图续建操作，新添加的关键帧 ID 应从已加载地图的最大 ID + 1 开始连续递增。
- *
- * **Validates: Requirements 12.3, 12.7**
- */
 class MappingResumingPBTTest : public ::testing::Test
 {
   protected:
@@ -61,7 +51,6 @@ class MappingResumingPBTTest : public ::testing::Test
         }
     }
 
-    // 生成随机点云
     pcl::PointCloud<pcl::PointXYZI>::Ptr generateRandomCloud(size_t num_points = 500)
     {
         auto cloud = pcl::make_shared<pcl::PointCloud<pcl::PointXYZI>>();
@@ -84,7 +73,6 @@ class MappingResumingPBTTest : public ::testing::Test
         return cloud;
     }
 
-    // 创建随机大小的测试地图
     std::pair<std::string, int64_t> createRandomTestMap()
     {
         std::uniform_int_distribution<int> size_dist(3, 10);
@@ -145,22 +133,14 @@ class MappingResumingPBTTest : public ::testing::Test
     std::mt19937 rng_;
 };
 
-/**
- * @brief Property 9: 地图续建关键帧 ID 连续性
- *
- * 测试新添加的关键帧 ID 从已加载地图的最大 ID + 1 开始
- *
- * **Validates: Requirements 12.3, 12.7**
- */
 TEST_F(MappingResumingPBTTest, Property9_KeyframeIdContinuity)
 {
     constexpr int NUM_ITERATIONS = 20;
 
     for (int iter = 0; iter < NUM_ITERATIONS; ++iter) {
-        // 创建随机大小的测试地图
+
         auto [map_file, original_max_id] = createRandomTestMap();
 
-        // 创建新的组件
         KeyframeManager kf_manager(config_);
         LoopDetector loop_detector(config_);
         PointCloudMatcher matcher(config_);
@@ -170,12 +150,10 @@ TEST_F(MappingResumingPBTTest, Property9_KeyframeIdContinuity)
 
         MappingResuming extension(config_, kf_manager, loop_detector, matcher, optimizer, serializer, relocalization);
 
-        // 加载地图
         ASSERT_TRUE(loadForExtensionTest(map_file, kf_manager, loop_detector,
                                          optimizer, serializer, extension))
             << "Iteration " << iter << ": Failed to load map";
 
-        // 验证原始地图关键帧 ID
         int64_t loaded_max_id = -1;
         for (const auto& kf : kf_manager.getAllKeyframes()) {
             if (kf && kf->id > loaded_max_id) {
@@ -185,7 +163,6 @@ TEST_F(MappingResumingPBTTest, Property9_KeyframeIdContinuity)
 
         EXPECT_EQ(loaded_max_id, original_max_id) << "Iteration " << iter << ": Max ID mismatch after loading";
 
-        // 添加新关键帧
         std::uniform_int_distribution<int> new_kf_dist(1, 5);
         int num_new_keyframes = new_kf_dist(rng_);
 
@@ -200,25 +177,16 @@ TEST_F(MappingResumingPBTTest, Property9_KeyframeIdContinuity)
             pose.translation().x() += 2.0;
         }
 
-        // 验证新 ID 从 original_max_id + 1 开始连续递增
         for (size_t i = 0; i < new_ids.size(); ++i) {
             int64_t expected_id = original_max_id + 1 + static_cast<int64_t>(i);
             EXPECT_EQ(new_ids[i], expected_id) << "Iteration " << iter << ", new keyframe " << i << ": Expected ID " << expected_id << ", got "
                                                << new_ids[i];
         }
 
-        // 清理
         std::filesystem::remove(map_file);
     }
 }
 
-/**
- * @brief 测试原始地图完整性保持
- *
- * 验证加载地图后，原始关键帧数据保持不变
- *
- * **Validates: Requirements 12.7**
- */
 TEST_F(MappingResumingPBTTest, OriginalMapIntegrity)
 {
     constexpr int NUM_ITERATIONS = 15;
@@ -226,7 +194,6 @@ TEST_F(MappingResumingPBTTest, OriginalMapIntegrity)
     for (int iter = 0; iter < NUM_ITERATIONS; ++iter) {
         auto [map_file, original_max_id] = createRandomTestMap();
 
-        // 第一次加载获取原始数据
         KeyframeManager kf_manager1(config_);
         LoopDetector loop_detector1(config_);
         GraphOptimizer optimizer1(config_);
@@ -235,7 +202,7 @@ TEST_F(MappingResumingPBTTest, OriginalMapIntegrity)
         ASSERT_TRUE(serializer1.loadMap(map_file, kf_manager1, loop_detector1, optimizer1));
 
         size_t original_count = kf_manager1.size();
-        // 第二次加载并添加新关键帧
+
         KeyframeManager kf_manager2(config_);
         LoopDetector loop_detector2(config_);
         PointCloudMatcher matcher2(config_);
@@ -248,7 +215,6 @@ TEST_F(MappingResumingPBTTest, OriginalMapIntegrity)
         ASSERT_TRUE(loadForExtensionTest(map_file, kf_manager2, loop_detector2,
                                          optimizer2, serializer2, extension));
 
-        // 添加一些新关键帧
         Eigen::Isometry3d pose = Eigen::Isometry3d::Identity();
         pose.translation().x() = 100.0;
 
@@ -258,35 +224,27 @@ TEST_F(MappingResumingPBTTest, OriginalMapIntegrity)
             pose.translation().x() += 2.0;
         }
 
-        // 保存扩展地图
         std::string extended_file = config_.map_save_path + "/extended_" + std::to_string(iter) + ".pbstream";
         ASSERT_TRUE(extension.saveExtendedMap(extended_file));
 
-        // 加载扩展地图并验证原始数据
         KeyframeManager kf_manager3(config_);
         LoopDetector loop_detector3(config_);
         GraphOptimizer optimizer3(config_);
 
         ASSERT_TRUE(serializer2.loadMap(extended_file, kf_manager3, loop_detector3, optimizer3));
 
-        // 验证原始关键帧仍然存在
         for (int64_t id = 0; id <= original_max_id; ++id) {
             auto kf = kf_manager3.getKeyframe(id);
             EXPECT_NE(kf, nullptr) << "Iteration " << iter << ": Original keyframe " << id << " missing";
         }
 
-        // 验证总数增加
         EXPECT_EQ(kf_manager3.size(), original_count + 3) << "Iteration " << iter << ": Keyframe count mismatch";
 
-        // 清理
         std::filesystem::remove(map_file);
         std::filesystem::remove(extended_file);
     }
 }
 
-/**
- * @brief 测试 isFromOriginalMap 的正确性
- */
 TEST_F(MappingResumingPBTTest, IsFromOriginalMapCorrectness)
 {
     constexpr int NUM_ITERATIONS = 20;
@@ -306,12 +264,10 @@ TEST_F(MappingResumingPBTTest, IsFromOriginalMapCorrectness)
         ASSERT_TRUE(loadForExtensionTest(map_file, kf_manager, loop_detector,
                                          optimizer, serializer, extension));
 
-        // 验证所有原始 ID 返回 true
         for (int64_t id = 0; id <= original_max_id; ++id) {
             EXPECT_TRUE(extension.isFromOriginalMap(id)) << "Iteration " << iter << ": ID " << id << " should be from original map";
         }
 
-        // 验证新 ID 返回 false
         std::uniform_int_distribution<int64_t> new_id_dist(original_max_id + 1, original_max_id + 100);
         for (int i = 0; i < 10; ++i) {
             int64_t new_id = new_id_dist(rng_);
@@ -323,5 +279,5 @@ TEST_F(MappingResumingPBTTest, IsFromOriginalMapCorrectness)
     }
 }
 
-} // namespace test
-} // namespace n3mapping
+}
+}

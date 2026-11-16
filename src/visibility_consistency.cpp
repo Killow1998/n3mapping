@@ -31,8 +31,7 @@ struct SphericalDepthImage {
   int elevation_bins = 0;
   double resolution_deg = 1.0;
   std::vector<double> ranges;
-  // Populated only for the predicted image, and only when occlusion awareness
-  // is on: the accumulated return in each bearing closest to what was measured.
+
   std::vector<double> match_ranges;
   std::vector<Eigen::Vector3d> nearest_points;
 };
@@ -80,9 +79,7 @@ void insertPoint(const Eigen::Vector3d &point,
     stored = range;
     if (!image->nearest_points.empty()) image->nearest_points[index] = point;
   }
-  // Experimental range matching can reduce collisions between surfaces in a
-  // coarse angular bin. It also ignores real foreground blockers when a
-  // matching background exists; this score alone cannot establish visibility.
+
   if (measured != nullptr && !image->match_ranges.empty()) {
     const double measured_range = (*measured)[index];
     if (std::isfinite(measured_range)) {
@@ -95,7 +92,7 @@ void insertPoint(const Eigen::Vector3d &point,
   }
 }
 
-} // namespace
+}
 
 PreparedVisibilityObservation prepareVisibilityObservation(
     const pcl::PointCloud<pcl::PointXYZI> &query_cloud,
@@ -237,8 +234,6 @@ VisibilityConsistencyResult evaluatePreparedVisibilityConsistency(
     for (const auto &point : map_cloud) project(point);
   }
 
-  // As in PCL RangeImage z-buffer interpolation: direct samples take
-  // precedence, and empty neighboring pixels keep only the nearest proposal.
   if (has_planar) {
     for (std::size_t i = 0; i < predicted.ranges.size(); ++i) {
       if (!std::isfinite(predicted.ranges[i]) && std::isfinite(interpolated[i])) {
@@ -261,9 +256,7 @@ VisibilityConsistencyResult evaluatePreparedVisibilityConsistency(
     if (!has_observation || !has_prediction)
       continue;
     ++result.common_bins;
-    // With occlusion awareness the bearing is judged against the accumulated
-    // return that best explains the measurement; without it, against the
-    // nearest, which is the published behaviour.
+
     const double predicted_range =
         (options.occlusion_aware && !predicted.match_ranges.empty() &&
          std::isfinite(predicted.match_ranges[i]))
@@ -274,8 +267,7 @@ VisibilityConsistencyResult evaluatePreparedVisibilityConsistency(
     residuals.push_back(absolute_error);
     const bool range_consistent = absolute_error <= options.range_tolerance_m;
     if (range_consistent) ++result.consistent_bins;
-    // A coarse bearing can sample different depths of the same grazing plane.
-    // Use only its nearest map return; a farther background cannot hide a blocker.
+
     const bool surface_consistent = has_surfaces &&
         std::abs(observed.planar_surfaces[i].head<3>().dot(predicted.nearest_points[i]) +
                  observed.planar_surfaces[i][3]) <= options.range_tolerance_m;
@@ -345,9 +337,7 @@ VisibilityConsistencyResult evaluatePreparedVisibilityConsistency(
   result.foreground_conflict_ratio =
       static_cast<double>(result.foreground_conflict_bins) /
       observed_denominator;
-  // Jeffreys-prior smoothing keeps exact agreement/disagreement finite without
-  // a tuned clamp. The score is the per-observation log odds that the pose
-  // explains a measured first return rather than contradicting it.
+
   result.evidence_log_odds = std::log(
       (static_cast<double>(result.consistent_bins) + kJeffreysPrior) /
       (static_cast<double>(result.observed_bins - result.consistent_bins) +
@@ -382,4 +372,4 @@ VisibilityConsistencyOptions visibilityOptionsFromConfig(const Config& config) {
   return options;
 }
 
-} // namespace n3mapping
+}

@@ -85,7 +85,7 @@ double distanceAtShift(const RHPDHeading& query, const RHPDHeading& reference,
         int effective = 0;
         double similarity = 0.0;
         for (int sector = 0; sector < sectors; ++sector) {
-            // Both indices lie in [0, sectors), so one wrap is sufficient.
+
             const int unwrapped = sector - shift;
             const int matched = unwrapped < 0 ? unwrapped + sectors : unwrapped;
             const double n1 = query.column_norms(channel, sector);
@@ -118,7 +118,7 @@ int alignSectors(const Eigen::MatrixXd& query, const Eigen::MatrixXd& reference)
     }
     return best_shift;
 }
-} // namespace
+}
 
 std::pair<double, int> matchRHPDHeading(const RHPDHeading& query,
                                       const RHPDHeading& reference,
@@ -143,4 +143,4 @@ std::pair<double, int> matchRHPDHeading(const RHPDHeading& query,
     }
     return {min_distance, best_shift};
 }
-} // namespace n3mapping
+}

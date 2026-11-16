@@ -31,4 +31,4 @@ inline bool tryMakeRigidOdometryPose(
   return pose->matrix().allFinite();
 }
 
-}  // namespace n3mapping
+}

@@ -217,4 +217,4 @@ void N3MappingNoeticNode::loopDetectionTimerCallback(const ros::TimerEvent&)
     }
 }
 
-}  // namespace n3mapping
+}

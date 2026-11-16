@@ -1,6 +1,5 @@
 #include "n3mapping/relocalization_debug_logger.h"
-// Tracking registration proposals and bounded recovery. No localization
-// state or map-to-odometry correction is committed in this translation unit.
+
 #include "n3mapping/world_localizing.h"
 #include "n3mapping/tracking_target_cache.h"
 #include "n3mapping/visibility_consistency.h"
@@ -84,9 +83,7 @@ MatchResult WorldLocalizing::registerTracking(
             << " fitness=" << coverage.fitness_score
             << " accepted=" << supported;
     if (!supported) return false;
-    // The optimizer endpoint already passed geometric quality and coverage.
-    // Independently check the actual filtered body pose we would publish,
-    // which can differ materially from the raw ICP endpoint.
+
     const double confidence = std::clamp(
         std::exp(-candidate.fitness_score / (config_.gicp_fitness_threshold * 0.5)),
         0.0, 1.0);
@@ -112,8 +109,6 @@ MatchResult WorldLocalizing::registerTracking(
     return visible;
   };
 
-  // A failed coarse solve may have left the prediction's correspondence basin.
-  // Only a fully verified fine result can replace the established wider retry.
   bool icp_failed =
       !hasValidRegistrationResult(match_result) ||
       match_result.fitness_score >= config_.gicp_fitness_threshold ||
@@ -164,12 +159,7 @@ MatchResult WorldLocalizing::registerTracking(
               << " inlier=" << stage.inlier_ratio;
     }
   }
-  // A coarse solve can leave the prediction's correspondence basin and still
-  // converge on a repeated structure. Recheck such proposals from the original
-  // prediction. The loaded atlas includes geometry absent from a time-adjacent
-  // keyframe submap, without building another target or using a wider radius.
-  // Recovery refines an admissible proposal; it must not turn a failed broad
-  // geometry check into new tracking authority in an already aliased region.
+
   const bool proposal_has_geometry =
       hasValidRegistrationResult(match_result) &&
       match_result.fitness_score < config_.gicp_fitness_threshold &&
@@ -212,9 +202,7 @@ MatchResult WorldLocalizing::registerTracking(
           (!hasValidRegistrationResult(recovery) ||
           recovery.fitness_score >= config_.gicp_fitness_threshold ||
           recovery.inlier_ratio < config_.reloc_min_inlier_ratio)) {
-        // Try a tighter association at the existing tracking voxel scale.
-        // A thin wall's opposite face can lie inside the normal fine radius;
-        // it must not dominate otherwise supported local tracking.
+
         auto narrow = local;
         narrow.max_correspondence_distance = config_.gicp_downsampling_resolution;
         const auto started = timing_started();
@@ -230,9 +218,7 @@ MatchResult WorldLocalizing::registerTracking(
            recovery.inlier_ratio < config_.reloc_min_inlier_ratio) &&
           debug_event.nearest_kf_id >= 0 && localization_atlas_ &&
           localization_atlas_->loaded()) {
-        // An assembled map can blur surfaces through relative-pose uncertainty.
-        // The original scan is a separate fine target, available only after the
-        // broad submap has supplied geometric authority for this prediction.
+
         const auto pair_started = timing_started();
         const auto pair_target = tracking_targets_->acquireLocal(debug_event.nearest_kf_id, 0);
         const auto pair = pair_target.target
@@ -245,8 +231,7 @@ MatchResult WorldLocalizing::registerTracking(
           prepared_target = recovery_pair_target.get();
         }
       }
-      // An unsuccessful recheck cannot certify the distant coarse endpoint.
-      // The caller applies the unchanged convergence, quality and motion gates.
+
       match_result = std::move(recovery);
     }
   }
@@ -260,8 +245,7 @@ MatchResult WorldLocalizing::registerTracking(
       match_result = MatchResult{};
     } else if ((supported_pose->matrix() - match_result.T_target_source.matrix()).norm() > 1e-9) {
       debug_event.registration_translation_projected = true;
-      // Retain the optimizer's convergence requirement. Recheck the pose we
-      // actually propose with the same correspondence radius and quality gates.
+
       auto checked = matcher_.evaluatePreparedPose(
           *prepared_target, prepared_source, *supported_pose, match_result.metric);
       checked.stages = std::move(match_result.stages);
@@ -275,4 +259,4 @@ MatchResult WorldLocalizing::registerTracking(
   debug_event.retry_used = retry_used;
   return match_result;
 }
-} // namespace n3mapping
+}

@@ -60,4 +60,4 @@ bool FreeSpaceGrid::decode(const LocalizationAtlasFreeSpaceGrid& input) {
   valid_ = true;
   return true;
 }
-} // namespace n3mapping
+}

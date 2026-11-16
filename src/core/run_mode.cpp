@@ -42,4 +42,4 @@ bool coreRunModeProcessesLoopClosures(CoreRunMode mode) {
   return mode == CoreRunMode::MAPPING || mode == CoreRunMode::MAP_EXTENSION;
 }
 
-} // namespace n3mapping
+}

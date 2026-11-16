@@ -1,5 +1,3 @@
-// Descriptor retrieval and its map-revision-bound frame-level RHPD cache.
-// Candidate evaluation and lock policy deliberately remain outside this class.
 #pragma once
 
 #include <cstddef>
@@ -56,4 +54,4 @@ private:
   KeyframeMapRevision frame_rhpd_revision_;
 };
 
-} // namespace n3mapping
+}

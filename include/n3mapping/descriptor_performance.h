@@ -7,8 +7,6 @@
 
 namespace n3mapping {
 
-// Descriptor work is serial. Thread CPU excludes work by unrelated ROS and
-// registration workers; wall time includes preemption and lock waits.
 struct DescriptorPhaseCost {
   double wall_ms = 0.0;
   double thread_cpu_ms = 0.0;
@@ -57,4 +55,4 @@ struct DescriptorSearchPerformance {
   std::uint64_t retrieval_views = 0;
 };
 
-} // namespace n3mapping
+}

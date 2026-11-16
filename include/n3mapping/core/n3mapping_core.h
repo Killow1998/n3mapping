@@ -1,4 +1,3 @@
-// ROS-free facade for n3mapping backend processing.
 #pragma once
 
 #include <map>
@@ -15,7 +14,7 @@
 #include "n3mapping/core/types.h"
 #include "n3mapping/keyframe.h"
 #include "n3mapping/loop_types.h"
-#include "n3mapping/keyframe_manager.h"
+#include "n3mapping/keyframe_map_revision.h"
 #include "n3mapping/core/loop_closure_result.h"
 
 namespace n3mapping {
@@ -28,11 +27,8 @@ struct DetectedLoopQuery;
 struct LoopClosureOutcome;
 struct AsyncLoopState;
 
-
 class N3MappingCore {
   public:
-    // Realtime consumers project their own scan at its paired source pose.
-    // Synchronous consumers (including Humble) still request the backend cloud.
     enum class WorldCloudOutput { Enabled, Disabled };
     explicit N3MappingCore(
         const Config& config,
@@ -44,12 +40,11 @@ class N3MappingCore {
     core::BackendOutput processMapExtensionFrame(const core::LioFrame& frame);
     core::BackendOutput processFrame(CoreRunMode mode, const core::LioFrame& frame);
     CoreLoopClosureResult processPendingLoopClosures();
-    // Owner-thread polling: retrieval stays prompt; an isolated worker performs
-    // geometry and graph solves. No worker mutates the live session.
+
     CoreLoopClosureResult processPendingLoopClosuresAsync();
 
     bool loadMap(const std::string& map_path);
-    // Same loaded map and LIO session; consumes the last authoritative observation.
+
     bool startMapExtension(std::string* error = nullptr);
     bool saveMap(const std::string& map_path);
     bool saveGlobalMap(const std::string& pcd_path);
@@ -85,9 +80,8 @@ class N3MappingCore {
     core::BackendOutput makeOutput(bool success,
                                    const Eigen::Isometry3d& pose,
                                    const PointCloud::Ptr& cloud) const;
-    core::MappingBlockReason mappingInputBlockReason(const core::LioFrame& frame);
-    PointCloud::Ptr makeWorldCloud(const PointCloud::Ptr& cloud,
-                                   const Eigen::Isometry3d& pose) const;
+    core::MappingBlockReason
+    mappingInputBlockReason(const core::LioFrame &frame);
     void appendDenseTrajectorySample(double timestamp,
                                      const Eigen::Isometry3d& raw_pose,
                                      int64_t anchor_keyframe_id,
@@ -116,8 +110,7 @@ class N3MappingCore {
     core::DenseTrajectoryMetadata dense_trajectory_metadata_;
     bool external_dense_trajectory_recording_enabled_ = false;
     int64_t last_loop_check_id_ = -1000;
-    // How many keyframes contributed an absolute attitude observation. Reported
-    // so a run that silently stops finding the floor is visible.
+
     OdometrySanity odometry_sanity_;
     StaticStartGuard static_start_guard_;
     bool static_start_guard_configured_ = false;
@@ -130,4 +123,4 @@ class N3MappingCore {
     bool map_loaded_ = false;
 };
 
-}  // namespace n3mapping
+}

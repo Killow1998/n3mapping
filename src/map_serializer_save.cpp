@@ -79,7 +79,7 @@ void denseTrajectoryToProto(const core::DenseTrajectoryPose& pose,
     }
 }
 
-} // namespace
+}
 
 bool MapSerializer::saveMap(const std::string& filepath,
                             const KeyframeManager& keyframe_manager,
@@ -335,7 +335,7 @@ bool MapSerializer::saveMap(const std::string& filepath,
         }
         meta->set_dense_trajectory_source(dense_source);
         meta->set_dense_trajectory_degraded(dense_degraded);
-        // Persist source geometry only. Both descriptor parts are rebuilt on load.
+
         for (const auto& kf : keyframes) {
             auto* proto = map_proto.add_keyframes();
             proto->set_id(kf->id);
@@ -401,4 +401,4 @@ bool MapSerializer::saveMap(const std::string& filepath,
     } catch (...) { return false; }
 }
 
-} // namespace n3mapping
+}

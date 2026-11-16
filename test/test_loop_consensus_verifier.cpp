@@ -64,7 +64,7 @@ Keyframe::PointCloudT::Ptr registrationCloud()
     return cloud;
 }
 
-}  // namespace
+}
 
 TEST(LoopConsensusVerifierTest, PredictsNeighborTransformFromCentralLoop)
 {
@@ -267,7 +267,6 @@ TEST(LoopConsensusVerifierTest,
         }
     }
 
-    // Sharing a target must not share a candidate's measurements or votes.
     auto shifted_loop = loop;
     shifted_loop.T_measured_match_query = pose(4.0, 0.0, 0.0);
     const auto shifted = LoopConsensusVerifier(config).evaluate(
@@ -301,5 +300,4 @@ TEST(LoopConsensusVerifierTest,
     }
 }
 
-
-}  // namespace n3mapping
+}

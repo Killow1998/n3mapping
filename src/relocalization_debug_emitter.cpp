@@ -64,8 +64,7 @@ void RelocalizationDebugEmitter::captureHypotheses(
             ? hyp.visibility_evidence_sum /
                   static_cast<double>(hyp.visibility_updates)
             : std::numeric_limits<double>::quiet_NaN();
-    // Initial hypotheses duplicate the basin-best registrations emitted in
-    // the same event. Keep one complete copy to bound shadow logging cost.
+
     if (event.basin_best_results.empty()) {
       summary.registration_observability =
           hyp.last_registration_observability;
@@ -112,4 +111,4 @@ double RelocalizationDebugEmitter::processingTimeSeconds() {
   return std::chrono::duration<double>(Clock::now().time_since_epoch()).count();
 }
 
-} // namespace n3mapping
+}

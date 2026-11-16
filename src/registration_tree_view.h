@@ -32,4 +32,4 @@ struct MappedTreeView {
   std::size_t index(std::size_t i) const { return i; }
   const auto& node(std::uint32_t i) const { return nodes[i]; }
 };
-} // namespace n3mapping::registration_detail
+}

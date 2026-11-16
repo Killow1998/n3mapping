@@ -1,6 +1,3 @@
-// Builds bounded relocalization observations from the recent odometry-aligned
-// scan history. This module owns query-history lifetime only; it does not
-// search candidates, register poses, rank hypotheses, or make lock decisions.
 #pragma once
 
 #include <cstdint>
@@ -61,4 +58,4 @@ private:
   int64_t next_sequence_ = 0;
 };
 
-} // namespace n3mapping
+}

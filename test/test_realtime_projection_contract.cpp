@@ -93,8 +93,7 @@ TEST(RealtimeProjectionContract, EvictionNeverRecreatesAnObservationWithNewCorre
   ASSERT_TRUE(live.project(101, 101, "odom", "body", raw));
   ASSERT_TRUE(live.project(102, 102, "odom", "body", raw));
   ASSERT_TRUE(live.updateCorrection(99, "odom", "body", raw, translated(22.0), true));
-  // An already-reserved single in-flight cloud keeps its immutable value;
-  // eviction forbids a new lookup, not publication using the copied old basis.
+
   EXPECT_TRUE(live.isCurrent(*first));
   EXPECT_FALSE(live.projectScan(100, 103, "odom", "body", raw));
   const auto retained = live.projectScan(101, 103, "odom", "body", raw);
@@ -215,7 +214,7 @@ TEST(RealtimeProjectionContract, StalledCloudWorkDoesNotHoldProjectionOwner) {
   auto cloud = std::async(std::launch::async, [&] {
     const auto projection = live.projectScan(100, 100, "odom", "body", raw);
     cloud_started.set_value();
-    release.wait();  // Stand-in for an arbitrarily long conversion/publication.
+    release.wait();
     return projection;
   });
   cloud_started.get_future().wait();
@@ -232,5 +231,5 @@ TEST(RealtimeProjectionContract, StalledCloudWorkDoesNotHoldProjectionOwner) {
   EXPECT_TRUE(cloud.get());
 }
 
-}  // namespace
-}  // namespace n3mapping::core
+}
+}

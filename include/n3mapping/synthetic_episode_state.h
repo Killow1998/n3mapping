@@ -43,9 +43,6 @@ inline const char* episodeLockEventTypeName(EpisodeFrameStage stage)
     return "none";
 }
 
-// Audit-only wrapper state for processLocalizationFrame(). The runtime localizer
-// remains the source of output_success/output_relocalization_locked; this helper
-// only makes the episode transition and its scoring/denominator semantics explicit.
 inline EpisodeFrameTransition advanceEpisodeFrameState(
     bool current_locked,
     bool ever_locked,
@@ -88,4 +85,4 @@ inline EpisodeFrameTransition advanceEpisodeFrameState(
     return transition;
 }
 
-} // namespace n3mapping::synthetic
+}

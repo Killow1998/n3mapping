@@ -146,9 +146,6 @@ protected:
       }
     }
 
-    // A fixed vertical plate makes the success fixture observable in both
-    // position and heading. Without it, an ideal corridor has a genuine
-    // 180-degree symmetry.
     constexpr float kLandmarkX = 8.35f;
     if (std::abs(kLandmarkX - center_x) <= 5.0f) {
       for (float y = -0.9f; y <= -0.1f; y += 0.12f) {
@@ -347,8 +344,7 @@ TEST(RelocalizationHypothesisManagerTest,
   EXPECT_DOUBLE_EQ(kept.cumulative_log_likelihood, older.cumulative_log_likelihood);
   const int observations = manager.windowCount() - added.first_observation + 1;
   EXPECT_EQ(observations, 3);
-  // Returning to the original window's origin is still motion for the late
-  // candidate. Its negative ray evidence must remain a publication veto.
+
   EXPECT_DOUBLE_EQ(manager.motionBaseline(&kept, origin).translation, 0.0);
   const auto baseline = manager.motionBaseline(&added, origin);
   EXPECT_DOUBLE_EQ(baseline.translation, 1.25);
@@ -661,8 +657,6 @@ TEST_F(WorldLocalizingTest, DuplicatedGeometryDoesNotClaimAUniquePlace) {
   EXPECT_FALSE(result.success);
   EXPECT_FALSE(reloc.isRelocalized());
 
-  // Even a previously tracked place is only a proposal after loss. Its old
-  // lock must not break a genuine geometric tie or replace fresh confirmation.
   const auto dir = std::filesystem::temp_directory_path() /
       ("n3mapping_recovery_tie_" + std::to_string(
           std::chrono::steady_clock::now().time_since_epoch().count()));
@@ -1157,8 +1151,7 @@ TEST_F(WorldLocalizingTest,
   ASSERT_EQ(shifted_revision.structure_revision, initial_revision.structure_revision);
   ASSERT_GT(shifted_revision.pose_revision, initial_revision.pose_revision);
   ASSERT_EQ(keyframe_manager_->size(), 1u);
-  // The loaded reference remains at the original map coordinates. Re-cropping
-  // around the mutable optimized anchor would now produce an empty target.
+
   ASSERT_TRUE(cache.loadedVisibilityTarget(shifted_pose.translation())->empty());
   const auto cached = cache.acquireLoaded(anchor->id);
   ASSERT_TRUE(cached.hit);
@@ -1212,8 +1205,7 @@ TEST_F(WorldLocalizingTest,
   Eigen::Isometry3d corrected = Eigen::Isometry3d::Identity();
   corrected.translation().x() = 100.0;
   keyframe_manager_->updateOptimizedPoses({{0, corrected}});
-  // Evict the target without replacing the loaded reference map. A cold
-  // lookup must use the same crop as a hit, despite later graph corrections.
+
   for (int64_t id = 1; id < 6; ++id)
     ASSERT_TRUE(cache.acquireLoaded(id).miss);
   const auto rebuilt = cache.acquireLoaded(0);
@@ -1249,7 +1241,7 @@ TEST_F(WorldLocalizingTest,
   EXPECT_EQ(diag.loaded_map_target_cache_hits, 1u);
   EXPECT_EQ(diag.loaded_map_target_cache_misses, 1u);
   EXPECT_GE(diag.loaded_map_target_cache_entries, 1u);
-  // Only requested anchors occupy the bounded cache.
+
   EXPECT_LE(diag.loaded_map_target_cache_entries, 4u);
 
   Eigen::Isometry3d extension_pose = Eigen::Isometry3d::Identity();
@@ -1351,10 +1343,7 @@ TEST_F(WorldLocalizingTest, PoseTransformConsistency) {
 }
 
 TEST_F(WorldLocalizingTest, FreeSpaceDisabledKeepsLockPathUnchanged) {
-  // reloc_free_space_enable=false must skip the free-space evidence path
-  // entirely. On this corridor fixture the default veto does not fire anyway
-  // (the free-space best agrees with the ranked top1), so the observable
-  // contract is: disabling the switch reproduces the enabled lock exactly.
+
   config_.reloc_lock_min_margin = 0.1;
   buildTestMap(10, 2.0);
 
@@ -1388,8 +1377,7 @@ TEST_F(WorldLocalizingTest, FreeSpaceDisabledKeepsLockPathUnchanged) {
 
 TEST_F(WorldLocalizingTest,
        MapReplacementSameKeyframeCountDoesNotReuseOldIndex) {
-  // Map A along x in [0, 18]; the frame-RHPD index, reloc map cache and
-  // free-space grid are built by relocalizing inside it.
+
   buildTestMap(10, 2.0, 0.0);
   WorldLocalizing reloc(config_, *keyframe_manager_, *loop_detector_,
                         *matcher_);
@@ -1403,9 +1391,6 @@ TEST_F(WorldLocalizingTest,
   ASSERT_GT(diag.frame_rhpd_indexed_keyframes, 0u);
   ASSERT_GT(diag.reloc_map_cached_keyframes, 0u);
 
-  // Reset runtime state, retaining the place index but releasing search crops. Then
-  // replace with map B at the same keyframe count. Revision-keyed lazy rebuild
-  // must supersede the old count-based behavior without a manual cache notice.
   reloc.resetLocalizationState();
   keyframe_manager_->clear();
   loop_detector_->clear();
@@ -1415,8 +1400,6 @@ TEST_F(WorldLocalizingTest,
   EXPECT_GT(diag.frame_rhpd_indexed_keyframes, 0u);
   EXPECT_EQ(diag.reloc_map_cached_keyframes, 0u);
 
-  // A query inside B must lock to B (x > 90); a leaked A index would answer
-  // with map A's geometry around x = 8.
   Eigen::Isometry3d query_b = Eigen::Isometry3d::Identity();
   query_b.translation().x() = 108.0;
   auto cloud_b = generateCorridorCloud(query_b);
@@ -1434,8 +1417,7 @@ TEST_F(WorldLocalizingTest,
 }
 
 TEST_F(WorldLocalizingTest, FreeSpaceStateClearedOnMapReplacement) {
-  // Kill mode needs the grid while the temporal window is still pending;
-  // veto mode now builds it only for an otherwise acceptable decision.
+
   config_.reloc_free_space_mode = "kill";
   buildTestMap(10, 2.0, 0.0);
   WorldLocalizing reloc(config_, *keyframe_manager_, *loop_detector_,
@@ -1458,8 +1440,6 @@ TEST_F(WorldLocalizingTest, FreeSpaceStateClearedOnMapReplacement) {
   EXPECT_EQ(diag.free_space_grid_keyframes, 0u);
   EXPECT_FALSE(diag.free_space_grid_failed);
 
-  // The new map must be able to rebuild the grid: neither the old keyframe
-  // count nor a latched failure state may survive the replacement.
   Eigen::Isometry3d query_b = Eigen::Isometry3d::Identity();
   query_b.translation().x() = 108.0;
   auto cloud_b = generateCorridorCloud(query_b);
@@ -1471,7 +1451,7 @@ TEST_F(WorldLocalizingTest, FreeSpaceStateClearedOnMapReplacement) {
 
 TEST_F(WorldLocalizingTest, AtlasClearedOnMapReplacement) {
   config_.reloc_free_space_mode = "kill";
-  // Build a real small atlas file so the load path is exercised.
+
   buildTestMap(2, 2.0, 0.0);
   const auto nonce =
       std::chrono::steady_clock::now().time_since_epoch().count();
@@ -1553,7 +1533,6 @@ TEST_F(WorldLocalizingTest, LockAndStateResetReleaseSearchPreparationKeepPlaceIn
             diag.frame_rhpd_indexed_keyframes);
   EXPECT_FALSE(diag2.free_space_grid_valid);
 
-  // The same map must still be localizable right after the state-only reset.
   bool locked = false;
   for (int i = 0; i < config_.reloc_temporal_window_size; ++i) {
     result = reloc.relocalize(cloud, query_pose);
@@ -1565,5 +1544,5 @@ TEST_F(WorldLocalizingTest, LockAndStateResetReleaseSearchPreparationKeepPlaceIn
   ASSERT_TRUE(locked);
 }
 
-} // namespace test
-} // namespace n3mapping
+}
+}

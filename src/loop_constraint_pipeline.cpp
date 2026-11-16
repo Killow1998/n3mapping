@@ -1,5 +1,3 @@
-// Shared graph admission for mapping and map extension. No graph mutation
-// occurs until every candidate has its own neighborhood and trial evidence.
 #include "n3mapping/loop_verification_pipeline.h"
 #include "n3mapping/graph_optimizer.h"
 
@@ -52,21 +50,17 @@ void calibrateLoopInformation(
             plane.normal * plane.normal.transpose() / variance;
     }
     if (count < 3 && plane_information.isZero()) return;
-    // Neighbor estimates share scans and odometry. Their second moment is an
-    // uncertainty floor, not independent information to multiply by their count.
+
     const Eigen::LDLT<Matrix6> initial(loop->information);
     if (initial.info() != Eigen::Success || !initial.isPositive()) return;
     Matrix6 covariance = initial.solve(Matrix6::Identity());
     if (count >= 3) covariance += scatter / count;
     if (!plane_information.isZero()) {
-        // Nearby point samples can make GICP's tangent curvature appear strong.
-        // Shared planes bound that confidence using already committed geometry;
-        // they do not add a second set of measurements or discard loop edges.
+
         plane_information = query_rotation.transpose() * plane_information * query_rotation;
         const Eigen::SelfAdjointEigenSolver<Eigen::Matrix3d> geometry(plane_information);
         const Eigen::SelfAdjointEigenSolver<Matrix6> existing(covariance);
-        // Finite variance for an unobserved direction, within serialization's
-        // condition-number limit. This is not a geometric acceptance threshold.
+
         const double minimum_information =
             1e-10 / existing.eigenvalues().minCoeff();
         const Eigen::Matrix3d bound = geometry.eigenvectors() *
@@ -105,8 +99,7 @@ std::string consensusRejectReason(const VerifiedLoop& loop) {
     return {};
 }
 
-
-}  // namespace
+}
 
 std::vector<LoopConstraintPipelineResult>
 LoopVerificationPipeline::evaluateConstraints(
@@ -188,9 +181,6 @@ LoopVerificationPipeline::evaluateConstraints(
             config_, poses_before, committed_edges, {result.edge});
         assignLoopGraphTrialDiagnostics(&result.loop, result.graph_trial);
 
-        // This alternative measurement trial is diagnostic only. The actual
-        // candidate trial above remains mandatory for every constraint decision.
-        // Only the mapping debug stream consumes the alternative result.
         if (config_.loop_debug_enable && !context.cross_session &&
             result.consensus.estimator_pair_count >= 3) {
             EdgeInfo estimator_edge = result.edge;
@@ -213,4 +203,4 @@ LoopVerificationPipeline::evaluateConstraints(
     return results;
 }
 
-}  // namespace n3mapping
+}

@@ -19,4 +19,4 @@ struct GraphOptimizer::GtsamState {
     gtsam::Values current_estimate_;
     gtsam::Values last_good_estimate_;
 };
-}  // namespace n3mapping
+}

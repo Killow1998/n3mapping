@@ -25,8 +25,6 @@ struct Config {
     double keyframe_distance_threshold;
     double keyframe_angle_threshold;
 
-    // Shadow-only submap scaffold. Disabled by default and never consumed by
-    // localization, loop closure, or the pose graph.
     bool submap_shadow_enable;
     int submap_max_keyframes;
     int submap_cloud_max_bytes;
@@ -54,39 +52,22 @@ struct Config {
     int sc_num_rings;
     int sc_num_sectors;
 
-
     int optimization_iterations;
     double prior_noise_position;
     double prior_noise_rotation;
     double odom_noise_position;
     double odom_noise_rotation;
-    // Standard deviations of verified relative-pose measurements: metres and
-    // radians, respectively. Retrieval/yaw ambiguity is an admission concern;
-    // it is not the covariance of an accepted geometric registration.
+
     double loop_noise_position;
     double loop_noise_rotation;
-    // Continuous extension tracking is local, initialized from the preceding
-    // frame, and accepted only when immutable loaded-map geometry agrees. Its
-    // horizontal and orientation sigmas are calibrated separately from loops.
-    // The vertical sigma is still shared below.
+
     double loaded_map_tracking_noise_position;
     double loaded_map_tracking_noise_rotation;
-    // Retained from the 0723 floor audit (median z error 0.407 m). This is a
-    // dataset calibration, not a universal LiDAR limitation: the enclosed
-    // SpRobo fixture has strong vertical geometry. Do not transfer its ideal
-    // sensor calibration to real bags without an independent validation.
-    // Non-positive means "use loop_noise_position". Strict extension currently
-    // also uses this vertical sigma; changing it requires extension replay.
+
     double loop_noise_position_z;
-    // Redistributes each loop edge's weight between axes according to its own
-    // registration Hessian, keeping the geometric mean where the configured
-    // noise puts it. Off leaves every loop with the configured sigmas, which is
-    // what everything before this was measured against.
+
     bool loop_axis_weighting_enable;
-    // How far a single axis may depart from the configured stiffness. The
-    // measured vertical-to-horizontal ratio reaches 5.27, so 4 lets the extreme
-    // cases move by a factor of two in sigma without letting a degenerate
-    // Hessian dominate.
+
     double loop_axis_weighting_max;
     bool use_robust_kernel;
     std::string robust_kernel_type;
@@ -102,27 +83,21 @@ struct Config {
     bool loop_debug_vertical_hypotheses_enable;
     std::string loop_debug_path;
     bool loop_geometry_enable;
-    // Extension-only background CPU share; 0 disables pacing. Save drains all work.
+
     double loop_geometry_cpu_budget;
     bool loop_spatial_candidates_enable;
     double loop_spatial_candidate_radius;
     int loop_spatial_candidate_max_candidates;
 
     int loop_kf_gap;
-    // Minimum odometry path travelled between loop endpoints [m].
+
     double loop_min_path_length_m;
 
-    // Keep every candidate in the accepted same-query consensus set.
     bool loop_keep_all_verified;
-    // When several verified candidates belong to the same query, compare the
-    // global query poses implied by each match and measurement.  Keep the
-    // strict-majority consensus set instead of allowing one corridor alias to
-    // enter the graph alongside several agreeing measurements.  These bounds
-    // are candidate-to-candidate checks; no ground truth is used at runtime.
+
     double loop_same_query_consensus_translation_m;
     double loop_same_query_consensus_rotation_rad;
 
-    // Admit mapping after stable stationary input, observed motion or timeout.
     bool mapping_static_start_guard_enable;
     double mapping_static_voxel_m;
     double mapping_static_moved_overlap;
@@ -134,17 +109,13 @@ struct Config {
     double odom_sanity_max_angular_rate_dps;
     int odom_sanity_max_consecutive;
 
-    // Experimental absolute roll/pitch observation. Disabled by default after
-    // floor-on runs with a tilted LiDAR produced systematic z drift; the
-    // implementation and serialization remain available for controlled study.
     bool floor_attitude_enable;
-    // How level a building floor is, not how precisely the plane fits.
+
     double floor_attitude_noise_deg;
     double floor_attitude_max_radius_m;
     int floor_attitude_min_points;
-    // Maximum candidate separation in current odometry coordinates [m].
-    double loop_max_range;
 
+    double loop_max_range;
 
     std::string map_save_path;
 
@@ -187,44 +158,30 @@ struct Config {
     double reloc_static_agg_voxel_size;
     double reloc_ambiguity_min_margin;
     double reloc_ambiguity_min_ratio;
-    // Positive uses a consistency-ratio gap; zero retains the log-odds margin.
+
     double reloc_ambiguity_min_consistency_margin;
-    // Apply ambiguity checks even when competing poses are close in translation.
+
     bool reloc_ambiguity_ignore_basin_separation;
     double reloc_ambiguity_min_basin_separation;
-    // Experimental range matching; see VisibilityConsistencyOptions. Keep off
-    // until independent accuracy and foreground-occlusion cases qualify it.
-    // Agreement on recorded poses alone does not establish absolute accuracy.
+
     bool reloc_visibility_occlusion_aware;
-    // Experimental loaded-map tracking cascade. When enabled, a registration
-    // endpoint that already passes every current strict geometry/visibility
-    // gate is accepted without evaluating motion-prediction visibility. The
-    // maintained product profiles keep this false until same-input trajectory
-    // and map-quality evidence supports integration.
+
     bool loaded_map_visibility_endpoint_fast_enable;
     bool reloc_debug_enable;
     std::string reloc_debug_path;
     bool reloc_atlas_enable;
     std::string reloc_atlas_path;
-    // Registration target selection is explicit so Atlas presence cannot
-    // silently change semantics during later cache work. The legacy mode
-    // preserves target geometry: global Atlas when loaded, otherwise the exact
-    // local crop with a search-only 128 MiB / 8-entry preparation working set.
+
     std::string reloc_target_mode;
-    // Explicit local_lru/shadow_local_lru modes require both budgets; zero
-    // disables their retention. The legacy fallback owns its separate bound.
+
     int reloc_target_cache_max_bytes;
     int reloc_target_cache_max_entries;
-    // Ordinary localization repeatedly revisits the same local-map anchor.
-    // Its prepared registration targets have a separate, explicit LRU budget
-    // so target reuse cannot grow without a memory bound. Zero disables it;
-    // maintained YAML profiles opt in with measured limits.
+
     int localization_tracking_target_cache_max_bytes;
     int localization_tracking_target_cache_max_entries;
 
-    // Free-space evidence and hypothesis persistence.
     bool reloc_free_space_enable;
-    std::string reloc_free_space_mode;  // veto | kill
+    std::string reloc_free_space_mode;
     double reloc_free_space_resolution;
     double reloc_free_space_max_ray_length;
     int reloc_free_space_occupied_min_points;
@@ -252,7 +209,7 @@ struct Config {
     int rhpd_yaw_hypotheses;
     bool rhpd_enable_negative_space;
     bool rhpd_enable_pca_confidence;
-    // See RHPDescriptor::Params. One reproduces the shipped distance exactly.
+
     double rhpd_part_a_scale;
     double rhpd_aux_scale;
 
@@ -260,16 +217,11 @@ struct Config {
     bool validate(std::string* error = nullptr) const;
 };
 
-// The offline product Gate must exercise the same frozen localization profile
-// as the ROS runtime. Deployment paths are explicit inputs; no case may
-// override algorithm fields.
 Config makeProductLocalizationConfig(const std::string& map_path,
                                      const std::string& atlas_path);
 
-// Stable, complete field serialization used to prove that a ROS-loaded
-// product_v1.yaml and makeProductLocalizationConfig() are equivalent.
 std::string runtimeConfigCanonical(const Config& config);
 
-} // namespace n3mapping
+}
 
-#endif // N3MAPPING_CONFIG_H
+#endif

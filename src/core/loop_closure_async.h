@@ -48,9 +48,8 @@ struct AsyncLoopState {
   LoopClock::time_point next_geometry_start;
   std::unique_ptr<AsyncLoopJob> job;
   std::future<void> future;
-  // Declared last: join before releasing the job/snapshots. The worker never
-  // needs the live owner's mutex to finish, including during shutdown.
+
   BackgroundWorker worker;
 };
 
-} // namespace n3mapping
+}

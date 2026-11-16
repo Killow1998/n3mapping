@@ -200,4 +200,4 @@ void RelocalizationQueryBuilder::reset() {
   next_sequence_ = 0;
 }
 
-} // namespace n3mapping
+}

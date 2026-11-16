@@ -57,7 +57,7 @@ SubmapGraphTopologyDiagnostics invalidTopology(const std::string& reason) {
     return diagnostics;
 }
 
-}  // namespace
+}
 
 SubmapGraphSnapshot buildSubmapGraphSnapshot(
     const std::vector<Submap>& submaps,
@@ -611,4 +611,4 @@ SubmapGraphTopologyDiagnostics evaluateSubmapGraphTopology(
     return diagnostics;
 }
 
-}  // namespace n3mapping
+}

@@ -13,9 +13,7 @@ N3MappingCore::mappingInputBlockReason(const core::LioFrame &frame) {
   }
 
   const double timestamp = static_cast<double>(frame.stamp.nsec) * 1e-9;
-  // Once the front end has run away nothing downstream can use what it sends,
-  // and every frame that keeps being added replaces a usable partial map with
-  // an unusable whole one. Stop taking them.
+
   if (config_.odom_sanity_enable) {
     if (!odometry_sanity_configured_) {
       OdometrySanityLimits limits;
@@ -46,8 +44,6 @@ N3MappingCore::processMappingFrame(const core::LioFrame &frame) {
   }
   const double timestamp = static_cast<double>(frame.stamp.nsec) * 1e-9;
 
-  // Do not seed the graph with unsettled odometry. A stable scan/pose window
-  // also permits mapping when the robot remains stationary.
   if (config_.mapping_static_start_guard_enable) {
     if (!static_start_guard_configured_) {
       static_start_guard_ =
@@ -66,8 +62,7 @@ N3MappingCore::processMappingFrame(const core::LioFrame &frame) {
   if (!keyframes.shouldAddKeyframe(frame.T_world_lidar)) {
     Eigen::Isometry3d pose_map = frame.T_world_lidar;
     if (const auto latest = keyframes.getLatestKeyframe()) {
-      // Non-keyframes use the latest optimized map<-odom anchor, without
-      // writing that correction back into the raw odometry.
+
       pose_map = latest->pose_optimized * latest->pose_odom.inverse() *
                  frame.T_world_lidar;
     }
@@ -89,8 +84,6 @@ N3MappingCore::processMappingFrame(const core::LioFrame &frame) {
     addOdometryConstraint(keyframe_id, frame.T_world_lidar);
   }
 
-  // The only absolute attitude the graph ever sees. Measured from this scan's
-  // own returns, so it is independent of the pose it constrains.
   if (config_.floor_attitude_enable) {
     FloorNormalOptions floor_options;
     floor_options.max_radius_m = config_.floor_attitude_max_radius_m;
@@ -118,9 +111,7 @@ N3MappingCore::processMappingFrame(const core::LioFrame &frame) {
       LOG(ERROR) << "Shadow submap append failed for committed keyframe id="
                 << keyframe_id << '\n';
     } else {
-      // graph_update necessarily runs before the just-committed keyframe can
-      // join a shadow submap. Refresh once more so topology diagnostics see
-      // complete ownership rather than remaining one keyframe behind.
+
       refreshSubmapPoses("submap_append");
     }
   }
@@ -147,4 +138,4 @@ N3MappingCore::processMappingFrame(const core::LioFrame &frame) {
   return output;
 }
 
-} // namespace n3mapping
+}

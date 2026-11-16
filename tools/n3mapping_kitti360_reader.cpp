@@ -419,7 +419,7 @@ int run(const Options& options) {
     return 0;
 }
 
-}  // namespace
+}
 
 int main(int argc, char** argv) {
     try {

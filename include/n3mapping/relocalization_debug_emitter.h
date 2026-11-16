@@ -13,9 +13,6 @@ struct RelocalizationDebugEvent;
 struct RelocTrackingDebugEvent;
 class RelocalizationHypothesisManager;
 
-// Owns debug-event sequencing and persistence. Callers populate the event
-// payload; this class adds the per-stream index and terminal fields without
-// participating in relocalization decisions.
 class RelocalizationDebugEmitter {
 public:
   explicit RelocalizationDebugEmitter(const Config &config);
@@ -45,4 +42,4 @@ private:
   std::mutex mutex_;
 };
 
-} // namespace n3mapping
+}

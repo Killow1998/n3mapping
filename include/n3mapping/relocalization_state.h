@@ -1,4 +1,3 @@
-// ROS-free relocalization state and pose-source contracts.
 #pragma once
 
 #include <cmath>
@@ -11,11 +10,10 @@ namespace n3mapping {
 
 enum class RelocalizationState : std::uint8_t {
   SEARCHING = 0,
-  // Preserve the old wire-level meaning of value 1 while giving the state an
-  // explicit non-authoritative contract.
+
   PROVISIONAL = 1,
   FULL_6DOF_LOCKED = 2,
-  // Preserve the old wire-level odom-predicted meaning of value 3.
+
   RECENTLY_LOST = 3,
   DEGRADED_TRACKING = 4,
   LOST = 5,
@@ -84,4 +82,4 @@ inline bool isFiniteRigidPose(const Eigen::Isometry3d &pose,
              Eigen::RowVector4d(0.0, 0.0, 0.0, 1.0), tolerance);
 }
 
-} // namespace n3mapping
+}

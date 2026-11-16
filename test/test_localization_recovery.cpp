@@ -73,5 +73,5 @@ TEST_F(LocalizationEpisode, GradualYawDriftStillRecoversFromFreshGeometry) {
   EXPECT_LT(Eigen::AngleAxisd(recovered.live.pose->pose.linear()).angle(), 5.0*M_PI/180.0);
 }
 
-} // namespace
-} // namespace n3mapping::test
+}
+}

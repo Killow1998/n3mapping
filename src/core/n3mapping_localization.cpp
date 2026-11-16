@@ -1,4 +1,3 @@
-// Localization input lifecycle, backend orchestration and offline probes.
 #include "n3mapping/core/n3mapping_core.h"
 #include "n3mapping_session.h"
 
@@ -9,8 +8,7 @@ N3MappingCore::processLocalizationFrame(const core::LioFrame &frame) {
   extension_anchor_frame_.reset();
   auto &localizer = session_->localizer;
   if (!frame.pose_valid || !isFiniteRigidPose(frame.T_world_lidar)) {
-    // A correction and its temporal hypotheses belong to one valid odometry
-    // source. Invalid input cannot carry them across a frontend restart.
+
     localizer.resetLocalizationState();
     localization_source_frame_id_.clear();
     return makeOutput(false, frame.T_world_lidar, frame.undistorted_cloud);
@@ -115,4 +113,4 @@ RegistrationSeedProbeResult N3MappingCore::probeLocalizationRegistration(
                                                             oracle_pose);
 }
 
-} // namespace n3mapping
+}

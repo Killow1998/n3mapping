@@ -9,9 +9,6 @@
 
 namespace n3mapping::registration_detail {
 
-// Exact nearest-neighbor search within the registration's existing rejection
-// distance. The immutable tree, point order and near-first traversal are shared
-// with small_gicp; only branches containing exclusively rejected points vanish.
 template <typename Search>
 struct CorrespondenceHint {
   const Search& search;
@@ -41,12 +38,9 @@ class TypedCorrespondenceSearch {
     if (!query.allFinite() || !std::isfinite(search_limit_))
       return reference(view_, query, index, distance_squared);
     *index = std::numeric_limits<std::size_t>::max();
-    // DistanceRejector accepts equality. One representable step above the
-    // gate permits that boundary while retaining the original strict tie rule.
+
     *distance_squared = search_limit_;
-    // A previous correspondence is only an upper bound, never the answer.
-    // Keep one representable step of slack so equal-distance points are still
-    // visited in the tree's original order, including the hint itself.
+
     if (hint_index < view_.size()) {
       const double hint_distance =
           (view_.point(hint_index) - query).squaredNorm();
@@ -61,8 +55,7 @@ class TypedCorrespondenceSearch {
       else
         visit<false>(view_.root(), query, index, distance_squared, {}, rounding_boundary);
     }
-    // ARM contraction can round the hint and leaf differently. Resolve only
-    // ambiguous misses through the reference search, keeping its gate exact.
+
     if (*index == std::numeric_limits<std::size_t>::max() && rounding_boundary)
       return reference(view_, query, index, distance_squared) &&
              *distance_squared <= max_distance_squared_;
@@ -98,9 +91,7 @@ class TypedCorrespondenceSearch {
     const auto far_child = offset < 0.0 ? node.right : node.left;
     visit<OccupiedBounds>(near_child, query, index, distance_squared, cell_distance_squared, rounding_boundary);
     if (*distance_squared > offset * offset) {
-      // Splits on different axes jointly bound this subtree's cell. Testing
-      // only the latest split revisits cells that are already outside the
-      // nearest-neighbor sphere because of an earlier orthogonal split.
+
       auto far_cell_distance = cell_distance_squared;
       far_cell_distance[node.node_type.sub.proj.axis] = offset * offset;
       const double lower_bound = far_cell_distance[0] + far_cell_distance[1] +
@@ -182,7 +173,7 @@ small_gicp::RegistrationResult align(
     const SearchBounds* bounds = nullptr,
     const LazyTargetNormals* lazy_normals = nullptr, bool reciprocal = false);
 
-}  // namespace n3mapping::registration_detail
+}
 
 namespace small_gicp::traits {
 template <typename View>
@@ -201,4 +192,4 @@ struct Traits<n3mapping::registration_detail::CorrespondenceHint<Search>> {
     return hint.nearest(query, index, distance_squared);
   }
 };
-} // namespace small_gicp::traits
+}

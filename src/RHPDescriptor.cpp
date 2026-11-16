@@ -1,6 +1,4 @@
-// RHPDescriptor: Ring-Height + Planar descriptor with visibility-aware planar cues.
 #include "n3mapping/RHPDescriptor.h"
-
 
 #include <algorithm>
 #include <cmath>
@@ -8,53 +6,47 @@
 #include "n3mapping/pcl_compat.h"
 
 namespace n3mapping {
-// ============================================================
-//  RHPDescriptor
-// ============================================================
 
 RHPDescriptor::RHPDescriptor(const Params& params) : params_(params) {}
 
-// ---- PCA alignment ----
+Eigen::Matrix3d RHPDescriptor::computePCAAlignment(const CloudT &cloud,
+                                                   double *confidence) const {
 
-Eigen::Matrix3d RHPDescriptor::computePCAAlignment(const CloudT& cloud, double* confidence) const {
-    // Compute mean (XY only for alignment)
-    Eigen::Vector2d mean = Eigen::Vector2d::Zero();
-    for (const auto& pt : cloud.points) {
-        mean += Eigen::Vector2d(pt.x, pt.y);
-    }
-    mean /= static_cast<double>(cloud.size());
+  Eigen::Vector2d mean = Eigen::Vector2d::Zero();
+  for (const auto &pt : cloud.points) {
+    mean += Eigen::Vector2d(pt.x, pt.y);
+  }
+  mean /= static_cast<double>(cloud.size());
 
-    // 2x2 covariance matrix of XY
-    Eigen::Matrix2d cov = Eigen::Matrix2d::Zero();
-    for (const auto& pt : cloud.points) {
-        Eigen::Vector2d d(pt.x - mean.x(), pt.y - mean.y());
-        cov += d * d.transpose();
-    }
-    cov /= static_cast<double>(cloud.size());
+  Eigen::Matrix2d cov = Eigen::Matrix2d::Zero();
+  for (const auto &pt : cloud.points) {
+    Eigen::Vector2d d(pt.x - mean.x(), pt.y - mean.y());
+    cov += d * d.transpose();
+  }
+  cov /= static_cast<double>(cloud.size());
 
-    // Eigendecomposition — largest eigenvector = principal axis
-    Eigen::SelfAdjointEigenSolver<Eigen::Matrix2d> solver(cov);
-    // eigenvalues sorted ascending, so index 1 = largest
-    Eigen::Vector2d principal = solver.eigenvectors().col(1);
+  Eigen::SelfAdjointEigenSolver<Eigen::Matrix2d> solver(cov);
 
-    // Construct rotation matrix to align principal axis to +X
-    double angle = std::atan2(principal.y(), principal.x());
+  Eigen::Vector2d principal = solver.eigenvectors().col(1);
 
-    if (confidence) {
-        const double l1 = std::max(0.0, solver.eigenvalues()(1));
-        const double l2 = std::max(0.0, solver.eigenvalues()(0));
-        *confidence = solver.info() == Eigen::Success && l1 + l2 > 1e-9
-            ? std::clamp((l1 - l2) / (l1 + l2), 0.0, 1.0) : 0.0;
-    }
+  double angle = std::atan2(principal.y(), principal.x());
 
-    Eigen::Matrix3d R = Eigen::Matrix3d::Identity();
-    double c = std::cos(-angle), s = std::sin(-angle);
-    R(0, 0) =  c;  R(0, 1) = -s;
-    R(1, 0) =  s;  R(1, 1) =  c;
-    return R;
+  if (confidence) {
+    const double l1 = std::max(0.0, solver.eigenvalues()(1));
+    const double l2 = std::max(0.0, solver.eigenvalues()(0));
+    *confidence = solver.info() == Eigen::Success && l1 + l2 > 1e-9
+                      ? std::clamp((l1 - l2) / (l1 + l2), 0.0, 1.0)
+                      : 0.0;
+  }
+
+  Eigen::Matrix3d R = Eigen::Matrix3d::Identity();
+  double c = std::cos(-angle), s = std::sin(-angle);
+  R(0, 0) = c;
+  R(0, 1) = -s;
+  R(1, 0) = s;
+  R(1, 1) = c;
+  return R;
 }
-
-// ---- Single plane projection ----
 
 RHPDCells RHPDescriptor::projectToPlane(
     const CloudT::Ptr& cloud,
@@ -63,17 +55,7 @@ RHPDCells RHPDescriptor::projectToPlane(
     int height_axis) const
 {
     const int B = RHPD_PLANE_BINS;
-    // Per bin channels:
-    // [0] density_norm      = count / total_points
-    // [1] height_mean_norm  = mean normalized height
-    //
-    // Legacy(V1/V2):
-    // [2] hit_count_norm    = count / max_count_among_bins
-    // [3] height_extent_norm= (h_max - h_min) / height_range
-    //
-    // V3:
-    // [2] visibility_state  = 1.0(occupied), 0.5(observed-free), 0.0(unknown)
-    // [3] boundary_strength = transition strength between occupied/free/unknown cells
+
     const int B2 = B * B;
     std::array<double, B2> counts{};
     std::array<double, B2> h_sum{};
@@ -156,17 +138,19 @@ RHPDCells RHPDescriptor::projectToPlane(
             const double frontier_r = sector_max_r[si];
             double visibility_state = 0.0;
             if (counts[i] > 0.0) {
-                visibility_state = 1.0;  // occupied
+              visibility_state = 1.0;
             } else if (frontier_r > 1e-6 && rc + params_.v3_free_space_margin_m < frontier_r) {
-                visibility_state = 0.5;  // observed free-space before measured frontier
+              visibility_state = 0.5;
             } else {
-                visibility_state = 0.0;  // unknown / unobserved
+              visibility_state = 0.0;
             }
 
             auto class_of = [](double s) -> int {
-                if (s >= 0.75) return 2;   // occupied
-                if (s >= 0.25) return 1;   // free
-                return 0;                  // unknown
+              if (s >= 0.75)
+                return 2;
+              if (s >= 0.25)
+                return 1;
+              return 0;
             };
             const int cls = class_of(visibility_state);
             double transition = 0.0;
@@ -196,7 +180,7 @@ RHPDCells RHPDescriptor::projectToPlane(
                     }
                 }
                 const int ncls = class_of(n_state);
-                transition += 0.5 * std::abs(static_cast<double>(cls - ncls));  // normalized to [0,1]
+                transition += 0.5 * std::abs(static_cast<double>(cls - ncls));
                 ++n_neighbors;
             }
             const double boundary_strength = (n_neighbors > 0) ? (transition / n_neighbors) : 0.0;
@@ -223,16 +207,12 @@ RHPDCells RHPDescriptor::projectToPlane(
     return cells;
 }
 
-// ---- Part A: triple-plane projection ----
-
 std::array<RHPDCells, 3> RHPDescriptor::computePartA(const CloudT::Ptr& cloud) const {
     const double r = params_.max_range, z0 = params_.z_min, z1 = params_.z_max;
     return {{projectToPlane(cloud, 0, -r, r, 1, -r, r, 2),
              projectToPlane(cloud, 0, -r, r, 2, z0, z1, 1),
              projectToPlane(cloud, 1, -r, r, 2, z0, z1, 0)}};
 }
-
-// ---- Main compute ----
 
 RHPDescriptor::Place RHPDescriptor::compute(const CloudT::Ptr& cloud) const {
     return computeImpl(cloud, nullptr);
@@ -255,11 +235,9 @@ RHPDescriptor::Place RHPDescriptor::computeImpl(const CloudT::Ptr& cloud, RHPDHe
         return {};
     }
 
-    // PCA alignment
     double confidence = 1.0;
     Eigen::Matrix3d R_align = computePCAAlignment(*cloud, params_.enable_pca_confidence ? &confidence : nullptr);
 
-    // Build aligned cloud (only rotate around Z, preserve heights)
     CloudT::Ptr aligned = pcl::make_shared<CloudT>();
     aligned->reserve(cloud->size());
     for (const auto& pt : cloud->points) {
@@ -279,4 +257,4 @@ RHPDescriptor::Place RHPDescriptor::computeImpl(const CloudT::Ptr& cloud, RHPDHe
     return out;
 }
 
-} // namespace n3mapping
+}

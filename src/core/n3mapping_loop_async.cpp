@@ -14,7 +14,7 @@ namespace {
 double elapsedMs(LoopClock::time_point start) {
   return std::chrono::duration<double, std::milli>(LoopClock::now() - start).count();
 }
-} // namespace
+}
 
 AsyncLoopJob::AsyncLoopJob(const Config& config, const KeyframeManager& source,
     std::unique_ptr<GraphOptimizer> graph, std::vector<DetectedLoopQuery> queries)
@@ -26,12 +26,10 @@ AsyncLoopJob::AsyncLoopJob(const Config& config, const KeyframeManager& source,
   const auto originals = source.getAllKeyframes();
   for (const auto& keyframe : originals)
     if (keyframe) snapshot.push_back(std::make_shared<Keyframe>(*keyframe));
-  // Poses/metadata are copied. Point clouds are immutable after insertion and
-  // can be retained across map replacement without copying their payload.
+
   if (!keyframes.loadKeyframes(snapshot, source.getSessions()))
     throw std::runtime_error("Failed to snapshot loop keyframes");
-  // Loading intentionally marks a disk map as old-session geometry. This is
-  // an in-memory snapshot instead, so retain each keyframe's original role.
+
   for (const auto& keyframe : originals)
     if (keyframe)
       keyframes.getKeyframe(keyframe->id)->is_from_loaded_map =
@@ -103,7 +101,6 @@ CoreLoopClosureResult N3MappingCore::advanceAsyncLoopClosures(bool wait) {
     state.generation = revision.generation;
   }
 
-
   if (state.job && (wait ||
       state.future.wait_for(std::chrono::seconds(0)) == std::future_status::ready)) {
     bool completed = false;
@@ -113,9 +110,7 @@ CoreLoopClosureResult N3MappingCore::advanceAsyncLoopClosures(bool wait) {
       if (state.job->geometryOnly() &&
           state.job->revision.generation == revision.generation &&
           config_.loop_geometry_cpu_budget > 0) {
-        // Process CPU includes the concurrent owner and is a conservative
-        // upper bound for this job, including its OpenMP feature workers.
-        // All incoming constraints remain in the graph; only requests coalesce.
+
         const auto interval = std::chrono::duration<double, std::milli>(
             state.job->cpu_upper_ms / config_.loop_geometry_cpu_budget);
         state.next_geometry_start = state.job->started +
@@ -146,9 +141,7 @@ CoreLoopClosureResult N3MappingCore::advanceAsyncLoopClosures(bool wait) {
       state.job.reset();
     } else if (state.job->outcome.summary.optimized &&
                state.job->revision != revision) {
-      // Snapshot the entire current graph, including newly appended nodes,
-      // odometry, floor observations and session constraints. Only graph
-      // admission/solving repeats; expensive registration evidence is retained.
+
       const auto start = LoopClock::now();
       auto previous = std::move(state.job);
       state.job = std::make_unique<AsyncLoopJob>(config_, session_->keyframes,
@@ -211,13 +204,10 @@ CoreLoopClosureResult N3MappingCore::advanceAsyncLoopClosures(bool wait) {
       state.job.reset();
     }
   }
-  // Publish a completed correction before retrieving newly arrived queries.
-  // Otherwise top-k is frozen from poses that this same call is about to replace.
-  // Existing queued candidates and retained registration evidence stay intact.
+
   for (auto& query : detectPendingLoopCandidates(result)) {
     query.enqueued = cycle_started;
-    // Strict extension constraints are already in the live graph. One latest
-    // geometry request covers all of them; no verified measurement is dropped.
+
     if (query.geometry_only) {
       for (const auto& pending : state.pending)
         if (pending.geometry_only) query.enqueued = std::min(query.enqueued, pending.enqueued);
@@ -234,18 +224,14 @@ CoreLoopClosureResult N3MappingCore::advanceAsyncLoopClosures(bool wait) {
     std::vector<DetectedLoopQuery> queries;
     queries.push_back(std::move(state.pending.front()));
     state.pending.pop_front();
-    // Preserve every query and its existing registration/admission gates.
-    // Queued work shares graph commits, reassociation and geometry solving.
-    // Bound a batch so a growing queue cannot postpone publication indefinitely.
+
     while (!queries.front().geometry_only && queries.size() < 4 &&
            !state.pending.empty() && !state.pending.front().geometry_only) {
       queries.push_back(std::move(state.pending.front()));
       state.pending.pop_front();
     }
     if (!queries.front().geometry_only && config_.loop_spatial_candidates_enable) {
-      // A queued query can outlive a map correction. Supplement its original
-      // candidates once, at dispatch; none of these registrations has run yet.
-      // Rebase keeps measurements and never enters this retrieval path again.
+
       std::map<int64_t, Keyframe::Ptr> current_frames;
       for (const auto& frame : session_->keyframes.getAllKeyframes())
         if (frame) current_frames.emplace(frame->id, frame);
@@ -281,4 +267,4 @@ CoreLoopClosureResult N3MappingCore::advanceAsyncLoopClosures(bool wait) {
   return result;
 }
 
-} // namespace n3mapping
+}

@@ -17,12 +17,6 @@ inline int originalAngularBin(double y, double x, double offset, double resoluti
   return std::clamp(static_cast<int>(std::floor(angle / resolution)), 0, bins - 1);
 }
 
-
-// A table entry is usable only if the entire angle interval belongs to one
-// output bin. Intervals touching bin boundaries use the original atan2 formula.
-// The 1e-9 degree guard conservatively covers double-precision rounding in
-// ratios, quadrant transforms and the elevation square root. Only the bin is
-// accelerated: distances and occlusion evidence retain their original values.
 class AngularBinLookup {
   static constexpr int kRatioIntervals = 1024;
 
@@ -78,8 +72,7 @@ class AngularBinLookup {
       const int bin = lookup(z, std::sqrt(horizontal_squared));
       if (bin >= 0) return bin;
     }
-    // Near a bin boundary (or outside normal arithmetic), preserve the exact
-    // original hypot + atan2 path. The interval guard covers sqrt rounding.
+
     return originalAngularBin(z, std::hypot(x, y), offset_, resolution_, bins_, wrap_);
   }
 
@@ -105,4 +98,4 @@ class AngularBinLookup {
   std::array<int, kRatioIntervals * 8> table_;
 };
 
-}  // namespace n3mapping::visibility_detail
+}

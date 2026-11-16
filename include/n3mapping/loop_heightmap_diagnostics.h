@@ -27,4 +27,4 @@ HeightmapConsistencyDiagnostics computeHeightmapConsistency(
     std::size_t min_points_per_cell = 3,
     double low_quantile = 0.10);
 
-}  // namespace n3mapping
+}

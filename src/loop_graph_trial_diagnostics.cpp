@@ -150,7 +150,7 @@ double consistencyScore(const LoopGraphTrialDiagnostics& diagnostics)
     return 1.0 / (1.0 + penalty);
 }
 
-}  // namespace
+}
 
 LoopGraphTrialDiagnostics computeLoopGraphTrialDiagnostics(
     const Config& config,
@@ -253,4 +253,4 @@ void assignLoopGraphTrialDiagnostics(
     loop->graph_trial_recommendation = diagnostics.recommendation;
 }
 
-}  // namespace n3mapping
+}

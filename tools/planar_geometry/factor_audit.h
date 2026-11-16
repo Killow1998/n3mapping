@@ -70,4 +70,4 @@ void auditFactor(const MomentPlaneFactor &factor, const gtsam::Pose3 &pose,
     throw std::runtime_error("Robust objective and IRLS gradient disagree");
 }
 
-} // namespace n3mapping::planar_geometry
+}

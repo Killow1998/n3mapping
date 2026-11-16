@@ -127,9 +127,7 @@ inline core::LioFrame makeFrame(std::int64_t stamp_nsec,
 inline Config makeSyntheticRelocConfig()
 {
     Config config;
-    // The synthetic scene is fixed, so the platform never appears to move and
-    // the static-start guard would keep the map empty. This suite is testing
-    // relocalization against a map, not when mapping should begin.
+
     config.mapping_static_start_guard_enable = false;
     config.keyframe_distance_threshold = 1.0;
     config.keyframe_angle_threshold = 0.3;
@@ -161,5 +159,4 @@ inline Config makeSyntheticRelocConfig()
     return config;
 }
 
-
-}  // namespace n3mapping::test::synthetic_scene
+}

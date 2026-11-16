@@ -18,7 +18,7 @@ core::LioFrame makeFrame(int64_t stamp_nsec, const Eigen::Isometry3d& pose) {
     return frame;
 }
 
-}  // namespace
+}
 
 TEST(LatestFrameSlot, CoalescesBacklogWithoutRestampingOrMixingPoseAndCloud)
 {
@@ -43,7 +43,6 @@ TEST(LatestFrameSlot, CoalescesBacklogWithoutRestampingOrMixingPoseAndCloud)
     EXPECT_EQ(selected->undistorted_cloud, newest.undistorted_cloud);
     EXPECT_FALSE(pending.take().has_value());
 
-    // A new burst starts afresh, including after a source-clock reset.
     auto restarted = makeFrame(100000000, Eigen::Isometry3d::Identity());
     pending.submit(restarted.stamp.nsec, std::move(restarted));
     ASSERT_TRUE(pending.take().has_value());
@@ -111,7 +110,7 @@ TEST(RealtimeOdometry, NewerCorrectionSurvivesNormallyQueuedOlderInput)
     const auto pose = Eigen::Isometry3d::Identity();
     live.updateCorrection(1000000000, "odom", "body", pose, pose, true);
     ASSERT_TRUE(live.project(1100000000, 1100000000, "odom", "body", pose));
-    // The backend queue wins the race; the live queue still contains 1.2 s.
+
     live.updateCorrection(1300000000, "odom", "body", pose, pose, true);
     core::RealtimeOdometryDiagnostic diagnostic;
     EXPECT_FALSE(live.project(1200000000, 1350000000, "odom", "body", pose, true, &diagnostic));
@@ -135,7 +134,7 @@ TEST(RealtimeOdometry, RejectedObservationKeepsTheLastTrustedCorrection)
     ASSERT_TRUE(projected);
     EXPECT_EQ(projected->correction_stamp_nsec, 1000000000);
     EXPECT_FALSE(live.updateCorrection(1000000000, "odom", "body", pose, pose, true));
-    // An asynchronous observation may finish behind the current raw input.
+
     ASSERT_TRUE(live.updateCorrection(1150000000, "odom", "body", pose, pose, true));
     projected = live.project(1300000000, 1300000000, "odom", "body", pose);
     ASSERT_TRUE(projected);
@@ -158,7 +157,7 @@ TEST(RealtimeOdometry, LatchedRawDivergenceStopsPoseAndScanProjection)
     EXPECT_EQ(diagnostic.reason, core::RealtimeOdometryReason::OdometryDiverged);
     EXPECT_FALSE(live.projectScan(1300000000, 1300000000,
                                   "odom", "body", pose));
-    // A later correction cannot silently re-enable the latched raw input.
+
     EXPECT_FALSE(live.updateCorrection(
         1400000000, "odom", "body", pose, pose, true));
     EXPECT_FALSE(live.project(1500000000, 1500000000,
@@ -212,4 +211,4 @@ TEST(RealtimeOdometry, RejectsOverflowInCorrectionAndProjectedPose)
     EXPECT_FALSE(invalid_projection.project(1200000000, 1200000000, "odom", "body", identity));
 }
 
-}  // namespace n3mapping::test
+}

@@ -36,4 +36,4 @@ struct CoreLoopClosureResult {
     double atlas_prepare_ms = 0.0;
 };
 
-} // namespace n3mapping
+}

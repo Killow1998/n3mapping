@@ -1,4 +1,3 @@
-// Shadow-only observability diagnostics derived from matcher-owned information.
 #pragma once
 
 #include <cstddef>
@@ -44,7 +43,7 @@ struct RegistrationObservability {
       Eigen::Matrix3d::Constant(std::numeric_limits<double>::quiet_NaN());
 
   double optimizer_error = std::numeric_limits<double>::quiet_NaN();
-  // RMS-like scale in the matcher's objective units, not a metric covariance.
+
   double residual_scale = std::numeric_limits<double>::quiet_NaN();
   double fitness_score = std::numeric_limits<double>::quiet_NaN();
   std::size_t num_inliers = 0;
@@ -55,9 +54,6 @@ struct RegistrationObservability {
   bool success = false;
   bool production_quality = false;
 
-  // The information matrix always describes the registration endpoint. The
-  // selected pose can instead be the descriptor seed or motion prediction
-  // when visibility rejects that endpoint, so retain both facts explicitly.
   std::string selected_pose_source;
   bool information_at_selected_pose = false;
 };
@@ -66,4 +62,4 @@ RegistrationObservability analyzeRegistrationObservability(
     const MatchResult &match, const std::string &selected_pose_source,
     bool information_at_selected_pose, bool production_quality);
 
-} // namespace n3mapping
+}

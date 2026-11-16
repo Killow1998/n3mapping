@@ -27,4 +27,4 @@ RosLogging::RosLogging() {
     rcutils_logging_set_output_handler(forward);
 }
 RosLogging::~RosLogging() { rcutils_logging_set_output_handler(previous_handler); }
-} // namespace n3mapping
+}

@@ -58,7 +58,7 @@ private:
     Clock::time_point started_;
 };
 
-}  // namespace
+}
 
 int64_t MappingResuming::processNewKeyframe(
     double timestamp, const Eigen::Isometry3d& odom_pose,
@@ -217,10 +217,7 @@ int64_t MappingResuming::processNewKeyframe(
         const auto optimized_poses = optimizer_.getOptimizedPoses();
         const auto optimized_current = optimized_poses.find(new_kf_id);
         if (optimized_current != optimized_poses.end()) {
-            // The append solve conditions old graph poses. Its compromise
-            // with odometry is not a new registration against the live Atlas.
-            // Preserve the verified tracking correction until the worker
-            // commits the optimized reference and its coordinate correction.
+
             const Eigen::Isometry3d corrected_map_odom =
                 (has_tracking_constraint ? tracked_pose_in_map : optimized_current->second) *
                 odom_pose.inverse();
@@ -229,8 +226,6 @@ int64_t MappingResuming::processNewKeyframe(
             }
         }
 
-        // From this point the graph and keyframe are committed. Descriptor
-        // generation is best-effort and can be rebuilt from the stored cloud.
         previous_new_keyframe_id_ = new_kf_id;
         previous_new_odom_pose_ = odom_pose;
         first_new_keyframe_pending_ = false;
@@ -245,8 +240,7 @@ int64_t MappingResuming::processNewKeyframe(
                     << "[MappingResuming] Shadow submap append failed for committed keyframe id="
                     << new_kf_id;
             } else {
-                // The keyframe graph is committed before shadow membership. A
-                // post-append refresh keeps the structural diagnostics current.
+
                 refreshSubmapPosesNoLock("submap_append");
             }
         }
@@ -293,4 +287,4 @@ int64_t MappingResuming::processNewKeyframe(
     return new_kf_id;
 }
 
-}  // namespace n3mapping
+}

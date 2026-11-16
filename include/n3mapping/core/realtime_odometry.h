@@ -75,11 +75,8 @@ struct RealtimeOdometryDiagnostic {
   uint64_t generation = 0;
 };
 
-// Only bounded pose/correction records are shared. Registration, graph updates,
-// cloud conversion, and publication must never run under this mutex.
 class RealtimeOdometry {
  public:
-  // Match the adapter's existing synchronization retention, not a new timeout.
   explicit RealtimeOdometry(std::size_t retention = 1)
       : retention_(std::max<std::size_t>(1, retention)) {}
 
@@ -95,15 +92,12 @@ class RealtimeOdometry {
                         const Eigen::Isometry3d& raw_pose,
                         const Eigen::Isometry3d& map_pose, bool authorized) {
     std::lock_guard<std::mutex> lock(mutex_);
-    // OdometrySanity is latched for the lifetime of the mapping session. A
-    // trusted correction cannot make the raw input valid again; rebuilding the
-    // SLAM unit creates a fresh RealtimeOdometry instance instead.
+
     if (correction_status_ == RealtimeOdometryReason::OdometryDiverged) {
       return std::nullopt;
     }
     if (!authorized) {
-      // A rejected observation cannot replace or revoke the last trusted anchor.
-      // Input/frame failures have their own explicit invalidation path.
+
       return std::nullopt;
     }
     if (stamp_nsec <= 0 || source_frame.empty() ||
@@ -123,9 +117,7 @@ class RealtimeOdometry {
     }
     if (correction_.stamp_nsec > 0 &&
         (source_frame != correction_.source_frame || child_frame != correction_.child_frame)) {
-      // This authorized correction begins the new basis at stamp_nsec. Retire
-      // older observations, including any already frozen old-frame projection,
-      // without expiring the new correction's own paired observation.
+
       invalidate(stamp_nsec - 1, source_frame != correction_.source_frame
           ? RealtimeOdometryReason::SourceFrameMismatch
           : RealtimeOdometryReason::ChildFrameMismatch);
@@ -136,10 +128,6 @@ class RealtimeOdometry {
     return MapOdometryCorrection{stamp_nsec, source_frame, map_to_odom};
   }
 
-  // Invalidate the live projection when the mapping backend has latched the
-  // existing raw-odometry divergence detector. This is deliberately separate
-  // from an ordinary rejected geometric observation, which retains the last
-  // trusted correction above.
   void invalidateForOdometryDivergence(int64_t stamp_nsec) {
     std::lock_guard<std::mutex> lock(mutex_);
     invalidate(stamp_nsec, RealtimeOdometryReason::OdometryDiverged);
@@ -210,8 +198,7 @@ class RealtimeOdometry {
       report(RealtimeOdometryReason::ProjectionExpired);
       return std::nullopt;
     }
-    // The independent backend queue may install a newer correction before an
-    // already-received raw callback runs. Drop that sample, not the correction.
+
     if (stamp_nsec < correction_.stamp_nsec) {
       report(RealtimeOdometryReason::InputBeforeCorrection);
       return std::nullopt;
@@ -224,9 +211,6 @@ class RealtimeOdometry {
     return retainProjection(stamp_nsec, source_frame, child_frame, raw_pose, map_pose);
   }
 
-  // The first valid odom OR paired scan freezes this observation's map pose.
-  // Delayed scans reuse that basis even after a newer correction, but never
-  // recreate an evicted basis. Scan arrival does not advance odom ordering.
   std::optional<RealtimeOdometryPose> projectScan(
       int64_t stamp_nsec, int64_t now_nsec, const std::string& source_frame,
       const std::string& child_frame, const Eigen::Isometry3d& raw_pose) {
@@ -250,8 +234,6 @@ class RealtimeOdometry {
     return retainProjection(stamp_nsec, source_frame, child_frame, raw_pose, pose);
   }
 
-  // Heavy cloud work happens outside the lock; invalidation cancels its result.
-  // Ordinary accepted corrections deliberately leave this generation intact.
   bool isCurrent(const RealtimeOdometryPose& projection) const {
     std::lock_guard<std::mutex> lock(mutex_);
     return correction_status_ == RealtimeOdometryReason::Ready &&
@@ -334,4 +316,4 @@ class RealtimeOdometry {
   uint64_t basis_revision_ = 0;
 };
 
-}  // namespace n3mapping::core
+}

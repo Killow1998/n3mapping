@@ -43,12 +43,11 @@ ProcessLogging::~ProcessLogging() {
 }
 void forwardRuntimeLog(int severity, const char* name, const std::string& message) {
   auto& log = AsyncLog::instance();
-  // Warnings/errors retain their content; ordinary repeated messages are also
-  // bounded by the shared queue and disk budget.
+
   const auto time = std::chrono::duration_cast<std::chrono::milliseconds>(
       std::chrono::system_clock::now().time_since_epoch()).count();
   log.append(log.directory() + "/runtime.log", std::to_string(time) + " severity=" +
       std::to_string(severity) + " source=" + (name ? name : "unknown") + " " + message,
       severity >= 30);
 }
-} // namespace n3mapping
+}

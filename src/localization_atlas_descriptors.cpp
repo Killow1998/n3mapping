@@ -73,7 +73,7 @@ bool decodePlace(const LocalizationAtlasFrameDescriptor& entry, RHPDPlace& place
   for (int i = 0; i < RHPD_AUX_DIM; ++i) place.auxiliary(i) = entry.auxiliary(i);
   return place.auxiliary.allFinite();
 }
-} // namespace
+}
 
 bool atlasDescriptorsCurrent(const Config& config, const LocalizationAtlasData& data) {
   return !config.rhpd_enabled ||
@@ -139,7 +139,7 @@ bool decodeAtlasDescriptors(const Config &config,
                             RHPDHeadingCache &headings,
                             RelocalizationPlaceCatalog &catalog,
                             bool &catalog_ready, std::string *error) {
-  // Older sidecars and changed feature settings rebuild from the source clouds.
+
   if (!config.rhpd_enabled ||
       data.frame_descriptor_config() != descriptorConfig(config))
     return true;
@@ -226,4 +226,4 @@ bool decodeAtlasDescriptors(const Config &config,
   }
   return true;
 }
-} // namespace n3mapping
+}

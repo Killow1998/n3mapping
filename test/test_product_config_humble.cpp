@@ -84,5 +84,5 @@ TEST(ProductConfigHumbleTest, RosParameterFileMatchesGateFactory) {
     }
 }
 
-}  // namespace test
-}  // namespace n3mapping
+}
+}

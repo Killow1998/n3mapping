@@ -256,5 +256,5 @@ TEST(SubmapGraphTrialRuntimeTest, PathResolutionUsesExistingDebugConvention) {
               "/tmp/n3mapping map/submap_graph_trial.jsonl");
 }
 
-}  // namespace
-}  // namespace n3mapping
+}
+}

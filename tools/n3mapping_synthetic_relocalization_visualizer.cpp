@@ -196,7 +196,7 @@ bool parseArgs(int argc, char** argv, Options* options)
 Config makeVisualizerConfig()
 {
     Config config;
-    config.reloc_atlas_enable = false;  // This synthetic profile uses local targets.
+    config.reloc_atlas_enable = false;
     config.gicp_max_iterations = 60;
     config.gicp_fitness_threshold = 0.8;
     config.gicp_max_correspondence_distance = 2.0;
@@ -481,8 +481,8 @@ bool posePassed(double translation_error_m, double yaw_error_deg, double roll_pi
     return translation_error_m <= 1.0 && yaw_error_deg <= 10.0 && roll_pitch_error_deg <= 5.0;
 }
 
-}  // namespace
-}  // namespace n3mapping
+}
+}
 
 int main(int argc, char** argv)
 {

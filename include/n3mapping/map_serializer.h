@@ -1,4 +1,3 @@
-// MapSerializer: Protobuf-based map save/load and global PCD export.
 #pragma once
 
 #include <string>
@@ -113,4 +112,4 @@ private:
 
 };
 
-} // namespace n3mapping
+}

@@ -1,5 +1,5 @@
 #include "n3mapping/graph_optimizer.h"
-// Commit retained geometric measurements and rebase them without rerunning ICP.
+
 #include "loop_closure_processing.h"
 #include "loop_closure_diagnostics.h"
 #include "n3mapping/loop_graph_trial_diagnostics.h"
@@ -58,15 +58,13 @@ void recordLoopOptimization(const Config& config, const std::vector<EdgeInfo>& e
 }
 void rebaseLoopOutcome(const Config& config, GraphOptimizer& optimizer,
                        LoopClosureManager& manager, LoopClosureOutcome& outcome) {
-  // Geometry is an independent relative measurement. Recheck graph admission
-  // against all updates made while the worker was busy; never rerun ICP here.
+
   std::map<int64_t, std::vector<VerifiedLoop>> by_query;
   for (const auto& loop : outcome.summary.accepted_loops)
     by_query[loop.query_id].push_back(loop);
   outcome.summary = {};
   outcome.optimizations.clear();
-  // Rebase each retained same-query consensus separately. A rejected query must
-  // not discard unrelated verified measurements that shared its worker batch.
+
   for (auto& [query_id, loops] : by_query) {
     const auto edges = manager.buildLoopEdges(loops, LoopEdgeDirection::MatchToQuery);
     const auto before = optimizer.getOptimizedPoses();
@@ -96,4 +94,4 @@ void rebaseLoopOutcome(const Config& config, GraphOptimizer& optimizer,
   }
 }
 
-} // namespace n3mapping
+}

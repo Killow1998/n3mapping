@@ -151,5 +151,5 @@ TEST(AsyncLogTest, OversizeAndUnsafeDestinationsAreCountedWithoutChangingTheirTa
   EXPECT_EQ(log.statistics().oversize, 1u); EXPECT_EQ(log.statistics().dropped_critical, 1u);
   EXPECT_GT(log.statistics().write_failures, 0u);
 }
-} // namespace
-} // namespace n3mapping
+}
+}

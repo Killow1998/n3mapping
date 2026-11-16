@@ -1,4 +1,3 @@
-// Geometric evaluation of one relocalization place candidate.
 #pragma once
 
 #include <cstdint>
@@ -22,8 +21,7 @@
 namespace n3mapping {
 
 struct RelocalizationCandidateEvaluation {
-  // The selected pose and its own metrics. A fallback is a fixed-pose
-  // evaluation, not a second optimizer result or a separately stored pose.
+
   MatchResult match;
   int64_t matched_keyframe_id = -1;
   VisibilityConsistencyResult visibility;
@@ -38,10 +36,6 @@ public:
                                    PointCloudMatcher &matcher,
                                    RelocTargetProvider &target_provider);
 
-  // Called before parallel evaluation. Retain a bounded recent history so a
-  // brief ranking change does not discard a useful pose proposal.
-  // A stored pose carries no confirmation evidence. Unconverged endpoints
-  // require a new full registration before they can produce a hypothesis.
   void beginSeedPlan(const std::vector<std::pair<int64_t, double>>& seeds,
                      const KeyframeMapRevision& revision);
   void clear();
@@ -71,4 +65,4 @@ private:
   std::map<std::pair<int64_t, double>, SeedPose> seed_poses_;
 };
 
-} // namespace n3mapping
+}

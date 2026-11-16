@@ -26,8 +26,7 @@ buildCausalSubmap(const std::map<int64_t, Keyframe::Ptr> &keyframes,
       continue;
     if (use_odometry && kf->session_id != root.session_id)
       continue;
-    // A newly inserted frame still has its raw pose while its neighbors
-    // may already be corrected. Never mix those domains in a descriptor.
+
     const Eigen::Matrix4f T_root_kf =
         use_odometry
             ? (T_odom_root_inv * kf->pose_odom).matrix().cast<float>().eval()
@@ -50,4 +49,4 @@ maybeVoxelizeRhpdCloud(const pcl::PointCloud<pcl::PointXYZI>::Ptr &cloud,
   }
   return filtered->empty() ? cloud : filtered;
 }
-} // namespace n3mapping
+}

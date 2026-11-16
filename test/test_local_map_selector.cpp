@@ -73,5 +73,5 @@ TEST(LocalMapSelectorTest, UnionsSpatialAnchorAndRecentTail) {
   EXPECT_TRUE(selection.requested_revision_matched);
 }
 
-} // namespace
-} // namespace n3mapping
+}
+}

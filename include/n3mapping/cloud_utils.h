@@ -1,4 +1,3 @@
-// cloud_utils.h — Backward sector cutting for directional ambiguity breaking on 360-degree LiDARs.
 #pragma once
 
 #include <algorithm>
@@ -159,4 +158,4 @@ bool safeVoxelGridFilter(const typename pcl::PointCloud<PointT>::Ptr& input,
     return true;
 }
 
-} // namespace n3mapping
+}

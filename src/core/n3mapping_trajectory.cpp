@@ -1,4 +1,3 @@
-// Dense trajectory correction and checkpoint provenance.
 #include "n3mapping/core/n3mapping_core.h"
 #include "n3mapping_session.h"
 #include <algorithm>
@@ -20,7 +19,6 @@ void N3MappingCore::recordDenseTrajectoryPose(
 
   appendDenseTrajectorySampleWithLatestAnchor(timestamp, pose_world_lidar);
 }
-
 
 void N3MappingCore::appendDenseTrajectorySample(
     double timestamp, const Eigen::Isometry3d &raw_pose,
@@ -137,4 +135,4 @@ N3MappingCore::interpolateDenseCorrection(
   return correction;
 }
 
-} // namespace n3mapping
+}

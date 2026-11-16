@@ -169,4 +169,4 @@ class LoopDebugLogger {
     static bool appendOptimizationSummary(const std::string& path, const LoopDebugOptimizationEvent& event);
 };
 
-}  // namespace n3mapping
+}

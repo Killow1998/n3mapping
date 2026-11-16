@@ -157,4 +157,4 @@ std::string localizationStatusJson(CoreRunMode mode,
         ? appendProjectionMetadata(scalar, *realtime->projection) : scalar;
 }
 
-}  // namespace n3mapping
+}

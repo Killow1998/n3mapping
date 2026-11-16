@@ -106,7 +106,7 @@ bool parseArgs(int argc, char** argv, Options* options)
 Config makePublisherConfig()
 {
     Config config;
-    config.reloc_atlas_enable = false;  // Load source scans without preparing localization.
+    config.reloc_atlas_enable = false;
     config.rhpd_enabled = true;
     config.rhpd_dist_threshold = 100.0;
     config.reloc_static_agg_enable = false;
@@ -164,8 +164,8 @@ nav_msgs::msg::Odometry makeOdomMsg(const Eigen::Isometry3d& pose,
     return msg;
 }
 
-}  // namespace
-}  // namespace n3mapping
+}
+}
 
 int main(int argc, char** argv)
 {

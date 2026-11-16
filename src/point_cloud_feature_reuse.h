@@ -9,9 +9,6 @@
 
 namespace n3mapping::registration_detail {
 
-// Reuse only when the query coordinate and its entire KNN point multiset are
-// unchanged. Deleted, inserted and duplicated coordinates invalidate nearby
-// supports. All metadata is temporary; nothing survives a map revision.
 inline std::size_t reuseTargetFeatures(
     const small_gicp::PointCloud& source,
     const small_gicp::KdTree<small_gicp::PointCloud>& source_tree,
@@ -73,4 +70,4 @@ inline std::size_t reuseTargetFeatures(
   return reused;
 }
 
-}  // namespace n3mapping::registration_detail
+}

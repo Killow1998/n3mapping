@@ -108,4 +108,4 @@ RegistrationObservability analyzeRegistrationObservability(
   return result;
 }
 
-} // namespace n3mapping
+}

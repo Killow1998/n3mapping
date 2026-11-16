@@ -53,20 +53,16 @@ WorldLocalizing::confirmRelocalization(
       };
 
   hypothesis_manager_.advanceWindow();
-  // Hypotheses are independent until ranking. Evaluate those using the same
-  // immutable map target together, without reordering their stored identities
-  // or retaining an unbounded set of prepared targets across observations.
+
   std::map<int64_t, std::vector<RelocHypothesis*>> target_groups;
   for (auto &hyp : hypothesis_manager_.hypotheses()) {
     if (!hyp.alive)
       continue;
-    // This region was already evaluated against this observation at admission.
-    // Counting it again would manufacture a second confirmation from one scan.
+
     if (hyp.first_observation == hypothesis_manager_.windowCount())
       continue;
     if (reloc_debug_enabled) {
-      // This field describes a registration produced by this query only.
-      // A miss must be null instead of silently reusing the prior query's H.
+
       hyp.last_registration_observability = {};
     }
 
@@ -77,8 +73,6 @@ WorldLocalizing::confirmRelocalization(
       continue;
     }
 
-    // Retrieval names the seed's place; registration may converge beyond
-    // that place's radius. Keep the same two support regions as admission.
     if (!hyp.tracking_proposal &&
         !descriptor_supports_keyframe(current_candidates, nearest_kf_id) &&
         !descriptor_supports_keyframe(current_candidates, hyp.seed_match_id)) {
@@ -109,10 +103,6 @@ WorldLocalizing::confirmRelocalization(
         continue;
       }
 
-      // Registration proposes a local correction; the LiDAR observation model
-      // decides whether that correction actually explains the measured nearest
-      // surface on each ray. This prevents one-way ICP from dragging a valid
-      // pose onto a remote dense surface.
       observation.prepare(query_cloud, matcher_, config_, cost);
       const auto predicted_visibility =
           hypothesis_visibility(prepared_target, predicted_pose);
@@ -120,9 +110,7 @@ WorldLocalizing::confirmRelocalization(
       MatchResult checked_prediction;
       bool optimized = false;
       if (prepared_target.valid()) {
-        // Intermediate observations confirm the odometry-propagated pose
-        // with fresh residuals. The final observation always refines it;
-        // failed geometric confirmation falls back immediately as well.
+
         const int observations = hypothesis_manager_.windowCount() - hyp.first_observation + 1;
         if (observations < config_.reloc_temporal_window_size) {
           const auto started = std::chrono::steady_clock::now();
@@ -144,9 +132,7 @@ WorldLocalizing::confirmRelocalization(
             setting.max_correspondence_distance = hyp.metric.max_correspondence_distance;
             setting.max_iterations = config_.gicp_max_iterations + config_.icp_refine_max_iterations;
           }
-          // An accepted hypothesis already names its capture scale. Re-solve
-          // the current observation there; a failed or large correction must
-          // still receive the original broad search below.
+
           mr = hyp.tracking_proposal
               ? matcher_.alignPrepared(*prepared_target.registration_target,
                                        prepared_query, predicted_pose, setting)
@@ -192,8 +178,7 @@ WorldLocalizing::confirmRelocalization(
           selected_registration_endpoint = true;
         }
         if (!selected_registration_endpoint) {
-          // These are identical inputs within this observation, not evidence
-          // from an older scan. A change of metric requires a fresh check.
+
           if (checked_prediction.termination == MatchTermination::FixedPoseEvaluation &&
               checked_prediction.metric.type == mr.metric.type &&
               checked_prediction.metric.resolution == mr.metric.resolution &&
@@ -235,8 +220,6 @@ WorldLocalizing::confirmRelocalization(
         hyp.last_match_id = nearest_kf_id;
         hyp.converged_updates += 1;
 
-        // Recorded here, not at alignment, so the numbers describe the pose
-        // this hypothesis actually carries.
         const bool information_at_selected_pose =
             selected_pose.isApprox(mr.T_target_source);
         const Eigen::Matrix3d trans_info = mr.information.block<3, 3>(0, 0);
@@ -295,4 +278,4 @@ WorldLocalizing::confirmRelocalization(
   }
   return currently_registered;
 }
-} // namespace n3mapping
+}

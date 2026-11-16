@@ -13,10 +13,6 @@
 
 namespace n3mapping::synthetic {
 
-// Strict CSV schemas accepted by parseQueryPoseManifestCsv():
-//   query_id,x_m,y_m,z_m,roll_deg,pitch_deg,yaw_deg
-//   query_id,episode_id,frame_index,x_m,y_m,z_m,roll_deg,pitch_deg,yaw_deg
-// The short schema treats every row as an independent one-frame episode.
 struct QueryPoseManifestEntry {
     std::int64_t query_id = -1;
     std::int64_t episode_id = -1;
@@ -209,4 +205,4 @@ inline bool readQueryPoseManifestCsv(const std::string& path,
     return parseQueryPoseManifestCsv(input, manifest, error);
 }
 
-} // namespace n3mapping::synthetic
+}

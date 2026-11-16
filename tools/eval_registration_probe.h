@@ -293,4 +293,4 @@ inline void writeRegistrationProbeArtifacts(
             << "}\n";
 }
 
-}  // namespace n3mapping::eval
+}

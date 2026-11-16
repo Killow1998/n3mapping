@@ -13,7 +13,7 @@ bool setError(std::string* error, const std::string& message) {
     return false;
 }
 
-}  // namespace
+}
 
 bool readN3NavResource(const std::string& pbstream_path,
                        N3NavResource* out,
@@ -95,4 +95,4 @@ bool readN3NavResource(const std::string& pbstream_path,
     return true;
 }
 
-}  // namespace n3mapping
+}

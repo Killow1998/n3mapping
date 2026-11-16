@@ -45,4 +45,4 @@ void RuntimeEvents::loop(const CoreLoopClosureResult& result) {
     logEvent("loop_commit", detail.str(), true);
   }
 }
-} // namespace n3mapping
+}

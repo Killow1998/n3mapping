@@ -1,4 +1,3 @@
-// static_start_guard.cpp
 #include "n3mapping/static_start_guard.h"
 
 #include "n3mapping/config.h"
@@ -16,8 +15,7 @@ StaticStartGuard::voxelize(const pcl::PointCloud<pcl::PointXYZI>& cloud) const
         if (!std::isfinite(point.x) || !std::isfinite(point.y) || !std::isfinite(point.z)) {
             continue;
         }
-        // Twenty-one bits per axis covers +-300 m at 0.3 m, which is more than
-        // any single sweep reaches.
+
         const auto ix = static_cast<std::int64_t>(std::floor(point.x * inv));
         const auto iy = static_cast<std::int64_t>(std::floor(point.y * inv));
         const auto iz = static_cast<std::int64_t>(std::floor(point.z * inv));
@@ -74,8 +72,6 @@ bool StaticStartGuard::update(double timestamp,
     last_overlap_ = static_cast<double>(shared) /
                     static_cast<double>(reference_.size());
 
-    // Three seconds within 2 cm / 0.01 rad accepts settled stationary input,
-    // not the metres of false motion that motivated the original guard.
     const auto delta = stable_pose_.inverse() * odom_pose;
     const bool stable_view = last_overlap_ >= options_.moved_overlap;
     if (!stable_view) {
@@ -101,8 +97,7 @@ bool StaticStartGuard::update(double timestamp,
         release_timestamp_ = timestamp;
         return true;
     }
-    // The wait is bounded so a test that fails to notice motion cannot suppress
-    // the map for the whole session.
+
     if (timestamp - first_timestamp_ >= options_.max_wait_s) {
         released_ = true;
         released_by_timeout_ = true;
@@ -121,4 +116,4 @@ StaticStartGuard::Options staticStartGuardOptionsFromConfig(const Config& config
   return options;
 }
 
-}  // namespace n3mapping
+}

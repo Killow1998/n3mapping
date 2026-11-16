@@ -15,8 +15,6 @@ namespace {
 
 using Clock = std::chrono::steady_clock;
 
-// Search-only working set, independent of the tracking cache. Oversized
-// targets are evaluated normally without retention.
 constexpr std::size_t kSearchCacheBytes = 128 * 1024 * 1024;
 constexpr std::size_t kSearchCacheEntries = 8;
 
@@ -103,7 +101,7 @@ public:
       break;
     case RelocTargetMode::LEGACY_GLOBAL_ATLAS:
     case RelocTargetMode::LOCAL_LRU:
-      break; // handled by the cache above
+      break;
     case RelocTargetMode::SHADOW_LOCAL_LRU: {
       PreparedRelocTarget shadow;
       shadow.metrics = result.metrics;
@@ -200,17 +198,13 @@ private:
     const bool use_atlas = legacy && localization_atlas_.loaded();
     const std::size_t max_bytes = legacy ? kSearchCacheBytes :
         static_cast<std::size_t>(std::max(0, config_.reloc_target_cache_max_bytes));
-    // Atlas entries share registration geometry and retain only visibility
-    // crops. The old eight-local-target cap evicted active crops far below the
-    // byte budget, rebuilding them at each confirmation. Bound these by bytes;
-    // independently prepared local targets keep both of their existing limits.
+
     const std::size_t max_entries = legacy ?
         (use_atlas ? std::numeric_limits<std::size_t>::max() : kSearchCacheEntries) :
         static_cast<std::size_t>(std::max(0, config_.reloc_target_cache_max_entries));
     metrics->effective_max_bytes = max_bytes;
     metrics->effective_max_entries = max_entries;
-    // Config identity is the provider itself: its config is immutable and no
-    // entries are shared between providers.
+
     const CacheKey key{request.anchor_id, request.map_revision, request.crop_center,
                        request.visibility_from_atlas};
     std::size_t build_epoch = 0;
@@ -244,7 +238,7 @@ private:
       if (result->visibility_indices && !result->visibility_indices->empty()) {
         request.local_target = localization_atlas_.globalMap();
       } else if (result->visibility_indices) {
-        // Preserve the candidate-only fallback and never cache it as a primary crop.
+
         request.local_target = pcl::make_shared<pcl::PointCloud<pcl::PointXYZI>>();
         request.build_local_target = {};
         result->visibility_indices.reset();
@@ -254,8 +248,7 @@ private:
     result->visibility_target = request.local_target;
     if (!request.local_target || request.local_target->empty()) return;
     if (use_atlas) {
-      // The global prepared geometry already owns its points and trees. Cache
-      // only the exact visibility crop, alongside a shared prepared view.
+
       setLegacyTarget(request, result);
     } else {
       setUncachedLocalTarget(request, result);
@@ -279,7 +272,7 @@ private:
     metrics->cache_entry_bytes = entry_bytes;
 
     std::lock_guard<std::mutex> lock(mutex_);
-    // A reset or a newer map wins over work that started before it.
+
     if (build_epoch != epoch_) return;
     const auto raced = findLocked(key);
     if (raced != entries_.end()) {
@@ -371,7 +364,7 @@ private:
   KeyframeMapRevision cache_revision_;
 };
 
-} // namespace
+}
 
 const char *relocTargetModeName(RelocTargetMode mode) {
   switch (mode) {
@@ -394,4 +387,4 @@ makeRelocTargetProvider(const Config &config, PointCloudMatcher &matcher,
                                                          localization_atlas);
 }
 
-} // namespace n3mapping
+}

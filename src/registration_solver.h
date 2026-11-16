@@ -28,8 +28,6 @@ struct ReciprocalRejector : small_gicp::DistanceRejector {
   }
 };
 
-// Each upstream factor already owns its last correspondence. Reuse that index
-// only to bound the next exact search; the factor and optimizer remain intact.
 template <typename Factor>
 struct HintedFactor : Factor {
   using Factor::Factor;
@@ -93,5 +91,5 @@ small_gicp::RegistrationResult dispatch(
       return {};
   }
 }
-} // namespace
-} // namespace n3mapping::registration_detail
+}
+}

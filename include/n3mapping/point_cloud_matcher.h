@@ -1,4 +1,3 @@
-// PointCloudMatcher: small_gicp-based point cloud registration with multi-scale PLANE_ICP and optional GICP refinement.
 #pragma once
 
 #include <cstddef>
@@ -23,12 +22,12 @@ namespace n3mapping {
 namespace registration_detail { struct SearchBounds; class LazyTargetNormals; struct MappedTargetLevel; }
 
 enum class MatchTermination {
-    Invalid,
-    Converged,
-    MaxIterations,
-    Stalled,
-    // Residuals/correspondences evaluated without running an optimizer.
-    FixedPoseEvaluation
+  Invalid,
+  Converged,
+  MaxIterations,
+  Stalled,
+
+  FixedPoseEvaluation
 };
 
 const char* matchTerminationName(MatchTermination termination);
@@ -67,8 +66,7 @@ struct MatchResult {
     double inlier_ratio = 0.0;
     Eigen::Matrix<double, 6, 6> information = Eigen::Matrix<double, 6, 6>::Identity();
     std::vector<MatchStageResult> stages;
-    // Objective, resolution and correspondence gate of the selected optimizer
-    // stage. Fixed-pose evaluation must use these same metric semantics.
+
     MatchMetric metric;
 };
 
@@ -96,10 +94,6 @@ public:
         SmallGicpCloud::Ptr cloud;
     };
 
-    // Immutable, call-scoped registration inputs. Preparing them once avoids
-    // repeating voxelization, target KD-tree construction, and normal/covariance
-    // estimation for every yaw seed or retry while leaving the optimizer inputs
-    // and settings unchanged.
     struct PreparedTarget {
         std::vector<PreparedTargetLevel> plane_levels;
         PreparedTargetLevel refine_level;
@@ -129,36 +123,29 @@ public:
                            const small_gicp::RegistrationSetting& setting);
 
     enum class TargetFeatures { Eager, OnDemand };
-    // OnDemand retains the same full KNN support and memoizes each normal on
-    // first registration access. All accesses go through the matcher view.
+
     PreparedTarget prepareTargetCloud(
         const PointCloudT::Ptr& cloud, TargetFeatures features = TargetFeatures::Eager);
     PreparedSource prepareSourceCloud(const PointCloudT::Ptr& cloud);
     MatchResult alignPrepared(const PreparedTarget& target,
                               const PreparedSource& source,
                               const Eigen::Isometry3d& init_guess = Eigen::Isometry3d::Identity());
-    // Explicit GICP settings run only the prepared covariance level; the
-    // requested resolution must match it. The default plane settings retain
-    // the coarse/fine cascade and optional GICP refinement.
+
     MatchResult alignPrepared(const PreparedTarget& target,
                               const PreparedSource& source,
                               const Eigen::Isometry3d& init_guess,
                               const small_gicp::RegistrationSetting& setting);
-    // Local GICP on an admitted raw scan pair; reject many-to-one boundary
-    // correspondences when the two scans cover different parts of the scene.
+
     MatchResult alignPreparedReciprocal(const PreparedTarget& target,
                                        const PreparedSource& source,
                                        const Eigen::Isometry3d& init_guess,
                                        const small_gicp::RegistrationSetting& setting);
-    // Optimize fresh geometry from a previously accepted metric's scale.
-    // The caller must retry the full cascade if the local solve is unsupported
-    // or its correction leaves the tracking neighborhood.
+
     MatchResult resumePrepared(const PreparedTarget& target,
                                const PreparedSource& source,
                                const Eigen::Isometry3d& init_guess,
                                const MatchMetric& metric);
-    // Does not change pose or claim optimizer convergence. The result has
-    // FixedPoseEvaluation termination only when usable residuals were measured.
+
     MatchResult evaluatePreparedPose(const PreparedTarget& target,
                                     const PreparedSource& source,
                                     const Eigen::Isometry3d& pose,
@@ -188,13 +175,7 @@ private:
     small_gicp::RegistrationSetting setting_;
 };
 
-// Conservative retained-memory estimate for a prepared target. small_gicp
-// does not expose KD-tree heap usage, so the estimate includes the exact
-// point/normal/covariance payload plus a per-point tree/index allowance. The
-// arithmetic saturates instead of wrapping, preserving byte-budget safety for
-// unexpectedly large targets.
-// Heap estimate; file-backed Atlas pages are accounted for by process RSS.
 std::size_t estimatePreparedTargetMemoryBytes(
     const PointCloudMatcher::PreparedTarget& target);
 
-} // namespace n3mapping
+}

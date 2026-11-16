@@ -1,4 +1,3 @@
-// Graph constraints and optimized-pose projection.
 #include "n3mapping/core/n3mapping_core.h"
 #include "n3mapping_session.h"
 
@@ -22,10 +21,7 @@ bool N3MappingCore::addOdometryConstraint(int64_t keyframe_id,
   edge.from_id = keyframe_id - 1;
   edge.to_id = keyframe_id;
   edge.measurement = prev_kf->pose_odom.inverse() * pose;
-  // This edge represents the frontend's motion estimate. Re-registering its
-  // deskewed scans would reuse correlated evidence and assign the result the
-  // odometry noise below. Keep geometric corrections in the loop/plane factors,
-  // where they retain their own admission checks and uncertainty model.
+
   edge.information = Eigen::Matrix<double, 6, 6>::Identity();
   edge.information.block<3, 3>(0, 0) *=
       1.0 / (config_.odom_noise_position * config_.odom_noise_position);
@@ -77,8 +73,7 @@ bool N3MappingCore::refreshSubmapPoses(const char* context) {
       submaps.getSubmaps(), keyframes, session_->optimizer.getEdges(),
       session_->optimizer.floorAttitudeConstraints());
   if (!graph_snapshot.valid) {
-    // SG-02 remains observational: an invalid shadow snapshot is visible but
-    // cannot change the reference keyframe-graph lifecycle.
+
     LOG(WARNING) << "[SubmapGraphShadow] snapshot failed context="
                  << (context ? context : "unknown")
                  << " reason=" << graph_snapshot.failure_reason;
@@ -191,4 +186,4 @@ bool N3MappingCore::refreshSubmapPoses(const char* context) {
   return true;
 }
 
-}  // namespace n3mapping
+}

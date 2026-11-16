@@ -30,7 +30,7 @@ void fillQueryCloudDebugSummary(const PlaceObservation &observation,
   summary->raw_points = observation.raw_points;
   summary->downsampled_points = observation.downsampled_points;
 }
-} // namespace
+}
 
 RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
                                         const Eigen::Isometry3d &odom_pose,
@@ -122,14 +122,11 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
         std::chrono::steady_clock::now() - diagnostics_started).count();
   }
 
-  // Retrieval needs no registration representation. Prepare once on the
-  // calling thread, only when candidates or hypotheses need verification.
   RelocalizationObservation prepared_observation;
   const auto prepare_query = [&]() {
     prepared_observation.prepare(query_cloud, matcher_, config_, cost);
   };
 
-  // A new viewpoint must reconsider the best-ranked places before continuing.
   if (search_offset_ > 0) {
     const Eigen::Isometry3d motion = search_anchor_.inverse() * odom_pose;
     if (motion.translation().norm() > config_.reloc_static_agg_max_translation ||
@@ -139,8 +136,7 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
   if (search_offset_ == 0) search_anchor_ = odom_pose;
   VLOG(1) << "[Reloc/Retrieval] offset=" << search_offset_;
   const auto candidates = place_index_.search(query_cloud, &cost.descriptor, search_offset_);
-  // Only a current full registration can authorize publication after cheaper
-  // intermediate confirmations. This is independent of historical scores.
+
   std::vector<const RelocHypothesis*> currently_registered;
   const bool starting = hypothesis_manager_.empty();
   if (reloc_debug_enabled) {
@@ -157,8 +153,6 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
     return completed_result();
   }
 
-  // New spatial regions enter independently. Established hypotheses keep their
-  // poses and evidence; only the new regions need descriptor-seeded solves.
   updateRelocalizationCandidates(query_cloud, candidates, odom_pose,
       prepared_observation, cost, reloc_debug_enabled ? &debug_event : nullptr);
   if (hypothesis_manager_.empty()) {
@@ -177,9 +171,6 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
         cost, reloc_debug_enabled);
   }
 
-  // Kill mode changes the hypothesis set before ranking. Veto mode is a final
-  // acceptance condition and need not inspect geometry for an already rejected
-  // or incomplete temporal window.
   if (config_.reloc_free_space_mode == "kill") {
     const auto started = std::chrono::steady_clock::now();
     killFreeSpaceDominatedHypotheses(query_cloud, odom_pose);
@@ -216,8 +207,6 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
       }
     }
 
-    // Compare physical LiDAR poses at the same instant to avoid keyframe
-    // boundary changes and origin-dependent transform translation deltas.
     const WinnerStability winner_stability = hypothesis_manager_.observeWinner(
         top1->T_map_odom, odom_pose, config_.reloc_track_max_translation,
         config_.reloc_track_max_rotation);
@@ -269,8 +258,7 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
     const auto target = target_provider_->getTarget(makeRelocTargetRequest(top1->last_match_id));
     auto information = top1->last_registration_information;
     if (top1->metric.type == small_gicp::RegistrationSetting::GICP) {
-      // GICP regularizes tangential covariance, which can make a bare floor
-      // appear full rank. Test its surface constraints at the selected pose.
+
       const auto fixed_started = std::chrono::steady_clock::now();
       const MatchMetric metric{small_gicp::RegistrationSetting::PLANE_ICP,
           config_.gicp_downsampling_resolution, top1->metric.max_correspondence_distance};
@@ -280,8 +268,7 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
           std::chrono::steady_clock::now() - fixed_started).count();
       ++cost.fixed_pose_evaluations;
     }
-    // Information uses source-frame increments. Query structure alone cannot
-    // establish a lock when the matched map leaves XY or yaw unconstrained.
+
     const Eigen::Vector3d up = (top1->T_map_odom * odom_pose).linear().transpose() *
                               Eigen::Vector3d::UnitZ();
     const Eigen::Vector3d horizontal = up.unitOrthogonal();
@@ -315,8 +302,7 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
       bool directional_supported = witness.planar_min_support > 0.5;
       bool all_observations_conflict = witness.planar_max_conflict >= 0.5;
       if (std::isfinite(witness.planar_min_support) && witness.planar_min_support <= 0.5) {
-        // A fused map can retain foreground from a different visit. Each stored
-        // observation must independently support the candidate; views are not pooled.
+
         const int64_t references[] = {top1->seed_match_id, top1->last_match_id};
         const int reference_count = references[0] == references[1] ? 1 : 2;
         for (int i = 0; i < reference_count; ++i) {
@@ -338,8 +324,7 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
             break;
           }
           if (observed_witness.planar_min_support_given_known > 0.5) {
-            // A changed foreground may dominate query geometry. Require the
-            // stored observation to be explained independently in every axis.
+
             auto reciprocal = prepareVisibilityObservation(*reference->cloud,
                 visibilityOptionsFromConfig(config_),
                 std::max(config_.global_map_voxel_size, config_.gicp_downsampling_resolution));
@@ -366,13 +351,10 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
               << " agreement_given_known=" << witness.planar_min_support_given_known
               << " conflict_max=" << witness.planar_max_conflict
               << " all_observations_conflict=" << all_observations_conflict;
-      // A majority of support is required in EVERY planar motion direction.
-      // Matching a large floor must not compensate for contradictory walls.
+
       if (!directional_supported) {
         decision.accepted = false;
-        // H_support + H_conflict + H_unknown = I in the whitened query basis.
-        // Only a majority of actual contradiction proves that even explaining
-        // every unknown bearing cannot pass the unchanged support gate.
+
         rejected_current_geometry = all_observations_conflict;
         decision.reject_reason = directional_observation.planar_jacobians.empty()
             ? "planar_geometry_unobservable"
@@ -388,8 +370,7 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
             << " passed=" << decision.accepted << " ms=" << cost.directional_check_ms;
   }
   if (rejected_current_geometry) {
-    // A rejected place must get fresh seed searches next time. Other spatial
-    // basins remain reusable; ambiguity alone does not invalidate a proposal.
+
     const auto anchor = keyframe_manager_.getKeyframe(top1->seed_match_id);
     if (anchor)
       cost.invalidated_seed_poses += candidate_evaluator_.discardSeedsNear(
@@ -414,7 +395,6 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
     return completed_result();
   }
 
-  // Stationary repeats do not add independent visibility evidence.
   VLOG(1) << "[Reloc/Baseline] window=" << hypothesis_manager_.windowCount()
           << " persisted=" << hypothesis_manager_.persistedFrames()
           << " motion_translation_m=" << motion_baseline.translation
@@ -436,7 +416,6 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
     }
   }
 
-  // Free-space disagreement vetoes the ranked winner.
   if (!decision.pass_free_space) {
     VLOG(1) << "[Reloc/FreeSpace] veto: free-space best disagrees with ranked "
                "top1";
@@ -551,14 +530,10 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
     finish_debug("rejected", reject_reason);
   }
 
-  // Ambiguity alone must not abandon a viable place or its next confirmation.
-  // Recovery already has a map pose prior; expand only failed initial geometry.
   if (!result.success && !has_ever_relocalized_ && !decision.moving_visibility_required &&
       (!decision.pass_log_likelihood || rejected_current_geometry))
     search_offset_ = next_search_offset;
 
-  // The next window starts with fresh evidence for every retrieved seed.
-  // Candidate poses survive separately, keyed by seed and map revision.
   const HypothesisPersistenceResult persistence =
       hypothesis_manager_.finishWindow(result.success,
                                        config_.reloc_persist_hypotheses,
@@ -571,4 +546,4 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
   return completed_result();
 }
 
-} // namespace n3mapping
+}

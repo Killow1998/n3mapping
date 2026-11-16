@@ -5,8 +5,6 @@
 
 namespace n3mapping {
 
-// Exact score ordering. A pairwise epsilon is not an equivalence relation
-// and cannot be used inside std::sort. Non-finite scores all rank last.
 inline int compareRelocalizationScore(double lhs, double rhs) {
   const bool lhs_finite = std::isfinite(lhs);
   const bool rhs_finite = std::isfinite(rhs);
@@ -15,8 +13,6 @@ inline int compareRelocalizationScore(double lhs, double rhs) {
   return lhs > rhs ? -1 : 1;
 }
 
-// Break equal-score, equal-place ties by pose, not insertion order. The
-// invalid-value handling also keeps diagnostic/synthetic inputs ordered.
 inline bool relocalizationPoseLess(const Eigen::Isometry3d &lhs,
                                    const Eigen::Isometry3d &rhs) {
   for (int row = 0; row < 3; ++row) {
@@ -28,4 +24,4 @@ inline bool relocalizationPoseLess(const Eigen::Isometry3d &lhs,
   return false;
 }
 
-} // namespace n3mapping
+}

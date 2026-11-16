@@ -477,5 +477,5 @@ TEST(RelocalizationDebugLoggerTest, AppendsTrackingFailure) {
   std::filesystem::remove_all(temp_dir);
 }
 
-} // namespace
-} // namespace n3mapping
+}
+}

@@ -267,5 +267,5 @@ TEST(RosOutputContract, InvalidCloudMetadataCannotRepublishAnOdomScalar) {
     EXPECT_TRUE(appendProjectionMetadata("{\"stamp\":100}", invalid).empty());
 }
 
-}  // namespace
-}  // namespace n3mapping
+}
+}

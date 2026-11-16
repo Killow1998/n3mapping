@@ -68,6 +68,7 @@ set(N3MAPPING_CORE_SOURCES
   ${N3MAPPING_ROOT}/src/planar_geometry/plane_partition.cpp
   ${N3MAPPING_ROOT}/src/planar_geometry/builder.cpp
   ${N3MAPPING_ROOT}/src/planar_geometry/serialization.cpp
+  ${N3MAPPING_ROOT}/src/n3map_proto_reader.cpp
   ${N3MAPPING_ROOT}/src/n3map_proto_utils.cpp
   ${N3MAPPING_ROOT}/src/map_serializer.cpp
   ${N3MAPPING_ROOT}/src/map_serializer_save.cpp

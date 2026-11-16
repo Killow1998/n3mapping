@@ -1166,8 +1166,8 @@ bool writeEvalCompleteMarker(const std::filesystem::path& path)
     return file.good();
 }
 
-}  // namespace
-}  // namespace n3mapping
+}
+}
 
 int main(int argc, char** argv)
 {

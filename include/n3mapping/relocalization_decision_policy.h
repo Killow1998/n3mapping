@@ -1,4 +1,3 @@
-// Pure ranking and lock-gate evaluation for relocalization hypotheses.
 #pragma once
 
 #include <limits>
@@ -76,4 +75,4 @@ private:
   Config config_;
 };
 
-} // namespace n3mapping
+}

@@ -1304,9 +1304,7 @@ Config makeEvalConfig(const Options& options)
     config.reloc_debug_path = (options.output_dir / "relocalization_debug.jsonl").string();
     config.reloc_atlas_enable = !options.atlas_path.empty();
     config.reloc_atlas_path = options.atlas_path.string();
-    // Dataset replay supplies oracle ground-truth poses. Keep it a backend
-    // diagnostic: real-LIO startup and divergence guards are validated by bag
-    // replay and would otherwise conflate frontend safety with backend quality.
+
     config.mapping_static_start_guard_enable = false;
     config.odom_sanity_enable = false;
     return config;
@@ -1777,8 +1775,8 @@ int run(const Options& options)
     return runRelocalization(options, frames, alignment);
 }
 
-}  // namespace
-}  // namespace n3mapping
+}
+}
 
 int main(int argc, char** argv)
 {

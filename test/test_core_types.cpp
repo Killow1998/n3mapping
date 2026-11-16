@@ -247,5 +247,5 @@ TEST(CoreTypesTest, StatefulOutputAuthorityPreservesMapExtensionLegacyEvent) {
   EXPECT_EQ(output.pose_source, PoseSource::GEOMETRICALLY_CORRECTED);
 }
 
-} // namespace test
-} // namespace n3mapping
+}
+}

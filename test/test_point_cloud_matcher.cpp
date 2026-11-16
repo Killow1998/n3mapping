@@ -15,8 +15,7 @@ using PointCloudMatcherTest = RegistrationFixture;
 
 TEST_F(PointCloudMatcherTest, ProposalSamplingKeepsObservedSurfacesAndIgnoresInputOrder) {
     small_gicp::PointCloud input;
-    // Two observed surfaces surround an empty cell centre, on either side
-    // of zero. A centroid would fabricate a point in that empty space.
+
     for (int i = -6; i < 6; ++i) {
         input.points.emplace_back(i + 0.125, 0.875, 0.5, 1.0);
         input.points.emplace_back(i + 0.875, 0.125, 0.5, 1.0);
@@ -50,16 +49,15 @@ TEST_F(PointCloudMatcherTest, BoundedTrackingCannotAcquireADistantParallelSurfac
     EXPECT_LT(result.T_target_source.translation().norm(), 1e-9);
 }
 
-// 测试预处理功能
 TEST_F(PointCloudMatcherTest, PreprocessPointCloud) {
     auto cloud = createPlaneCloud(1000);
-    
+
     auto [processed, kdtree] = matcher_->preprocessPointCloud(cloud);
-    
+
     ASSERT_NE(processed, nullptr);
     ASSERT_NE(kdtree, nullptr);
     EXPECT_GT(processed->size(), 0u);
-    // 下采样后点数应该减少
+
     EXPECT_LT(processed->size(), cloud->size());
 }
 
@@ -145,8 +143,7 @@ TEST_F(PointCloudMatcherTest, OnDemandTargetsPreserveConcurrentAndRepeatedRegist
     const auto expected = matcher.evaluatePreparedPose(eager, source, reference.T_target_source, reference.metric);
     EXPECT_EQ(check.num_inliers, expected.num_inliers);
     EXPECT_TRUE(check.information.isApprox(expected.information, 1e-10));
-    // Unvisited distant geometry keeps its full search support but needs no
-    // feature evaluation. This is the observable work saved by the policy.
+
     for (const auto& level : lazy.plane_levels) {
         ASSERT_TRUE(level.lazy_normals);
         EXPECT_GT(level.lazy_normals->computedCount(), 0u);
@@ -154,20 +151,18 @@ TEST_F(PointCloudMatcherTest, OnDemandTargetsPreserveConcurrentAndRepeatedRegist
     }
 }
 
-// 测试空点云预处理
 TEST_F(PointCloudMatcherTest, PreprocessEmptyCloud) {
     Keyframe::PointCloudT::Ptr empty_cloud(new Keyframe::PointCloudT());
-    
+
     auto [processed, kdtree] = matcher_->preprocessPointCloud(empty_cloud);
-    
+
     EXPECT_TRUE(processed->empty());
     EXPECT_EQ(kdtree, nullptr);
 }
 
-// 测试空指针预处理
 TEST_F(PointCloudMatcherTest, PreprocessNullCloud) {
     auto [processed, kdtree] = matcher_->preprocessPointCloud(nullptr);
-    
+
     EXPECT_TRUE(processed->empty());
     EXPECT_EQ(kdtree, nullptr);
 }
@@ -201,142 +196,119 @@ TEST_F(PointCloudMatcherTest, PreprocessFiltersInvalidSmallGicpVoxelCoordinates)
     EXPECT_EQ(stderr_output.find("voxel coord is out of range"), std::string::npos);
 }
 
-// 测试相同点云配准 (应该返回单位变换)
-// Requirements: 3.1, 3.2
 TEST_F(PointCloudMatcherTest, AlignIdenticalClouds) {
     auto cloud = createPlaneCloud(2000);
-    
+
     auto target_kf = Keyframe::create(0, 0.0, Eigen::Isometry3d::Identity(), cloud);
     auto source_kf = Keyframe::create(1, 0.1, Eigen::Isometry3d::Identity(), cloud);
-    
+
     auto result = matcher_->align(target_kf, source_kf);
-    
+
     EXPECT_TRUE(result.success);
     EXPECT_LT(result.fitness_score, config_.gicp_fitness_threshold);
-    
-    // 变换应该接近单位矩阵
+
     EXPECT_TRUE(posesAreClose(result.T_target_source, Eigen::Isometry3d::Identity(), 0.1, 0.05));
 }
 
-// 测试已知变换的配准
-// Requirements: 3.1, 3.2
 TEST_F(PointCloudMatcherTest, AlignWithKnownTransform) {
     auto target_cloud = createPlaneCloud(2000);
-    
-    // 创建较小的已知变换（GICP 对大变换敏感）
+
     Eigen::Isometry3d known_transform = createPose(0.2, 0.1, 0.05, 0.0, 0.0, 0.05);
-    
-    // 变换源点云
+
     auto source_cloud = transformCloud(target_cloud, known_transform.inverse());
-    
+
     auto target_kf = Keyframe::create(0, 0.0, Eigen::Isometry3d::Identity(), target_cloud);
     auto source_kf = Keyframe::create(1, 0.1, Eigen::Isometry3d::Identity(), source_cloud);
-    
-    // 使用已知变换作为初始猜测
+
     auto result = matcher_->align(target_kf, source_kf, known_transform);
-    
+
     EXPECT_TRUE(result.success);
     EXPECT_LT(result.fitness_score, config_.gicp_fitness_threshold);
-    
-    // 估计的变换应该接近已知变换
+
     EXPECT_TRUE(posesAreClose(result.T_target_source, known_transform, 0.3, 0.2))
         << "Estimated transform should be close to known transform";
 }
 
-// 测试配准得分计算
-// Requirements: 3.3
 TEST_F(PointCloudMatcherTest, FitnessScoreCalculation) {
     auto cloud = createPlaneCloud(2000);
-    
+
     auto target_kf = Keyframe::create(0, 0.0, Eigen::Isometry3d::Identity(), cloud);
     auto source_kf = Keyframe::create(1, 0.1, Eigen::Isometry3d::Identity(), cloud);
-    
+
     auto result = matcher_->align(target_kf, source_kf);
-    
+
     EXPECT_TRUE(result.success);
-    // 相同点云配准得分应该很低
+
     EXPECT_LT(result.fitness_score, 0.1);
     EXPECT_GT(result.num_inliers, 0u);
 }
 
-// 测试无效输入处理
 TEST_F(PointCloudMatcherTest, AlignWithInvalidInput) {
     auto cloud = createPlaneCloud(1000);
     Keyframe::PointCloudT::Ptr empty_cloud(new Keyframe::PointCloudT());
-    
+
     auto valid_kf = Keyframe::create(0, 0.0, Eigen::Isometry3d::Identity(), cloud);
     auto empty_kf = Keyframe::create(1, 0.1, Eigen::Isometry3d::Identity(), empty_cloud);
-    
-    // 空源点云
+
     auto result1 = matcher_->align(valid_kf, empty_kf);
     EXPECT_FALSE(result1.success);
-    
-    // 空目标点云
+
     auto result2 = matcher_->align(empty_kf, valid_kf);
     EXPECT_FALSE(result2.success);
-    
-    // nullptr 关键帧
+
     auto result3 = matcher_->align(nullptr, valid_kf);
     EXPECT_FALSE(result3.success);
-    
+
     auto result4 = matcher_->align(valid_kf, nullptr);
     EXPECT_FALSE(result4.success);
 }
 
-// 测试批量配准
-// Requirements: 3.7, 4.8, 13.1
 TEST_F(PointCloudMatcherTest, AlignBatch) {
     auto cloud1 = createPlaneCloud(1500);
     auto cloud2 = createPlaneCloud(1500);
-    
-    // 创建多个配准对
+
     std::vector<std::pair<Keyframe::Ptr, Keyframe::Ptr>> pairs;
     std::vector<Eigen::Isometry3d> init_guesses;
-    
+
     for (int i = 0; i < 3; ++i) {
         auto target_kf = Keyframe::create(i * 2, i * 0.1, Eigen::Isometry3d::Identity(), cloud1);
         auto source_kf = Keyframe::create(i * 2 + 1, i * 0.1 + 0.05, Eigen::Isometry3d::Identity(), cloud2);
-        
+
         pairs.emplace_back(target_kf, source_kf);
         init_guesses.push_back(Eigen::Isometry3d::Identity());
     }
-    
+
     auto results = matcher_->alignBatch(pairs, init_guesses);
-    
+
     EXPECT_EQ(results.size(), pairs.size());
-    
-    // 所有配准应该成功
+
     for (const auto& result : results) {
         EXPECT_TRUE(result.success);
     }
 }
 
-// 测试空批量配准
 TEST_F(PointCloudMatcherTest, AlignBatchEmpty) {
     std::vector<std::pair<Keyframe::Ptr, Keyframe::Ptr>> pairs;
     std::vector<Eigen::Isometry3d> init_guesses;
-    
+
     auto results = matcher_->alignBatch(pairs, init_guesses);
-    
+
     EXPECT_TRUE(results.empty());
 }
 
-// 测试初始猜测对配准的影响
 TEST_F(PointCloudMatcherTest, AlignWithInitialGuess) {
     auto target_cloud = createSphereCloud(2000);
-    
-    // 创建较大的变换
+
     Eigen::Isometry3d known_transform = createPose(1.0, 0.5, 0.2, 0.0, 0.0, 0.2);
     auto source_cloud = transformCloud(target_cloud, known_transform.inverse());
-    
+
     auto target_kf = Keyframe::create(0, 0.0, Eigen::Isometry3d::Identity(), target_cloud);
     auto source_kf = Keyframe::create(1, 0.1, Eigen::Isometry3d::Identity(), source_cloud);
-    
-    // 使用接近真实值的初始猜测
+
     Eigen::Isometry3d init_guess = createPose(0.9, 0.4, 0.15, 0.0, 0.0, 0.15);
-    
+
     auto result = matcher_->align(target_kf, source_kf, init_guess);
-    
+
     EXPECT_TRUE(result.success);
     EXPECT_TRUE(posesAreClose(result.T_target_source, known_transform, 0.2, 0.15));
 }
@@ -446,7 +418,7 @@ TEST_F(PointCloudMatcherTest, SourceRefinementDoesNotNeedTargetNormals) {
     ASSERT_TRUE(target.has_refine_level);
     ASSERT_EQ(source.refine_cloud->size(), target.refine_level.cloud->size());
     for (std::size_t i = 0; i < source.refine_cloud->size(); ++i) {
-        // Storage order is independent; compare features at the same point.
+
         std::size_t target_index;
         double distance;
         ASSERT_EQ(target.refine_level.kdtree->nearest_neighbor_search(
@@ -530,22 +502,20 @@ TEST_F(PointCloudMatcherTest, FixedPoseEvaluationUsesObjectiveAndCorrespondenceG
               MatchTermination::Invalid);
 }
 
-// 测试信息矩阵输出
 TEST_F(PointCloudMatcherTest, InformationMatrixOutput) {
     auto cloud = createPlaneCloud(2000);
-    
+
     auto target_kf = Keyframe::create(0, 0.0, Eigen::Isometry3d::Identity(), cloud);
     auto source_kf = Keyframe::create(1, 0.1, Eigen::Isometry3d::Identity(), cloud);
-    
+
     auto result = matcher_->align(target_kf, source_kf);
-    
+
     EXPECT_TRUE(result.success);
-    
-    // 信息矩阵应该是正定的 (对角线元素为正)
+
     for (int i = 0; i < 6; ++i) {
         EXPECT_GE(result.information(i, i), 0.0);
     }
 }
 
-}  // namespace test
-}  // namespace n3mapping
+}
+}

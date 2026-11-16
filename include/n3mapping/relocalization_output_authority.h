@@ -1,4 +1,3 @@
-// ROS-free, stateful authority for relocalization output publication.
 #pragma once
 
 #include <cstdint>
@@ -89,4 +88,4 @@ class RelocalizationOutputAuthority {
   std::uint64_t lock_epoch_ = 0;
 };
 
-}  // namespace n3mapping
+}

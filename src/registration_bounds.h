@@ -8,9 +8,7 @@
 #include <small_gicp/registration/registration_helper.hpp>
 
 namespace n3mapping::registration_detail {
-// Actual occupied bounds tighten the KD split cells without changing their
-// traversal, leaf order or tie rule. Round outward so float storage can only
-// cause extra visits, never exclude an accepted double-precision neighbor.
+
 struct SearchBounds {
   struct Box { std::array<float, 3> lower, upper; };
   std::vector<Box> nodes;
@@ -62,4 +60,4 @@ struct SearchBounds {
     }
   }
 };
-}  // namespace n3mapping::registration_detail
+}

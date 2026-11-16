@@ -24,7 +24,7 @@ double sourceSeconds(uint64_t stamp_nsec) {
          static_cast<double>(stamp_nsec % 1000000000ULL) * 1e-9;
 }
 
-}  // namespace
+}
 
 RealtimeOutput::RealtimeOutput(CoreRunMode mode, std::string world_frame,
                                std::size_t retention)
@@ -230,4 +230,4 @@ ProjectionMetadata RealtimeOutput::metadata(
   return result;
 }
 
-}  // namespace n3mapping::core
+}

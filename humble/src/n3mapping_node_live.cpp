@@ -35,11 +35,10 @@ void N3MappingNode::initializeLiveSubscriptions()
         },
         live_odom_worker_->options().callback_group);
     live_odom_sub_ = this->create_subscription<nav_msgs::msg::Odometry>(
-        // Fast DDS reliable depth-1 history can remain behind the writer after
-        // discovery. Keep the same bounded history as the paired input; this
-        // lane still runs independently and RealtimeOutput rejects stale data.
+
         config_.odom_topic, rclcpp::QoS(static_cast<std::size_t>(queue_size)),
-        std::bind(&N3MappingNode::liveOdomCallback, this, std::placeholders::_1),
+        std::bind(&N3MappingNode::liveOdomCallback, this,
+                  std::placeholders::_1),
         live_odom_worker_->options());
     logEvent("input_subscription", "topic=" + config_.odom_topic +
         " role=live_odom depth=" + std::to_string(live_odom_sub_->get_actual_qos().depth()), true);
@@ -95,9 +94,7 @@ void N3MappingNode::liveOdomCallback(nav_msgs::msg::Odometry::ConstSharedPtr odo
     const auto started = trace ? Clock::now() : Clock::time_point{};
     const double processing_time = trace ? std::chrono::duration<double>(
         std::chrono::system_clock::now().time_since_epoch()).count() : 0.0;
-    // Transport history accommodates reliable discovery/retransmission. Keep
-    // only the newest pending input for projection, as the old depth-1 lane did.
-    // Bound draining so a continuous publisher cannot starve this executor.
+
     nav_msgs::msg::Odometry pending;
     nav_msgs::msg::Odometry::SharedPtr newest;
     rclcpp::MessageInfo info;
@@ -305,4 +302,4 @@ void N3MappingNode::publishRelocalizationStatus(
     relocalization_status_pub_->publish(status);
 }
 
-}  // namespace n3mapping
+}

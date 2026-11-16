@@ -52,4 +52,4 @@ core::LioFrame toCoreLioFrame(const sensor_msgs::msg::PointCloud2& cloud_msg,
     return frame;
 }
 
-}  // namespace n3mapping
+}

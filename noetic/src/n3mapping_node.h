@@ -37,7 +37,7 @@ public:
     RosLogging();
     ~RosLogging();
 };
-// Owns ROS resources and scheduling; shared core owns SLAM and output decisions.
+
 class N3MappingNoeticNode {
   public:
     N3MappingNoeticNode();
@@ -99,9 +99,8 @@ class N3MappingNoeticNode {
 
     void markGlobalMapFullRebuildRequired();
 
-    bool refreshGlobalMapMessage(const MapKeyframeSnapshot& snapshot,
-                                 sensor_msgs::PointCloud2* out_msg);
-
+    bool refreshGlobalMapMessage(const MapKeyframeSnapshot &snapshot,
+                                 sensor_msgs::PointCloud2 &out_msg);
 
     void publishGlobalMap(const MapKeyframeSnapshot& snapshot);
 
@@ -167,7 +166,6 @@ class N3MappingNoeticNode {
         nav_msgs::OdometryConstPtr odom;
     };
     core::LatestFrameSlot<SynchronizedFrame> pending_localization_frame_;
-    std::mutex global_map_mutex_;
 
     message_filters::Subscriber<sensor_msgs::PointCloud2> cloud_sub_;
     message_filters::Subscriber<nav_msgs::Odometry> odom_sub_;
@@ -208,4 +206,4 @@ class N3MappingNoeticNode {
     bool shutdown_called_ = false;
 };
 
-}  // namespace n3mapping
+}

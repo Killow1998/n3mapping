@@ -1,4 +1,3 @@
-// Offline factorial diagnosis only. Truth seeds never enter the runtime core.
 #include <cmath>
 #include <filesystem>
 #include <fstream>
@@ -37,7 +36,7 @@ Eigen::Isometry3d readTruthSeed(const Json::Value& job) {
         throw std::runtime_error("Invalid diagnostic truth pose");
     return pose;
 }
-}  // namespace
+}
 
 int main(int argc, char** argv) {
     const bool help = argc == 2 && std::string(argv[1]) == "--help";

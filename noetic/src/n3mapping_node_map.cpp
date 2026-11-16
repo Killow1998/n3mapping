@@ -11,7 +11,7 @@ void N3MappingNoeticNode::globalMapTimerCallback(const ros::TimerEvent&)
     MapKeyframeSnapshot snapshot;
     {
         std::lock_guard<std::mutex> lock(data_mutex_);
-        snapshot = snapshotMapKeyframes(core_.get());
+        snapshot = snapshotMapKeyframes(*core_);
     }
     publishGlobalMap(snapshot);
 }
@@ -23,12 +23,12 @@ bool N3MappingNoeticNode::handleSaveMap(std_srvs::Trigger::Request&, std_srvs::T
     MapKeyframeSnapshot snapshot;
     {
         std::lock_guard<std::mutex> lock(data_mutex_);
-        res.success = map_artifacts_->save(core_.get(), &error, &snapshot);
+        res.success = map_artifacts_->save(*core_, error, snapshot);
     }
     if (res.success && config_.save_global_map_on_shutdown) {
-        map_artifacts_->saveDebug(snapshot, &warning);
+        map_artifacts_->saveDebug(snapshot, warning);
     }
-    res.message = res.success ? ("saved:" + config_.map_save_path) : (error.empty() ? "save_failed" : error);
+    res.message = res.success ? ("saved:" + config_.map_save_path) : error;
     if (res.success && !warning.empty()) {
         res.message += " warning:" + warning;
     }
@@ -42,30 +42,23 @@ bool N3MappingNoeticNode::handleSaveMap(std_srvs::Trigger::Request&, std_srvs::T
 
 void N3MappingNoeticNode::resetGlobalMapCache()
 {
-    std::lock_guard<std::mutex> lock(global_map_mutex_);
     map_artifacts_->clear();
     global_map_last_published_revision_.reset();
 }
 
 void N3MappingNoeticNode::markGlobalMapFullRebuildRequired()
 {
-    std::lock_guard<std::mutex> lock(global_map_mutex_);
     map_artifacts_->invalidate();
     global_map_last_published_revision_.reset();
 }
 
-bool N3MappingNoeticNode::refreshGlobalMapMessage(const MapKeyframeSnapshot& snapshot,
-                             sensor_msgs::PointCloud2* out_msg)
+bool N3MappingNoeticNode::refreshGlobalMapMessage(
+    const MapKeyframeSnapshot &snapshot, sensor_msgs::PointCloud2 &out_msg)
 {
-    if (!out_msg) {
-        return false;
-    }
-
-    std::lock_guard<std::mutex> lock(global_map_mutex_);
     bool changed = false;
     map_artifacts_->withGlobalCloud(snapshot, [&](const auto& global) {
         const auto& cloud = global.cloud;
-        if (!cloud || cloud->empty()) {
+        if (cloud.empty()) {
             return;
         }
 
@@ -73,9 +66,9 @@ bool N3MappingNoeticNode::refreshGlobalMapMessage(const MapKeyframeSnapshot& sna
         if (global_map_last_published_revision_ == revision) {
             return;
         }
-        pcl::toROSMsg(*cloud, *out_msg);
-        out_msg->header.frame_id = config_.world_frame;
-        out_msg->header.stamp = ros::Time::now();
+        pcl::toROSMsg(cloud, out_msg);
+        out_msg.header.frame_id = config_.world_frame;
+        out_msg.header.stamp = ros::Time::now();
         global_map_last_published_revision_ = revision;
         changed = true;
     });
@@ -85,7 +78,7 @@ bool N3MappingNoeticNode::refreshGlobalMapMessage(const MapKeyframeSnapshot& sna
 void N3MappingNoeticNode::publishGlobalMap(const MapKeyframeSnapshot& snapshot)
 {
     sensor_msgs::PointCloud2 msg;
-    if (!refreshGlobalMapMessage(snapshot, &msg)) {
+    if (!refreshGlobalMapMessage(snapshot, msg)) {
         return;
     }
     global_map_pub_.publish(msg);
@@ -99,10 +92,10 @@ void N3MappingNoeticNode::saveMapOnShutdown()
     bool saved = false;
     {
         std::lock_guard<std::mutex> lock(data_mutex_);
-        saved = map_artifacts_->save(core_.get(), &error, &snapshot);
+        saved = map_artifacts_->save(*core_, error, snapshot);
     }
     if (saved && config_.save_global_map_on_shutdown) {
-        map_artifacts_->saveDebug(snapshot, &warning);
+        map_artifacts_->saveDebug(snapshot, warning);
     }
     if (saved) {
         ROS_INFO("Map snapshot saved under: %s", config_.map_save_path.c_str());
@@ -128,4 +121,4 @@ void N3MappingNoeticNode::loadMap()
     resetGlobalMapCache();
 }
 
-}  // namespace n3mapping
+}

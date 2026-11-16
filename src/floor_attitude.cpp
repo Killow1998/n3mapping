@@ -1,4 +1,3 @@
-// floor_attitude.cpp
 #include "n3mapping/floor_attitude.h"
 
 #include <Eigen/Eigenvalues>
@@ -17,13 +16,9 @@ estimateFloorNormal(const pcl::PointCloud<pcl::PointXYZI> &cloud_in_sensor,
   if (static_cast<int>(cloud_in_sensor.size()) < options.min_points)
     return out;
 
-  // Which way the sensor currently believes down to be, expressed in the sensor
-  // frame. Only used to pick out the floor returns; the fitted normal itself
-  // comes from the geometry.
   const Eigen::Vector3d down_sensor =
       T_world_sensor.rotation().transpose() * Eigen::Vector3d(0.0, 0.0, -1.0);
 
-  // Height along that direction, and horizontal radius across it.
   std::vector<Eigen::Vector3d> near;
   std::vector<double> height;
   near.reserve(cloud_in_sensor.size());
@@ -80,8 +75,6 @@ estimateFloorNormal(const pcl::PointCloud<pcl::PointXYZI> &cloud_in_sensor,
   if (planarity > options.max_planarity)
     return out;
 
-  // Point it away from the floor, i.e. against the direction the sensor calls
-  // down.
   if (normal.dot(-down_sensor) < 0.0)
     normal = -normal;
   normal.normalize();
@@ -98,4 +91,4 @@ estimateFloorNormal(const pcl::PointCloud<pcl::PointXYZI> &cloud_in_sensor,
   return out;
 }
 
-} // namespace n3mapping
+}

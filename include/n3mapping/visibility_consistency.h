@@ -19,9 +19,7 @@ struct VisibilityConsistencyOptions {
   double range_tolerance_m = 0.3;
   double min_angular_resolution_deg = 1.0;
   double max_angular_resolution_deg = 4.0;
-  // Experimental closest-range matching within each angular bin. It can hide
-  // a nearer opaque surface behind a matching background return, so it is not
-  // a physical first-return visibility model. Product keeps this disabled.
+
   bool occlusion_aware = false;
 };
 
@@ -31,11 +29,9 @@ struct VisibilityConsistencyResult {
   std::size_t predicted_bins = 0;
   std::size_t common_bins = 0;
   std::size_t consistent_bins = 0;
-  // Radial-bin diagnostics; tangential samples on one plane can differ in range.
+
   std::size_t foreground_conflict_bins = 0;
-  // Shadow diagnostics: common observed/predicted bearings are the bins for
-  // which the map has an opinion. Keeping them separate from uncovered query
-  // bearings distinguishes contradiction from missing map coverage.
+
   std::size_t known_bins = 0;
   std::size_t unknown_bins = 0;
   double angular_resolution_deg = std::numeric_limits<double>::quiet_NaN();
@@ -51,24 +47,17 @@ struct VisibilityConsistencyResult {
       std::numeric_limits<double>::quiet_NaN();
   double median_abs_range_error_m = std::numeric_limits<double>::quiet_NaN();
   double p90_abs_range_error_m = std::numeric_limits<double>::quiet_NaN();
-  // Fraction of query geometry explained in the least supported planar motion
-  // direction. NaN means unavailable, including a rank-deficient observation.
+
   double planar_min_support = std::numeric_limits<double>::quiet_NaN();
-  // Directional map coverage, independently of agreement. Conditional support
-  // alone is insufficient; partial coverage requires an independent reverse witness.
+
   double planar_min_known = std::numeric_limits<double>::quiet_NaN();
   double planar_min_support_given_known =
       std::numeric_limits<double>::quiet_NaN();
   double planar_max_conflict = std::numeric_limits<double>::quiet_NaN();
 };
 
-// The options as configuration sets them. A function rather than a block inside
-// a private method, so a test can assert that each key arrives where it is
-// meant to.
 VisibilityConsistencyOptions visibilityOptionsFromConfig(const Config& config);
 
-// One query observation, reusable across poses and targets. Options travel with
-// the prepared ranges so evaluation cannot accidentally use different bins.
 struct PreparedVisibilityObservation {
   VisibilityConsistencyOptions options;
   double resolution_deg = 1.0;
@@ -81,17 +70,11 @@ PreparedVisibilityObservation prepareVisibilityObservation(
     const pcl::PointCloud<pcl::PointXYZI> &query_cloud,
     const VisibilityConsistencyOptions &options = {});
 
-// Directional geometry samples at the map/query spacing while retaining the
-// independent range error tolerance. The two-argument form preserves scoring.
 PreparedVisibilityObservation prepareVisibilityObservation(
     const pcl::PointCloud<pcl::PointXYZI> &query_cloud,
     const VisibilityConsistencyOptions &options,
     double angular_sampling_spacing_m);
 
-// Optional lock witness, prepared only when the other acceptance gates pass.
-// up_in_query is the odometry world's Z axis expressed in the query frame;
-// sensor mounting tilt must not be mistaken for the world's horizontal plane.
-// Jacobians are whitened against all observed surfaces, including disagreement.
 void prepareVisibilityPlanarSupport(
     const pcl::PointCloud<pcl::PointXYZI>::ConstPtr &query_cloud,
     const Eigen::Vector3d &up_in_query,
@@ -109,4 +92,4 @@ VisibilityConsistencyResult evaluateVisibilityConsistency(
     const Eigen::Isometry3d &T_map_lidar,
     const VisibilityConsistencyOptions &options = {});
 
-} // namespace n3mapping
+}

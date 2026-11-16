@@ -1,4 +1,3 @@
-// Spatial loop retrieval and its bounded boundary reserve.
 #include "n3mapping/loop_detector.h"
 
 #include <algorithm>
@@ -25,11 +24,6 @@ std::vector<LoopCandidate> LoopDetector::detectSpatialCandidates(
     const double radius = std::max(1e-6, config_.loop_spatial_candidate_radius);
     const double min_path = std::max(0.0, config_.loop_min_path_length_m);
 
-    // What makes a revisit worth registering is how far the platform walked
-    // between the two visits, not how many keyframes it laid down. Asking for
-    // fifty keyframes of index discarded the out-and-back at 95 to 104 m of
-    // path on 0723 -- nine keyframes apart, nine metres of travel, and the
-    // worst revisit disagreement in the map.
     std::map<int64_t, double> path_at;
     {
         double travelled = 0.0;
@@ -73,9 +67,7 @@ std::vector<LoopCandidate> LoopDetector::detectSpatialCandidates(
         }
         const double distance = std::sqrt(squared_distance);
         ++spatial_considered;
-        // The radius is a hard bound, not a score normalizer: a candidate
-        // farther than loop_spatial_candidate_radius must never enter the
-        // returned set, however few candidates remain. Equal stays in.
+
         if (distance > radius) {
             ++spatial_outside_radius;
             continue;
@@ -92,10 +84,7 @@ std::vector<LoopCandidate> LoopDetector::detectSpatialCandidates(
                                       static_cast<int>(ranked.size()));
     int keep = primary_keep;
     if (include_boundary_ties && primary_keep > 0) {
-        // Graph updates can swap near-equal distances at the top-k boundary.
-        // Keep the original nearest set and a bounded reserve within one
-        // registration voxel. This is a retrieval heuristic, not an acceptance
-        // tolerance or a calibrated pose uncertainty. The radius stays hard.
+
         const double boundary = ranked[primary_keep - 1].first +
             std::max(0.0, config_.gicp_downsampling_resolution);
         const std::size_t reserve_end = std::min(ranked.size(),
@@ -104,10 +93,7 @@ std::vector<LoopCandidate> LoopDetector::detectSpatialCandidates(
                ranked[keep].first <= boundary) ++keep;
     }
     if (config_.loop_debug_enable || VLOG_IS_ON(1)) {
-        // Record the admission snapshot, including candidates outside top-k.
-        // Final optimized poses cannot explain an earlier retrieval decision.
-        // Ordinary verbose tracing needs only the boundary, and does not enable
-        // the extra graph trials performed by the full debug stream.
+
         const auto trace_end = config_.loop_debug_enable ? ranked.size() :
             std::min(ranked.size(), static_cast<std::size_t>(keep) + 1);
         for (std::size_t i = 0; i < trace_end; ++i) {
@@ -136,4 +122,4 @@ std::vector<LoopCandidate> LoopDetector::detectSpatialCandidates(
     return candidates;
 }
 
-} // namespace n3mapping
+}

@@ -1,5 +1,3 @@
-// Global reference assembly. Packed scratch removes PointXYZI's SIMD padding;
-// PCL retains the same voxel ordering, centroid arithmetic and intensity data.
 #include "n3mapping/localization_atlas.h"
 #include "n3mapping/pcl_compat.h"
 #include <algorithm>
@@ -70,8 +68,7 @@ LocalizationAtlas::PointCloudT::Ptr LocalizationAtlas::buildGlobalMap(
     cells *= std::floor((high[axis] - low[axis]) / leaf) + 1.L;
   if (finite == 0 || !std::isfinite(cells) || cells <= 0 ||
       cells > std::numeric_limits<int>::max()) {
-    // Preserve the established no-filter fallback for empty/unsafe grids,
-    // including non-finite points. Release scratch before assembling it.
+
     packed.reset();
     return assemble_raw();
   }
@@ -88,4 +85,4 @@ LocalizationAtlas::PointCloudT::Ptr LocalizationAtlas::buildGlobalMap(
   pcl::fromPCLPointCloud2(filtered, *output);
   return output;
 }
-} // namespace n3mapping
+}

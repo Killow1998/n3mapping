@@ -398,7 +398,7 @@ bool appendLine(const std::string& path, const std::string& line) {
   return appendLogLine(path, line);
 }
 
-} // namespace
+}
 
 std::string RelocalizationDebugLogger::resolvePath(const Config &config) {
   if (!config.reloc_debug_path.empty()) {
@@ -559,4 +559,4 @@ bool RelocalizationDebugLogger::appendTracking(
   return appendLine(path, os.str());
 }
 
-} // namespace n3mapping
+}

@@ -6,10 +6,9 @@
 #include <small_gicp/util/downsampling_omp.hpp>
 
 namespace n3mapping::registration_detail {
-// Sampling writes coordinates only. Allocate normal/covariance arrays later,
-// at the retained size, when feature estimation actually needs them.
+
 struct SamplingCloud : small_gicp::PointCloud {};
-} // namespace n3mapping::registration_detail
+}
 
 namespace small_gicp::traits {
 template <>
@@ -18,7 +17,7 @@ struct Traits<n3mapping::registration_detail::SamplingCloud> : Traits<PointCloud
     cloud.points.resize(n);
   }
 };
-} // namespace small_gicp::traits
+}
 
 namespace n3mapping::registration_detail {
 inline small_gicp::PointCloud::Ptr sampleCoordinates(
@@ -28,9 +27,7 @@ inline small_gicp::PointCloud::Ptr sampleCoordinates(
   result->points.shrink_to_fit();
   return result;
 }
-// Prepared finite coordinates only. Keep an existing coarse point per cell,
-// so this sampling step cannot add a centroid between surfaces. Coordinate ties
-// are deterministic even when parallel preparation changes the input order.
+
 inline small_gicp::PointCloud::Ptr sampleRepresentativeCoordinates(
     const small_gicp::PointCloud& cloud, double resolution) {
   using Cell = std::array<int, 3>;
@@ -68,4 +65,4 @@ inline small_gicp::PointCloud::Ptr sampleRepresentativeCoordinates(
   points->points.shrink_to_fit();
   return points;
 }
-} // namespace n3mapping::registration_detail
+}

@@ -89,8 +89,7 @@ void N3MappingNoeticNode::spin()
         return;
     }
     while (ros::ok()) {
-        // Drain received pairs before spending time on geometric tracking.
-        // All callbacks and backend work retain their single-thread owner.
+
         ros::getGlobalCallbackQueue()->callAvailable(ros::WallDuration(0.01));
         auto pending = pending_localization_frame_.take();
         if (ros::ok() && pending) {
@@ -103,7 +102,7 @@ void N3MappingNoeticNode::initializeROS()
 {
     const int sync_queue_size = std::max(1, config_.sync_queue_size);
     cloud_sub_.subscribe(nh_, config_.cloud_topic, static_cast<uint32_t>(sync_queue_size));
-    // Shared odom transport must not batch samples before the depth-one live queue.
+
     odom_sub_.subscribe(nh_, config_.odom_topic, static_cast<uint32_t>(sync_queue_size),
                         ros::TransportHints().tcpNoDelay());
     if (product_profile_v1_) {
@@ -168,4 +167,4 @@ void N3MappingNoeticNode::shutdown()
              loop_count_);
 }
 
-}  // namespace n3mapping
+}

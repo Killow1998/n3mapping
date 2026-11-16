@@ -8,4 +8,4 @@ namespace n3mapping {
 
 void loadConfigFromNoetic(ros::NodeHandle& node_handle, Config* config);
 
-}  // namespace n3mapping
+}

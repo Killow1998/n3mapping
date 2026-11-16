@@ -82,9 +82,7 @@ Keyframe::Ptr findLocalCorrespondence(const std::vector<Keyframe::Ptr>& keyframe
         if (match_delta == 0 || std::abs(match_delta) > local_id_radius) {
             continue;
         }
-        // Keyframe ids are temporal order. Compare the same temporal side of
-        // both segments; reverse traversal is represented by the inverse local
-        // displacement above, not by walking match ids backward.
+
         if (query_offset * static_cast<int>(match_delta) <= 0) {
             continue;
         }
@@ -93,13 +91,10 @@ Keyframe::Ptr findLocalCorrespondence(const std::vector<Keyframe::Ptr>& keyframe
         const double translation = residual.translation().norm() / translation_threshold;
         const double yaw = std::abs(normalizeAngle(
             canonicalRollPitchYaw(residual).z())) / yaw_threshold;
-        // Correspondence and validation must use the same observed pose axes.
-        // Translation alone can choose the opposite-facing side of a turn and
-        // then report a yaw contradiction despite an available consistent pair.
+
         const double score = translation * translation + yaw * yaw;
         const bool within_gates = translation <= 1.0 && yaw <= 1.0;
-        // A lower combined score must not crowd out a correspondence satisfying
-        // both gates. Retain a failed best match only when no supported one exists.
+
         if ((within_gates && !best_within_gates) ||
             (within_gates == best_within_gates && score < best_score)) {
             best_score = score;
@@ -137,9 +132,7 @@ DirectionStats evaluateDirection(const Config& config,
         if (!query_neighbor) {
             continue;
         }
-        // A live snapshot may end at the query. Future scans are not failed
-        // observations; count only query neighbors that can be checked. A
-        // missing match for an available query still reduces support.
+
         ++stats.pair_count;
         const Eigen::Isometry3d T_query_query_neighbor =
             query->pose_optimized.inverse() * query_neighbor->pose_optimized;
@@ -214,7 +207,7 @@ LoopSegmentConsistencyDiagnostics makeDiagnostics(const DirectionStats& stats)
     return diagnostics;
 }
 
-}  // namespace
+}
 
 LoopSegmentConsistencyDiagnostics computeLoopSegmentConsistency(
     const Config& config,
@@ -227,9 +220,7 @@ LoopSegmentConsistencyDiagnostics computeLoopSegmentConsistency(
     }
     const DirectionStats same = evaluateDirection(config, keyframe_manager, loop, half_window, 1);
     const DirectionStats reverse = evaluateDirection(config, keyframe_manager, loop, half_window, -1);
-    // Both directions explain the same observed query neighbors. Prefer more
-    // gate-consistent pairs before comparing their residuals: a lower median
-    // must not replace a fully supported direction with a contradicting one.
+
     const bool prefer_reverse = reverse.inlier_count != same.inlier_count
         ? reverse.inlier_count > same.inlier_count
         : directionScore(reverse) < directionScore(same);
@@ -257,4 +248,4 @@ void assignLoopSegmentConsistency(
     loop->segment_recommendation = diagnostics.recommendation;
 }
 
-}  // namespace n3mapping
+}

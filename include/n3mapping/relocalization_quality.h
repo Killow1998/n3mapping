@@ -36,4 +36,4 @@ inline RelocMatchQuality evaluateRelocMatchQuality(const MatchResult& match,
   return quality;
 }
 
-} // namespace n3mapping
+}

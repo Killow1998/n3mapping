@@ -68,7 +68,7 @@ Heightmap buildHeightmap(const pcl::PointCloud<pcl::PointXYZI>::ConstPtr& cloud,
     return heightmap;
 }
 
-}  // namespace
+}
 
 HeightmapConsistencyDiagnostics computeHeightmapConsistency(
     const pcl::PointCloud<pcl::PointXYZI>::ConstPtr& target,
@@ -117,4 +117,4 @@ HeightmapConsistencyDiagnostics computeHeightmapConsistency(
     return diagnostics;
 }
 
-}  // namespace n3mapping
+}

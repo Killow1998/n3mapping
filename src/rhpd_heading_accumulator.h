@@ -4,8 +4,7 @@
 #include <cmath>
 
 namespace n3mapping::detail {
-// Also used by the joint polar pass: range/azimuth are computed only once
-// for the RHPD ring-height and heading channels. Keep legacy float rounding.
+
 class HeadingAccumulator {
 public:
     explicit HeadingAccumulator(const RHPDHeadingParams& params)
@@ -58,4 +57,4 @@ private:
     Eigen::MatrixXd count_, sum_, sum2_, max_;
     std::array<Eigen::MatrixXd, 4> layers_;
 };
-} // namespace n3mapping::detail
+}

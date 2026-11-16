@@ -28,7 +28,7 @@ Config validateOrThrow(const Config &config) {
   return config;
 }
 
-} // namespace
+}
 
 N3MappingCore::N3MappingCore(const Config &config,
                              WorldCloudOutput world_cloud_output)
@@ -76,20 +76,13 @@ N3MappingCore::makeOutput(bool success, const Eigen::Isometry3d &pose,
   output.success = success;
   output.T_world_lidar = pose;
   output.cloud_body = cloud;
-  output.cloud_world = makeWorldCloud(cloud, pose);
-  return output;
-}
-
-N3MappingCore::PointCloud::Ptr
-N3MappingCore::makeWorldCloud(const PointCloud::Ptr &cloud,
-                              const Eigen::Isometry3d &pose) const {
-  if (world_cloud_output_ == WorldCloudOutput::Disabled) return nullptr;
-  if (!cloud || cloud->empty()) {
-    return pcl::make_shared<PointCloud>();
+  if (world_cloud_output_ == WorldCloudOutput::Enabled) {
+    output.cloud_world = pcl::make_shared<PointCloud>();
+    if (cloud && !cloud->empty())
+      pcl::transformPointCloud(*cloud, *output.cloud_world,
+                               pose.matrix().cast<float>());
   }
-  auto transformed = pcl::make_shared<PointCloud>();
-  pcl::transformPointCloud(*cloud, *transformed, pose.matrix().cast<float>());
-  return transformed;
+  return output;
 }
 
 void N3MappingCore::addRhpdDescriptorForKeyframe(
@@ -120,4 +113,4 @@ void N3MappingCore::addRhpdDescriptorForKeyframe(
   session_->detector.addRHPD(keyframe_id, rhpd_cloud);
 }
 
-} // namespace n3mapping
+}

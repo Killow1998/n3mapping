@@ -42,7 +42,7 @@ TEST(PlaneAssociationTest, LocalBridgesDoNotExplodeOrFuseDistinctSurfaces) {
   for (const auto& plane : merged) {
     for (const auto& patch : plane.patches) {
       output_points += patch.moment.count;
-      // Distinct horizontal floors may not become a tilted compromise.
+
       Eigen::SelfAdjointEigenSolver<Eigen::Matrix3d> eigen(patch.moment.covariance());
       EXPECT_LT(eigen.eigenvalues()[0], .0004 + 1e-10);
       EXPECT_LT(patch.moment.covariance()(2, 2), .01 + 1e-10);
@@ -145,7 +145,7 @@ TEST_F(JointGeometryTest, IdenticalAcquisitionSharesInformationWithoutDroppingOb
     }
     EXPECT_EQ(total, 3.);
   }
-  // A new measurement, even at the same pose/time, must not be called a replay.
+
   repeated[3]->cloud->at(0).x += .001f;
   const auto sources = geometrySourceIds(repeated);
   EXPECT_NE(sources[0], sources[3]);
@@ -155,7 +155,7 @@ TEST_F(JointGeometryTest, IdenticalAcquisitionSharesInformationWithoutDroppingOb
 
 TEST_F(JointGeometryTest, ReplayingOneAcquisitionCannotRefitTheReferencePlane) {
   auto originals = frames.getAllKeyframes();
-  // Distinct noisy observations are deliberately not all in the same plane.
+
   originals[0]->pose_optimized.translation().z() += .025;
   GeometryOptimizationStats stats;
   const auto reference = buildSharedPlanes(originals, stats);
@@ -165,7 +165,7 @@ TEST_F(JointGeometryTest, ReplayingOneAcquisitionCannotRefitTheReferencePlane) {
     auto copy = std::make_shared<Keyframe>(*originals[0]);
     copy->id = originals.size() + i;
     copy->session_id = i + 1;
-    // The graph estimate of a replay may differ; it is still the same data.
+
     copy->pose_optimized.translation().z() += .01;
     repeated.push_back(copy);
   }
@@ -241,7 +241,7 @@ TEST_F(JointGeometryTest, SharedGeometryRefinesNewFrameWithoutLoopAdmission) {
   EXPECT_EQ(worker.graph->getNumEdges(), graph.getNumEdges());
   EXPECT_LT(std::abs(worker.graph->getOptimizedPose(3).translation().z()),
             .5 * std::abs(before.translation().z()));
-  // A background refinement cannot modify the live graph before commit.
+
   EXPECT_EQ(graph.getOptimizedPose(3).matrix(), before.matrix());
   auto disabled = config;
   disabled.loop_geometry_enable = false;
@@ -483,5 +483,5 @@ TEST_F(JointGeometryTest, AtlasTrackingAndReloadUseTheSameOptimizedGeometry) {
   EXPECT_TRUE(localizer.localizationAtlasLoaded());
   EXPECT_LT((localizer.getMapToOdomTransform().matrix()-pose(1.2).matrix()).norm(), 1e-14);
 }
-} // namespace
-} // namespace n3mapping
+}
+}

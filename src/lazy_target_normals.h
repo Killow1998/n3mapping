@@ -8,8 +8,7 @@
 #include <thread>
 
 namespace n3mapping::registration_detail {
-// Coordinates and the full KNN tree never change. Each requested normal uses
-// the eager estimator verbatim, and is published once for concurrent readers.
+
 class LazyTargetNormals {
 public:
   using Cloud = small_gicp::PointCloud;
@@ -23,8 +22,7 @@ public:
 
   const Eigen::Vector4d& normal(std::size_t i) const {
     if (state_[i].load(std::memory_order_acquire) != 2) {
-      // Allocate scratch before claiming a point, so allocation failure cannot
-      // leave its readers waiting for an owner that has unwound.
+
       thread_local std::vector<std::size_t> indices;
       thread_local std::vector<double> distances;
       indices.resize(neighbors_);
@@ -54,4 +52,4 @@ private:
   int neighbors_;
   mutable std::vector<std::atomic<std::uint8_t>> state_;
 };
-} // namespace n3mapping::registration_detail
+}

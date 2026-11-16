@@ -47,7 +47,7 @@ RHPDCells flipPlane(const RHPDCells& input, bool flip_columns) {
             out.values.push_back(input.values[i]);
         }
     } else {
-        // Reverse row groups, preserving the sorted columns within each row.
+
         for (size_t end = input.indices.size(); end > 0;) {
             const int row = input.indices[end - 1] / bins;
             size_t begin = end - 1;
@@ -61,7 +61,7 @@ RHPDCells flipPlane(const RHPDCells& input, bool flip_columns) {
     }
     return out;
 }
-// Accumulate four channel lanes without expanding or visiting absent cells.
+
 double squaredDistance(const RHPDCells& a, const RHPDCells& b) {
     size_t i = 0, j = 0;
     Eigen::Vector4d sum = Eigen::Vector4d::Zero();
@@ -78,7 +78,7 @@ double squaredDistance(const RHPDCells& a, const RHPDCells& b) {
     while (j < b.indices.size()) sum.array() += b.values[j++].array().square();
     return sum.sum();
 }
-} // namespace
+}
 
 RHPDescriptor::PreparedQuery RHPDescriptor::prepareQuery(const Place& place) const {
     PreparedQuery query{place, {}, place.auxiliary};
@@ -111,4 +111,4 @@ double RHPDescriptor::distance(const PreparedQuery& query, const Place& b) const
     return std::sqrt(std::min(params_.part_a_scale * weight * direct + ring_height + params_.aux_scale * 0.5 * aux,
                               params_.part_a_scale * weight * flipped + ring_height + params_.aux_scale * 0.5 * flipped_aux));
 }
-} // namespace n3mapping
+}

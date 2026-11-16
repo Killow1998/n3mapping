@@ -66,7 +66,7 @@ void writeFakeBin(const std::filesystem::path& path, const std::vector<float>& v
     ASSERT_TRUE(output.good());
 }
 
-}  // namespace
+}
 
 TEST(N3MappingKitti360ReaderTest, AlignsByFrameIdAndWritesSummaryAndPcd) {
     const auto tool = findKittiReaderTool();
@@ -165,5 +165,5 @@ TEST(N3MappingKitti360ReaderTest, MaxFramesLimitsProcessedCommonFrames) {
     EXPECT_NE(summary.find("\"calib_loaded\": false"), std::string::npos);
 }
 
-}  // namespace test
-}  // namespace n3mapping
+}
+}

@@ -29,7 +29,7 @@ void RelocalizationPlaceIndex::prepare(
         if (performance)
           ++performance->cached_frames;
       } else {
-        // A structure revision can replace existing frames, not just append.
+
         auto place = std::make_shared<const RHPDPlace>(
             descriptor_.compute(keyframe->cloud));
         if (!place->isZero())
@@ -69,4 +69,4 @@ void RelocalizationPlaceIndex::prepare(
   view_revision_ = revision;
 }
 
-} // namespace n3mapping
+}

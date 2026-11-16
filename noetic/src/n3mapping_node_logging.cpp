@@ -20,8 +20,7 @@ RosLogging::RosLogging() {
     ros::console::register_appender(&forwarder);
 }
 RosLogging::~RosLogging() {
-    // ros::shutdown already removes the appender. Noetic's deregister_appender
-    // dereferences that cleared pointer; console shutdown is safe to repeat.
+
     ros::console::shutdown();
 }
-} // namespace n3mapping
+}

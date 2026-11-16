@@ -61,4 +61,4 @@ void populateLoopPerformance(RuntimePerformanceLoopEvent& event, const CoreLoopC
   event.geometry_solve_ms = result.geometry.solve_ms;
   event.atlas_prepare_ms = result.atlas_prepare_ms;
 }
-} // namespace n3mapping
+}

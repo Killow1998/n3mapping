@@ -71,16 +71,12 @@ void prepareVisibilityPlanarSupport(
     surfaces[i].head<3>() = normal;
     surfaces[i][3] = -normal.dot(p);
     auto &j = jacobians[i];
-    // Point-to-plane residual derivative for yaw and two translations in the
-    // odometry horizontal plane. A horizontal surface contributes no planar
-    // information, however numerous its returns or however tilted the sensor.
+
     j = Eigen::Vector3d(p.cross(normal).dot(up), normal.dot(x), normal.dot(y));
     information.noalias() += j * j.transpose();
     ++valid_normals;
   }
 
-  // Do not whiten numerical noise into apparent observability (e.g. a floor
-  // alone), or silently discard an unconstrained horizontal direction.
   if (valid_normals < 3 || information.diagonal().minCoeff() <= 1e-6 * valid_normals)
     return;
   const Eigen::Matrix3d scale = information.diagonal().cwiseSqrt().cwiseInverse().asDiagonal();
@@ -89,11 +85,9 @@ void prepareVisibilityPlanarSupport(
       solver.eigenvalues()[0] <= 1e-6 * solver.eigenvalues()[2]) return;
   const Eigen::Matrix3d whitening = scale * solver.eigenvectors() *
       solver.eigenvalues().cwiseSqrt().cwiseInverse().asDiagonal();
-  // Sum(j*j^T) is now I over the whole observation. The least eigenvalue over
-  // only the matching bearings is min_v (v^T H_match v)/(v^T H_all v): matching
-  // a strongly constrained axis cannot pay for disagreement in another axis.
+
   for (auto &j : jacobians) j = (whitening.transpose() * j).eval();
   observation->planar_jacobians = std::move(jacobians);
   observation->planar_surfaces = std::move(surfaces);
 }
-} // namespace n3mapping
+}

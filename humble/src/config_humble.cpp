@@ -9,8 +9,8 @@ void loadConfigFromHumble(rclcpp::Node* node, Config* config) {
         node->declare_parameter(name, value);
         node->get_parameter(name, value);
     });
-    // An empty map directory selects the caller's default; other strings may be empty.
+
     if (config->map_save_path.empty()) config->map_save_path = default_map_save_path;
 }
 
-}  // namespace n3mapping
+}

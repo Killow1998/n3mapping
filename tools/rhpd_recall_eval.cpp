@@ -1,20 +1,3 @@
-// Measures how well RHPD ranks the revisits that are actually there.
-//
-// Loop closure on 0723 misses the worst disagreement in the map, between two
-// keyframes a metre apart that GICP registers at fitness 0.024 with an inlier
-// ratio of 0.999. The candidate never reaches verification through the
-// descriptor, and the question is whether that is one unlucky pair or the
-// general case.
-//
-// It has to be answered with the descriptor's own distance function. That is
-// not an L2 norm: the three blocks are weighted separately, the auxiliary block
-// is halved, the first block is scaled by the lower of the two PCA confidences,
-// and the whole thing is minimised against a 180-degree flip of the query.
-// Reimplementing that in a script is how a measurement quietly becomes wrong,
-// so this links the real one.
-//
-// Proxy revisit labels use saved map geometry and odometry travel. They are
-// useful for comparing retrieval, but are not independent ground truth.
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
@@ -41,7 +24,7 @@ double percentile(std::vector<double> v, double q)
     return v[lo] + (v[hi] - v[lo]) * (i - static_cast<double>(lo));
 }
 
-}  // namespace
+}
 
 int main(int argc, char** argv)
 {
@@ -85,8 +68,6 @@ int main(int argc, char** argv)
         return 1;
     }
 
-    // Travelled path from the odometry, which is what "far enough apart to be
-    // informative" is measured in.
     std::vector<double> travelled(kfs.size(), 0.0);
     for (std::size_t i = 1; i < kfs.size(); ++i) {
         travelled[i] = travelled[i - 1] +
@@ -168,10 +149,6 @@ int main(int argc, char** argv)
     std::printf("  inside the top %d actually taken: %d/%d (%.0f%%)   <- recall\n\n",
                 top_k, within_top_k, pairs, 100.0 * within_top_k / pairs);
 
-    // Which block carries the discrimination, if any. Separation is the gap
-    // between the two medians as a fraction of the elsewhere median: a block
-    // that tells the same place from a different one gives a large positive
-    // number, one that does not gives roughly zero.
     {
         const int a_dim = n3mapping::RHPD_PART_A_DIM;
         const int b_dim = n3mapping::RHPD_PART_B_DIM;
@@ -207,9 +184,6 @@ int main(int argc, char** argv)
         std::printf("\n");
     }
 
-    // The shipped distance mixes all three blocks. If two of them separate
-    // nothing, the mixture is diluting the one that does, and ranking on that
-    // block alone should recall more. Measured rather than argued.
     {
         const int a_dim = n3mapping::RHPD_PART_A_DIM;
         const int b_dim = n3mapping::RHPD_PART_B_DIM;

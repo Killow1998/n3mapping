@@ -7,17 +7,13 @@
 
 namespace n3mapping {
 
-// Count geometric support from admitted correspondences. Source-only normals
-// also describe new surfaces absent from the reference map.
 inline std::optional<Eigen::Isometry3d> supportedTrackingPose(
     const small_gicp::PointCloud& cloud, int normal_neighbors,
     const Eigen::Isometry3d& prediction, const MatchResult& match) {
   const auto& endpoint = match.T_target_source;
   Eigen::Matrix3d normal_information = match.information.topLeftCorner<3, 3>();
   if (match.metric.type == small_gicp::RegistrationSetting::GICP) {
-    // Prepared covariances have spectrum (epsilon, 1, 1). Two aligned
-    // surfaces contribute 1/(2*epsilon) normally but only 1/2 tangentially.
-    // Remove that artificial tangential stiffness before counting support.
+
     const double epsilon = cloud.cov(0).topLeftCorner<3, 3>().trace() - 2.0;
     normal_information = (normal_information -
         0.5 * match.num_inliers * Eigen::Matrix3d::Identity()) / (0.5 / epsilon - 0.5);
@@ -37,4 +33,4 @@ inline std::optional<Eigen::Isometry3d> supportedTrackingPose(
   return prediction * delta;
 }
 
-}  // namespace n3mapping
+}

@@ -211,9 +211,7 @@ TEST(ConfigTest, ProductFactoryFreezesLocalizationProfileAndPaths) {
 }
 
 TEST(ConfigTest, FreeSpaceAndPersistenceDefaultsMatchEnvUnsetBehaviour) {
-    // These were process-environment switches read inside WorldLocalizing.
-    // The defaults must equal the env-unset behaviour exactly, or a default
-    // YAML run changes on this refactor.
+
     const Config config;
     EXPECT_TRUE(config.reloc_free_space_enable);
     EXPECT_EQ(config.reloc_free_space_mode, "veto");
@@ -277,5 +275,5 @@ TEST(ConfigTest, FreeSpaceAndPersistenceValidation) {
     EXPECT_NE(error.find("reloc_persist_max_frames"), std::string::npos);
 }
 
-}  // namespace test
-}  // namespace n3mapping
+}
+}

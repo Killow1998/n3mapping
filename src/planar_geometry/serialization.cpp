@@ -51,6 +51,6 @@ bool readSharedPlanes(const N3Map& map, std::vector<SharedPlane>& planes) {
     parsed.push_back(std::move(plane));
   }
   planes.swap(parsed);
-  return true; // Semantic validation belongs to the transactional graph load.
+  return true;
 }
-}  // namespace n3mapping
+}

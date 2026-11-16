@@ -275,10 +275,7 @@ LoopClosureOutcome processLoopCandidates(
 
     auto valid_loops =
         manager.filterValidLoops(verified_loops);
-    // Run every individual constraint gate before same-query consensus so a
-    // candidate that is already rejected cannot manufacture or break a
-    // majority. The legacy single-best mode retains its historical pre-gate
-    // selection order.
+
     auto candidate_loops =
         config.loop_keep_all_verified
             ? valid_loops
@@ -321,10 +318,6 @@ LoopClosureOutcome processLoopCandidates(
       continue;
     }
 
-    // Preserve all measurements in the strict-majority same-query consensus
-    // set. This retains redundant constraints without committing an isolated
-    // corridor alias beside several agreeing measurements. Ambiguous sets
-    // fall back to the historical best-per-query policy.
     std::vector<VerifiedLoop> best_loops;
     if (config.loop_keep_all_verified) {
       auto selection = manager.selectSameQueryConsensus(
@@ -386,9 +379,7 @@ LoopClosureOutcome processLoopCandidates(
 
   if (!batch_edges.empty()) {
     const auto before = optimizer.getOptimizedPoses();
-    // Individual geometry/consensus/admission gates already passed. Check the
-    // combined constraints too before sharing one full graph solve. A conflict
-    // falls back per query using the same measurements, without another ICP.
+
     const auto trial = computeLoopGraphTrialDiagnostics(
         config, before, optimizer.getEdges(), batch_edges);
     if (loopGraphTrialRejectReason(trial, true).empty() && manager.applyEdges(batch_edges, optimizer)) {
@@ -404,4 +395,4 @@ LoopClosureOutcome processLoopCandidates(
   return outcome;
 }
 
-} // namespace n3mapping
+}

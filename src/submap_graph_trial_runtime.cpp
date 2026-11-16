@@ -268,7 +268,7 @@ bool appendLine(const std::string& path, const std::string& line) {
   return appendLogLine(path, line);
 }
 
-}  // namespace
+}
 
 bool isSubmapGraphTrialCheckpointContext(const std::string& context) {
     return context == "save_map" || context == "save_extended_map" ||
@@ -304,4 +304,4 @@ SubmapGraphTrialRuntimeResult runSubmapGraphTrialCheckpoint(
     return result;
 }
 
-}  // namespace n3mapping
+}

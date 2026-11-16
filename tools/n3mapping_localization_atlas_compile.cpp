@@ -60,7 +60,7 @@ bool parseArgs(int argc, char **argv, Options *options) {
   return true;
 }
 
-} // namespace
+}
 
 int main(int argc, char **argv) {
   google::InitGoogleLogging(argv[0]);

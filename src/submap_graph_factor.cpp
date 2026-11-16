@@ -92,7 +92,7 @@ SubmapGraphFactorDiagnostics invalidDiagnostics(const std::string& reason) {
     return diagnostics;
 }
 
-}  // namespace
+}
 
 SubmapGraphEdgeFactorEvaluation evaluateSubmapGraphEdgeFactor(
     const SubmapGraphEdgeProjection& projection,
@@ -446,4 +446,4 @@ SubmapGraphFactorDiagnostics evaluateSubmapGraphFactors(
     return diagnostics;
 }
 
-}  // namespace n3mapping
+}

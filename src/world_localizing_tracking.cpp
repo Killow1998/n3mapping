@@ -93,9 +93,6 @@ WorldLocalizing::trackLocalizationImpl(const PointCloudT::Ptr &cloud,
     return result;
   }
 
-  // Ordinary localization hands LOST back to its global search owner.
-  // Extension has no such handoff: keep testing the loaded reference locally,
-  // without publishing prediction-only poses or resetting the loss counter.
   if (!strict_loaded_map &&
       consecutive_track_failures_ > config_.reloc_max_track_failures) {
     is_relocalized_ = false;
@@ -132,8 +129,6 @@ WorldLocalizing::trackLocalizationImpl(const PointCloudT::Ptr &cloud,
     return result;
   }
 
-  // Build submap — use larger range when tracking is unstable. Extension
-  // tracking must never use newly appended keyframes as its own reference.
   int submap_range = config_.gicp_submap_size;
   if (consecutive_track_failures_ > 0)
     submap_range =
@@ -144,15 +139,13 @@ WorldLocalizing::trackLocalizationImpl(const PointCloudT::Ptr &cloud,
   const bool shared_reference = strict_loaded_map ||
       (localization_atlas_ && localization_atlas_->loaded());
   if (shared_reference) {
-    // A frozen Atlas already owns the complete reference geometry. Changing
-    // the nearest keyframe needs only a visibility crop, not new search trees
-    // and normals from time-adjacent scans. Acceptance remains path-specific.
+
     tracking_target = tracking_targets_->acquireLoaded(nearest_kf_id);
     submap = tracking_target.visibility_cloud;
     debug_event.loaded_map_cache_ms = tracking_target.loaded_map_cache_ms;
     debug_event.submap_build_ms = tracking_target.submap_build_ms;
   } else {
-    // Maps without a compiled Atlas retain bounded local target preparation.
+
     tracking_target = tracking_targets_->acquireLocal(nearest_kf_id, submap_range);
     debug_event.submap_build_ms = tracking_target.submap_build_ms;
     if (VLOG_IS_ON(1)) {
@@ -164,9 +157,7 @@ WorldLocalizing::trackLocalizationImpl(const PointCloudT::Ptr &cloud,
                    static_cast<double>(submap_range) *
                        config_.keyframe_distance_threshold);
       shadow_request.max_spatial_keyframes = 2 * submap_range + 1;
-      // A frozen localization map has no active-session tail. Adding the
-      // highest map ids would mix an unrelated map endpoint into the target;
-      // session-aware tails belong after WP-10 introduces session identity.
+
       shadow_request.recent_tail_count = 0;
       shadow_request.map_revision = keyframe_manager_.revision();
       const LocalMapSelection shadow_selection =
@@ -306,9 +297,6 @@ WorldLocalizing::trackLocalizationImpl(const PointCloudT::Ptr &cloud,
         }
       };
 
-      // Preserve the exact legacy evaluation order while the experiment is
-      // disabled. Enabled runs evaluate the endpoint first so a fully accepted
-      // endpoint can terminate the cascade.
       if (!endpoint_fast_enabled) {
         evaluate_prediction_visibility();
       }
@@ -344,15 +332,11 @@ WorldLocalizing::trackLocalizationImpl(const PointCloudT::Ptr &cloud,
       if (prediction_visibility_evaluated && predicted_visibility.valid &&
           (!visibility.valid || predicted_visibility.consistency_ratio >
                                     visibility.consistency_ratio + 1e-9)) {
-        // ICP is a local proposal, not authority to slide along a repeated
-        // surface. Retain the prediction when the immutable loaded map
-        // explains it better than the optimizer endpoint.
+
         auto predicted_match = matcher_.evaluatePreparedPose(
             *prepared_target, prepared_source, predicted_pose,
             match_result.metric);
-        // Visibility ranks geometrically admissible poses. A prediction with
-        // better ray agreement must not replace a valid endpoint if its own
-        // residuals fail the very same quality gate.
+
         if (hasValidRegistrationResult(predicted_match) &&
             predicted_match.fitness_score < config_.gicp_fitness_threshold &&
             predicted_match.inlier_ratio >= config_.reloc_min_inlier_ratio) {
@@ -391,8 +375,6 @@ WorldLocalizing::trackLocalizationImpl(const PointCloudT::Ptr &cloud,
       (!strict_loaded_map ||
        (visibility.valid && visibility.evidence_log_odds > 0.0));
 
-  // The proposal's convergence remains necessary, but its quality cannot
-  // certify a different selected pose. Recompute confidence from that pose.
   const bool selected_quality_ok =
       hasValidRegistrationResult(match_result) &&
       match_result.fitness_score < config_.gicp_fitness_threshold &&
@@ -459,7 +441,7 @@ WorldLocalizing::trackLocalizationImpl(const PointCloudT::Ptr &cloud,
       result.state = RelocalizationState::LOST;
       result.pose_source = PoseSource::NONE;
     } else {
-      // Keep odometry-based continuity for transient dropouts.
+
       result.success = !strict_loaded_map;
       result.state = RelocalizationState::RECENTLY_LOST;
       result.pose_source = PoseSource::ODOM_PREDICTED;
@@ -481,4 +463,4 @@ WorldLocalizing::trackLocalizationImpl(const PointCloudT::Ptr &cloud,
   return result;
 }
 
-} // namespace n3mapping
+}

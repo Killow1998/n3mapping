@@ -146,4 +146,4 @@ TEST(DirectionalReference, StoredObservationMustIndependentlySupportTheCandidate
   }
 }
 
-} // namespace n3mapping::test
+}

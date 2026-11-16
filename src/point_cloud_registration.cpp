@@ -10,4 +10,4 @@ small_gicp::RegistrationResult align(
                                           setting.max_correspondence_distance, bounds);
   return dispatch(TargetView{target, lazy_normals}, source, search, initial_pose, setting, reciprocal, &tree);
 }
-} // namespace n3mapping::registration_detail
+}

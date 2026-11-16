@@ -59,5 +59,5 @@ TEST(LoopHeightmapDiagnosticsTest, ReportsNoSupportWhenCellsDoNotOverlap)
     EXPECT_DOUBLE_EQ(diagnostics.vertical_consistency_score, 0.0);
 }
 
-}  // namespace
-}  // namespace n3mapping
+}
+}

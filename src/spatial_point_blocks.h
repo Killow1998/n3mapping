@@ -6,7 +6,7 @@
 #include "n3mapping/point_cloud_matcher.h"
 
 namespace n3mapping {
-// Spatial rejection over immutable, consecutive raw points preserves crop order.
+
 class SpatialPointBlocks {
 public:
   explicit SpatialPointBlocks(const PointCloudMatcher::PointCloudT& cloud)
@@ -40,4 +40,4 @@ private:
   std::size_t points_;
   std::vector<Eigen::AlignedBox3f> boxes_;
 };
-} // namespace n3mapping
+}

@@ -120,23 +120,18 @@ struct RelocTrackingDebugEvent : TrackingPerformance {
   double processing_time = 0.0;
   uint64_t query_index = 0;
   Eigen::Isometry3d predicted_pose = Eigen::Isometry3d::Identity();
-  // Optimizer endpoint and visibility-selected pose, before correction smoothing.
-  // Validity flags distinguish unavailable results from an identity transform.
+
   bool registration_pose_valid = false;
   Eigen::Isometry3d registration_pose = Eigen::Isometry3d::Identity();
   bool selected_pose_valid = false;
   Eigen::Isometry3d selected_pose = Eigen::Isometry3d::Identity();
-  // Curvature returned by the selected registration, in the right
-  // (translation, rotation) tangent. Excludes map and shared deskew uncertainty;
-  // this is not the configured information of an extension tracking edge.
+
   bool selected_information_valid = false;
   Eigen::Matrix<double, 6, 6> selected_information =
       Eigen::Matrix<double, 6, 6>::Zero();
   int64_t nearest_kf_id = -1;
   std::size_t submap_size = 0;
-  // Shadow-only decomposition for a future endpoint-fast / prediction-slow
-  // visibility cascade. These fields describe the existing two-pose decision;
-  // they do not select a different pose or bypass a production gate.
+
   double visibility_prediction_ms =
       std::numeric_limits<double>::quiet_NaN();
   double visibility_registration_ms =
@@ -178,4 +173,4 @@ public:
                              const RelocTrackingDebugEvent &event);
 };
 
-} // namespace n3mapping
+}

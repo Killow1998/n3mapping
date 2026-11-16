@@ -157,7 +157,7 @@ bool betterRegistration(
            incumbent.match_result.inlier_ratio;
 }
 
-}  // namespace
+}
 
 LoopVerificationPipeline::LoopVerificationPipeline(
     const Config& config, KeyframeManager& keyframe_manager,
@@ -299,8 +299,7 @@ LoopVerificationPipelineResult LoopVerificationPipeline::evaluate(
         const auto submap = matcher_.prepareTargetCloud(result.target_registration_cloud);
         bool pair_refined = false;
         if (broad_loop.verified) {
-            // Neighbor scans supply coverage. Refine the measurement on the
-            // original pair to avoid fitting their estimated relative poses.
+
             const auto target = matcher_.prepareTargetCloud(match->cloud);
             auto settings = matcher_.getSettings();
             settings.type = small_gicp::RegistrationSetting::GICP;
@@ -318,9 +317,7 @@ LoopVerificationPipelineResult LoopVerificationPipeline::evaluate(
                 Eigen::AngleAxisd(delta.rotation()).angle() <= config_.icp_refine_delta_rotation_gate) {
                 auto supported = matcher_.evaluatePreparedPose(
                     submap, source, refined.T_target_source, refined.metric);
-                // Coverage belongs to the full target observation. The raw
-                // pair contributes the measurement and its Hessian; partial
-                // pair overlap is not a second coverage veto.
+
                 supported.information = refined.information;
                 supported.stages = refined.stages;
                 auto verification = loop_verifier_.verifyQueryToMatchResult(
@@ -338,9 +335,7 @@ LoopVerificationPipelineResult LoopVerificationPipeline::evaluate(
                 config_.icp_refine_max_correspondence_distance};
             auto supported = matcher_.evaluatePreparedPose(
                 submap, source, result.verification.T_measured_match_query, metric);
-            // Coarse convergence is not fine geometric evidence. Check the
-            // retained pose, without treating this check as a new measurement
-            // or replacing its uncertainty with the fine objective's Hessian.
+
             supported.information = result.verification.loop.information;
             supported.stages = result.verification.match_result.stages;
             result.verification = loop_verifier_.verifyQueryToMatchResult(
@@ -395,4 +390,4 @@ LoopVerificationPipelineResult LoopVerificationPipeline::evaluate(
     return result;
 }
 
-}  // namespace n3mapping
+}

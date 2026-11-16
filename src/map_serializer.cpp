@@ -27,4 +27,4 @@ pcl::PointCloud<pcl::PointXYZI>::Ptr MapSerializer::buildGlobalMap(const Keyfram
     return pcl::make_shared<pcl::PointCloud<pcl::PointXYZI>>(*cloud);
 }
 
-} // namespace n3mapping
+}

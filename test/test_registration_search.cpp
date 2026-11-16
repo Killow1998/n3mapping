@@ -34,8 +34,7 @@ void expectSameCorrespondence(const Search::Tree& tree,
   const bool reference = tree.nearest_neighbor_search(
       query, &reference_index, &reference_distance) && reference_distance <= gate_squared;
   const registration_detail::SearchBounds bounds(tree);
-  // Exercise both useful and stale hints, including a different equal-distance
-  // point and an out-of-range index. A hint must never choose the answer.
+
   for (const std::size_t hint : {std::numeric_limits<std::size_t>::max(),
                                  std::size_t{0}, tree.points->size() - 1,
                                  reference_index, tree.points->size()}) {
@@ -66,7 +65,7 @@ TEST(RegistrationSearch, PreservesExactAcceptedNeighborsForNearAndDistantQueries
 
 TEST(RegistrationSearch, IncludesDistanceBoundaryAndPreservesEqualDistanceChoice) {
   auto cloud = randomCloud();
-  // Multiple equal-distance points, including duplicates, across tree leaves.
+
   for (std::size_t i = 0; i < cloud->size(); ++i) {
     const double sign = i % 2 ? 1.0 : -1.0;
     cloud->point(i) = Eigen::Vector4d::Zero();
@@ -145,7 +144,7 @@ TEST(RegistrationSearch, PreservesOptimizerPoseQualityAndInformation) {
           EXPECT_EQ(actual.H, expected.H);
           EXPECT_EQ(actual.b, expected.b);
         } else {
-          // Guided scheduling already changes summation order between runs.
+
           EXPECT_NEAR(actual.error, expected.error, 1e-9);
           EXPECT_TRUE(actual.T_target_source.matrix().isApprox(
               expected.T_target_source.matrix(), 1e-10));
@@ -174,7 +173,7 @@ TEST(RegistrationSearch, PackedCovarianceOnlySourcePreservesEveryPointAndFeature
   ASSERT_EQ(source->covs.size(), original.covs.size());
   std::vector<int> seen(source->size(), 0);
   for (std::size_t i = 0; i < source->size(); ++i) {
-    // The feature value identifies each original tuple, even at duplicate XYZ.
+
     const auto before = static_cast<std::size_t>(source->cov(i)(0, 0)) - 1;
     ASSERT_LT(before, original.size());
     ++seen[before];
@@ -213,8 +212,7 @@ TEST(RegistrationSearch, PackedTargetKeepsNeighborGeometryAndFeatures) {
 }
 
 TEST(RegistrationSearch, FeatureReuseInvalidatesChangedSupportsAndKeepsUnchangedGeometry) {
-  // Insert, delete, duplicate and move points; a changed point can invalidate a
-  // neighbor's normal even when that neighbor's own coordinate did not move.
+
   for (const int neighbors : {5, 20, 31}) {
     const auto source = randomCloud();
     const Search::Tree source_tree(source);
@@ -295,5 +293,5 @@ TEST(RegistrationSearch, CompactCovariancePreservesGicpObjectivePoseAndInformati
   full->cov(0) *= 2;
   EXPECT_EQ(registration_detail::TargetView{*full}.covariance(0), full->cov(0));
 }
-}  // namespace
-}  // namespace n3mapping::test
+}
+}

@@ -209,8 +209,7 @@ std::vector<LoopCandidate> RelocalizationPlaceIndex::searchRHPDCandidates(
       break;
     LoopCandidate best;
     bool found = false;
-    // Match the already compiled multi-view place; no spatial grouping or
-    // representative selection changes the map index during a query.
+
     for (const auto &item : place.views) {
       auto candidate = item.candidate;
       const double place_score = weight * candidate.rhpd_distance;
@@ -271,4 +270,4 @@ std::size_t RelocalizationPlaceIndex::indexedKeyframes() const {
   return frame_rhpd_indexed_keyframes_;
 }
 
-} // namespace n3mapping
+}

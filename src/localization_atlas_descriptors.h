@@ -16,4 +16,4 @@ bool decodeAtlasDescriptors(const Config &config,
                             RHPDHeadingCache &headings,
                             RelocalizationPlaceCatalog &catalog,
                             bool &catalog_ready, std::string *error);
-} // namespace n3mapping
+}

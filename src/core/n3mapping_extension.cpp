@@ -17,8 +17,7 @@ bool N3MappingCore::startMapExtension(std::string* error) {
   if (state == MappingResumingState::RELOCALIZED ||
       state == MappingResumingState::EXTENDING) return true;
   if (!extension_anchor_frame_) return reject("localization_not_authoritative");
-  // Seed the existing odometry check with the last verified observation, so
-  // the first extension frame is checked against the same continuous source.
+
   if (mappingInputBlockReason(*extension_anchor_frame_) != core::MappingBlockReason::None)
     return reject("invalid_extension_anchor_input");
   if (!resuming.adoptCurrentLocalization(extension_anchor_frame_->source_frame_id))
@@ -65,8 +64,7 @@ N3MappingCore::processMapExtensionFrame(const core::LioFrame &frame) {
   auto &resuming = session_->resuming;
   auto &localizer = session_->localizer;
   const auto state = resuming.getState();
-  // An established anchor belongs to one LIO coordinate frame. Never connect
-  // a changed source frame to that session's odometry chain.
+
   const bool source_changed = state != MappingResumingState::MAP_LOADED &&
       localization_source_frame_id_ != frame.source_frame_id;
   const auto blocked = !map_loaded_ || source_changed
@@ -124,9 +122,6 @@ N3MappingCore::processMapExtensionFrame(const core::LioFrame &frame) {
     return make_output(false, frame.T_world_lidar, frame.undistorted_cloud);
   }
 
-  // Loaded geometry supplies absolute corrections. When it disappears, the
-  // anchored session can still extend with LIO odometry, without inventing a
-  // loaded-map constraint or granting global localization authority.
   performance.tracking_attempted = true;
   const auto tracking_started = timingStarted();
   tracking = localizer.trackLoadedMap(frame.undistorted_cloud, frame.T_world_lidar);
@@ -180,16 +175,13 @@ N3MappingCore::processMapExtensionFrame(const core::LioFrame &frame) {
       std::lock_guard<std::mutex> lock(loop_queue_mutex_);
       loop_detection_queue_.push_back(keyframe_id);
     }
-    // Return to old geometry is handled by the same strict local tracker.
-    // Joint geometry remains asynchronous; no second global search is needed.
+
     const auto refresh_started = timingStarted();
     refreshOptimizedPoses();
     if (performance.enabled) {
       performance.post_commit_refresh_ms =
           elapsedMilliseconds(refresh_started);
     }
-    // Keep the observation pose and its quality together. A graph solve
-    // does not turn an odometry prediction into geometric tracking authority.
   }
 
   auto output = make_output(keyframe_id >= 0 || reused_acquisition_id >= 0, pose_map,
@@ -210,4 +202,4 @@ N3MappingCore::processMapExtensionFrame(const core::LioFrame &frame) {
   return output;
 }
 
-} // namespace n3mapping
+}

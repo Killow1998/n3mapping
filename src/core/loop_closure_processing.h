@@ -1,4 +1,3 @@
-// Geometry and graph work shared by synchronous replay and the isolated worker.
 #pragma once
 #include <chrono>
 #include "n3mapping/core/loop_closure_result.h"
@@ -32,4 +31,4 @@ LoopClosureOutcome processLoopCandidates(
     const std::vector<DetectedLoopQuery>& queries);
 void rebaseLoopOutcome(const Config& config, GraphOptimizer& optimizer,
                        LoopClosureManager& manager, LoopClosureOutcome& outcome);
-} // namespace n3mapping
+}

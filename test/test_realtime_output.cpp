@@ -342,5 +342,5 @@ TEST(RealtimeOutput, BackendCommitAndLiveSnapshotNeverMixObservations) {
   backend.get();
 }
 
-}  // namespace
-}  // namespace n3mapping::core
+}
+}

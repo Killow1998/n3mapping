@@ -12,10 +12,6 @@ namespace n3mapping {
 struct CoreLoopClosureResult;
 namespace core { struct BackendOutput; }
 
-// PERF-ME-01B: one record per synchronized ROS frame. This is intentionally a
-// separate JSONL stream from relocalization_debug.jsonl so existing evidence
-// consumers never see a new record type. The logger is enabled by the existing
-// reloc_debug_enable switch and does not participate in runtime decisions.
 struct RuntimePerformanceDebugEvent {
   RelocalizationPerformance relocalization_performance;
   std::string mode;
@@ -62,9 +58,6 @@ struct RuntimePerformanceDebugEvent {
   double callback_total_ms = std::numeric_limits<double>::quiet_NaN();
 };
 
-// One record per mapping loop-timer callback. Empty cycles are retained so
-// timer scheduling and lock contention remain observable; analyzers grade
-// actual loop work separately from idle polling.
 struct RuntimePerformanceLoopEvent {
   std::string mode;
   double processing_time = 0.0;
@@ -92,8 +85,6 @@ struct RuntimePerformanceLoopEvent {
   double total_ms = std::numeric_limits<double>::quiet_NaN();
 };
 
-// Independent live callbacks can reject a source sample even when the mapping
-// queue processes it. Keep exact nanoseconds so clock/order failures are auditable.
 struct RuntimePerformanceLiveEvent {
   int64_t input_stamp_ns = 0, correction_stamp_ns = 0, now_ns = 0;
   uint64_t generation = 0;
@@ -112,7 +103,7 @@ public:
 
   static std::string resolvePath(const Config &config);
   bool enabled() const noexcept { return enabled_; }
-  // Queue admission is available; disk health is reported by AsyncLog statistics.
+
   bool ready() const noexcept { return ready_; }
   const std::string &path() const noexcept { return path_; }
   bool append(const RuntimePerformanceDebugEvent &event);
@@ -126,4 +117,4 @@ private:
 
 };
 
-} // namespace n3mapping
+}

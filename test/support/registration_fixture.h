@@ -10,7 +10,7 @@ namespace n3mapping::test {
 class RegistrationFixture : public ::testing::Test {
 protected:
     void SetUp() override {
-        // 创建默认配置
+
         config_.gicp_downsampling_resolution = 0.5;
         config_.gicp_max_correspondence_distance = 2.0;
         config_.gicp_max_iterations = 30;
@@ -31,14 +31,14 @@ protected:
         Keyframe::PointCloudT::Ptr cloud(new Keyframe::PointCloudT());
         cloud->points.resize(num_points);
 
-        std::mt19937 rng(42);  // 固定种子以保证可重复性
+        std::mt19937 rng(42);
         std::uniform_real_distribution<float> pos_dist(-size/2, size/2);
         std::normal_distribution<float> noise_dist(0.0f, static_cast<float>(noise));
 
         for (size_t i = 0; i < num_points; ++i) {
             cloud->points[i].x = pos_dist(rng);
             cloud->points[i].y = pos_dist(rng);
-            cloud->points[i].z = noise_dist(rng);  // 平面 z=0 加噪声
+            cloud->points[i].z = noise_dist(rng);
             cloud->points[i].intensity = 1.0f;
         }
 
@@ -116,10 +116,9 @@ protected:
                        const Eigen::Isometry3d& pose2,
                        double trans_tol = 0.1,
                        double rot_tol = 0.05) {
-        // 平移误差
+
         double trans_error = (pose1.translation() - pose2.translation()).norm();
 
-        // 旋转误差 (角度)
         Eigen::Matrix3d R_diff = pose1.rotation().transpose() * pose2.rotation();
         double rot_error = std::acos(std::min(1.0, std::max(-1.0,
             (R_diff.trace() - 1.0) / 2.0)));
@@ -130,4 +129,4 @@ protected:
     Config config_;
     std::unique_ptr<PointCloudMatcher> matcher_;
 };
-}  // namespace n3mapping::test
+}

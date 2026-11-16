@@ -13,9 +13,6 @@ Config makeProductLocalizationConfig(const std::string& map_path,
     config.mode = "localization";
     config.map_path = map_path;
 
-    // These values differ from the C++ fallback defaults and are frozen in
-    // config/product_v1.yaml. Most are mapping/output-only, but assigning the
-    // complete profile keeps the Gate and deployed ROS node equivalent.
     config.sc_num_candidates = 5;
     config.loop_min_inlier_ratio = 0.7;
     config.loop_fitness_threshold = 0.2;
@@ -27,7 +24,6 @@ Config makeProductLocalizationConfig(const std::string& map_path,
     config.localization_tracking_target_cache_max_bytes = 128 * 1024 * 1024;
     config.localization_tracking_target_cache_max_entries = 8;
 
-    // Frozen free-space/persistence profile, mirrored in config/product_v1.yaml.
     config.reloc_free_space_enable = true;
     config.reloc_free_space_mode = "veto";
     config.reloc_free_space_resolution = 0.20;
@@ -218,8 +214,7 @@ bool Config::validate(std::string* error) const {
     if (!positive(keyframe_angle_threshold, "keyframe_angle_threshold")) return false;
     if (!at_least(submap_max_keyframes, 1,
                   "submap_max_keyframes")) return false;
-    // PCL PointXYZI is 16-byte aligned and occupies 32 bytes in the supported
-    // builds; reject budgets that cannot hold even one point.
+
     if (!at_least(submap_cloud_max_bytes, 32,
                   "submap_cloud_max_bytes")) return false;
     if (!positive(prior_noise_position, "prior_noise_position")) return false;
@@ -357,4 +352,4 @@ bool Config::validate(std::string* error) const {
     return true;
 }
 
-} // namespace n3mapping
+}

@@ -32,12 +32,11 @@ struct RelocTargetRequest {
   KeyframeMapRevision map_revision;
   Eigen::Vector3d crop_center = Eigen::Vector3d::Zero();
   pcl::PointCloud<pcl::PointXYZI>::Ptr local_target;
-  // Invoked only on a miss; geometry must match revision/anchor/crop_center.
+
   std::function<pcl::PointCloud<pcl::PointXYZI>::Ptr()> build_local_target;
-  // Candidate-only fallback is not retained: tracking an existing hypothesis
-  // intentionally rejects an empty crop instead of using this alternative.
+
   std::function<pcl::PointCloud<pcl::PointXYZI>::Ptr()> build_fallback_target;
-  // The primary visibility crop is exactly the Atlas sphere at crop_center.
+
   bool visibility_from_atlas = false;
   double target_build_ms = 0.0;
 };
@@ -65,7 +64,7 @@ struct RelocTargetMetrics {
 struct PreparedRelocTarget {
   pcl::PointCloud<pcl::PointXYZI>::Ptr visibility_target;
   std::shared_ptr<const PointCloudMatcher::PreparedTarget> registration_target;
-  // Null means the whole visibility_target; non-null selects points in order.
+
   std::shared_ptr<const std::vector<std::uint32_t>> visibility_indices;
   RelocTargetMetrics metrics;
 
@@ -98,4 +97,4 @@ std::unique_ptr<RelocTargetProvider>
 makeRelocTargetProvider(const Config &config, PointCloudMatcher &matcher,
                         LocalizationAtlas &localization_atlas);
 
-} // namespace n3mapping
+}

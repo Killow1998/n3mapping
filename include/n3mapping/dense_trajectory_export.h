@@ -1,4 +1,3 @@
-// Validation and row conversion for the native dense-trajectory CSV exporter.
 #pragma once
 
 #include <cmath>
@@ -94,5 +93,5 @@ inline bool prepareNativeDenseTrajectoryCsvRows(
     return true;
 }
 
-}  // namespace tools
-}  // namespace n3mapping
+}
+}

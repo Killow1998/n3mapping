@@ -1,4 +1,3 @@
-// keyframe.h — Keyframe data structure: id, timestamps, poses, point cloud.
 #pragma once
 
 #include <memory>
@@ -51,7 +50,7 @@ struct Keyframe {
     }
 
     bool isValid() const { return id >= 0 && cloud && !cloud->empty(); }
-    // Optimized poses, IDs and sessions can change without a new acquisition.
+
     bool sameAcquisition(const Keyframe& other) const {
         if (timestamp != other.timestamp || !cloud || !other.cloud ||
             cloud->size() != other.cloud->size() ||
@@ -68,4 +67,4 @@ struct Keyframe {
     Eigen::Matrix3d getRotation() const { return pose_optimized.rotation(); }
 };
 
-} // namespace n3mapping
+}

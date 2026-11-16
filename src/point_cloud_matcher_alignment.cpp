@@ -1,4 +1,3 @@
-// Registration results, fixed-pose geometry and prepared-cloud optimization.
 #include "n3mapping/point_cloud_matcher.h"
 #include "n3mapping/relocalization_state.h"
 #include "registration_search.h"
@@ -123,9 +122,7 @@ void evaluateFixedPoseFactors(
     result->termination = MatchTermination::FixedPoseEvaluation;
 }
 
-
-
-}  // namespace
+}
 
 MatchResult PointCloudMatcher::align(const Keyframe::Ptr& target, const Keyframe::Ptr& source, const Eigen::Isometry3d& init_guess) {
     MatchResult result;
@@ -134,8 +131,7 @@ MatchResult PointCloudMatcher::align(const Keyframe::Ptr& target, const Keyframe
         auto [tp, tt] = preprocessPointCloud(target->cloud);
         auto sp = preprocessSourcePointCloud(*source->cloud, config_.gicp_downsampling_resolution);
         if (!tt || tp->size() < 10 || sp->size() < 10) return result;
-        // GICP consumes source covariances as well as target covariances.
-        // Voxel sampling alone only initializes point coordinates.
+
         SmallGicpKdTree source_tree(
             sp, small_gicp::KdTreeBuilderOMP(config_.num_threads));
         small_gicp::estimate_covariances_omp(*sp, source_tree.kdtree,
@@ -159,7 +155,6 @@ MatchResult PointCloudMatcher::align(const Keyframe::Ptr& target, const Keyframe
     }
     return result;
 }
-
 
 MatchResult PointCloudMatcher::evaluatePreparedPose(
     const PreparedTarget& target, const PreparedSource& source,
@@ -220,8 +215,7 @@ MatchResult PointCloudMatcher::alignPreparedWithSetting(
     const small_gicp::RegistrationSetting& setting,
     double start_resolution, bool reciprocal) {
     MatchResult result;
-    // An explicit GICP request is a local solve on the already prepared
-    // covariance level. Do not run the broad plane cascade first.
+
     if (setting.type == small_gicp::RegistrationSetting::GICP) {
         const auto& level = target.refine_level;
         if (!isFiniteRigidPose(init_guess) || !target.has_refine_level ||
@@ -281,9 +275,7 @@ MatchResult PointCloudMatcher::alignPreparedWithSetting(
                 return result;
             }
             auto ls = setting;
-            // A caller may deliberately restrict tracking correspondences.
-            // Preserve that bound at every scale; only the normal broad solve
-            // expands its coarse radius to support a distant initialization.
+
             if (res > base_res * 1.01 &&
                 setting.max_correspondence_distance >= setting_.max_correspondence_distance)
                 ls.max_correspondence_distance = std::max(ls.max_correspondence_distance, res * 6.0);
@@ -340,4 +332,4 @@ MatchResult PointCloudMatcher::alignPreparedWithSetting(
     return result;
 }
 
-} // namespace n3mapping
+}

@@ -8,4 +8,4 @@ namespace n3mapping {
 
 void loadConfigFromHumble(rclcpp::Node* node, Config* config);
 
-}  // namespace n3mapping
+}

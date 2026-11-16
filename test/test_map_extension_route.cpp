@@ -1,4 +1,3 @@
-// End-to-end extension through a 1.2 m doorway into an unrecorded room.
 #include "n3mapping/core/n3mapping_core.h"
 #include "n3mapping/pcl_compat.h"
 #include "n3map.pb.h"
@@ -11,9 +10,7 @@
 
 namespace n3mapping {
 namespace {
-// Ray intersections provide occlusion, floor and ceiling observations. The
-// loaded map uses acquisitions inside the first room, including returns
-// visible through the doorway. Unobserved surfaces are never added.
+
 core::LioFrame roomFrame(int64_t stamp, double x, double y) {
   struct Face { int axis; double coordinate, low_a, high_a, low_b, high_b; };
   const Face faces[] = {
@@ -62,7 +59,7 @@ class MapExtensionRoute : public ::testing::TestWithParam<bool> {};
 
 TEST_P(MapExtensionRoute, ExtendsBeyondLoadedGeometryAndRecoversWithoutAnotherInitialization) {
   Config config;
-  config.mapping_static_start_guard_enable = false;  // The authored poses are settled.
+  config.mapping_static_start_guard_enable = false;
   config.num_threads = 4;
   const auto dir = std::filesystem::temp_directory_path() / "n3mapping_extension_door_route";
   std::filesystem::create_directories(dir);
@@ -163,7 +160,6 @@ TEST_P(MapExtensionRoute, ExtendsBeyondLoadedGeometryAndRecoversWithoutAnotherIn
   RecordProperty("lost_frames", lost_frames);
   RecordProperty("maximum_error_mm", std::to_string(maximum_error * 1000.0));
 
-  // Neither a changed coordinate frame nor an invalid pose may extend this session.
   const auto before_invalid = core.getAllKeyframes().size();
   auto invalid = sensor_frame(stamp, -3, 0);
   invalid.source_frame_id = "restarted_lio";
@@ -175,7 +171,7 @@ TEST_P(MapExtensionRoute, ExtendsBeyondLoadedGeometryAndRecoversWithoutAnotherIn
   EXPECT_FALSE(core.processMapExtensionFrame(invalid).success);
   EXPECT_EQ(core.getAllKeyframes().size(), before_invalid);
 
-  ASSERT_TRUE(core.saveMap(extended_path));  // Drains the async geometry job.
+  ASSERT_TRUE(core.saveMap(extended_path));
   for (const auto& [id, pose] : original_poses)
     EXPECT_LT((core.getOptimizedPoses().at(id).translation()-pose.translation()).norm(), 0.02);
   N3Map serialized;
@@ -207,8 +203,7 @@ TEST_P(MapExtensionRoute, ExtendsBeyondLoadedGeometryAndRecoversWithoutAnotherIn
     EXPECT_TRUE(reloaded.getOptimizedPoses().at(id).isApprox(pose, 1e-6));
   EXPECT_EQ(reloaded.buildGlobalMap()->size(), core.buildGlobalMap()->size());
   EXPECT_EQ(reloaded.getDenseOptimizedTrajectory().size(), core.getDenseOptimizedTrajectory().size());
-  // Reject every impossible jump, including the samples before the existing
-  // consecutive-violation threshold latches a front-end runaway.
+
   const auto before_runaway = core.getAllKeyframes().size();
   for (int i = 1; i <= config.odom_sanity_max_consecutive; ++i) {
     auto runaway = sensor_frame(stamp + i*100000000LL, -3, 0);
@@ -237,5 +232,5 @@ TEST_P(MapExtensionRoute, ExtendsBeyondLoadedGeometryAndRecoversWithoutAnotherIn
   if (!HasFailure()) std::filesystem::remove_all(dir);
 }
 INSTANTIATE_TEST_SUITE_P(Startup, MapExtensionRoute, ::testing::Values(false, true));
-} // namespace
-} // namespace n3mapping
+}
+}

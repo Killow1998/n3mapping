@@ -91,10 +91,6 @@ inline Eigen::Matrix3d rotationVectorToMatrix(const Eigen::Vector3d& vector)
     return Eigen::AngleAxisd(angle, vector / angle).toRotationMatrix();
 }
 
-// Produces a pose stream by perturbing and integrating consecutive GT increments.
-// Noise is sampled in each increment's local frame. Its standard deviation grows
-// with sqrt(translational distance), so the accumulated error is correlated over
-// time instead of being independent absolute-pose jitter.
 class CorrelatedOdomGenerator {
 public:
     explicit CorrelatedOdomGenerator(const CorrelatedOdomConfig& config)
@@ -202,4 +198,4 @@ private:
     CorrelatedOdomStats stats_;
 };
 
-}  // namespace n3mapping::eval
+}

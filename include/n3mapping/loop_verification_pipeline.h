@@ -56,9 +56,6 @@ struct LoopConstraintPipelineResult {
     std::string reject_reason;
 };
 
-// Shared evidence generation for Mapping loop closure and cross-session map
-// merge. Retrieval and final policy remain caller-owned; registration,
-// segment/referee evidence, consensus and graph trial must not diverge.
 class LoopVerificationPipeline {
 public:
     LoopVerificationPipeline(const Config& config,
@@ -86,4 +83,4 @@ private:
     LoopClosureManager& loop_closure_manager_;
 };
 
-}  // namespace n3mapping
+}

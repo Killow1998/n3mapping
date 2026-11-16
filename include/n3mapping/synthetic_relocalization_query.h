@@ -23,7 +23,7 @@ struct QuerySynthesisOptions {
     double noise_sigma = 0.0;
     double range_min = 0.5;
     double range_max = 30.0;
-    // <= 0 means infer the scan angular envelope from the reference keyframe cloud.
+
     double fov_azimuth_deg = 0.0;
     double fov_vertical_deg = 0.0;
     double raycast_azimuth_resolution_deg = 1.0;
@@ -511,5 +511,5 @@ inline Cloud::Ptr synthesizeBodyCloudFromMapCloud(const Cloud::Ptr& map_cloud,
     return body;
 }
 
-}  // namespace synthetic
-}  // namespace n3mapping
+}
+}

@@ -164,4 +164,4 @@ CoreLoopClosureResult N3MappingCore::processPendingLoopClosures() {
   outcome.summary.detected_candidate_count = detection.detected_candidate_count;
   return outcome.summary;
 }
-} // namespace n3mapping
+}

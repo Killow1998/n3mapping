@@ -1,4 +1,3 @@
-// Loop residual metrics, optional vertical hypotheses and debug record fields.
 #pragma once
 #include <algorithm>
 #include <cmath>
@@ -98,4 +97,4 @@ double zCentroidDelta(const ZDistributionStats& source, const ZDistributionStats
 VerticalHypothesisDiagnostics computeVerticalHypothesisDiagnostics(PointCloudMatcher& matcher,
     const core::LioFrame::PointCloud::Ptr& target,
     const core::LioFrame::PointCloud::Ptr& source, const MatchResult& zero_result);
-} // namespace n3mapping::loop_diagnostics
+}

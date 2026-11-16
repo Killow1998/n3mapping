@@ -181,8 +181,7 @@ void N3MappingNode::authorityProbeTick()
     probe_odom->header.frame_id = "continuous";
     probe_odom->child_frame_id = config_.body_frame;
     probe_odom->pose.pose.orientation.w = 1.0;
-    // The same production callbacks use a consistent synthetic clock. The
-    // source epoch stays stable for the verifier's existing event buckets.
+
     authority_probe_now_nsec_ = toCoreTimeStamp(header.stamp).nsec;
     const auto publication = publishRelocalizationOutput(header, *probe_odom, output);
     liveOdomCallback(probe_odom);
@@ -197,4 +196,4 @@ void N3MappingNode::authorityProbeTick()
     liveCloudCallback(cloud, probe_odom);
 }
 
-}  // namespace n3mapping
+}

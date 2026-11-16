@@ -116,5 +116,5 @@ TEST(LoopGraphTrialDiagnosticsTest, RebaseRetainsValidQueryWhenAnotherQueryConfl
     EXPECT_EQ(outcome.candidates.back().gate_result, "accepted");
 }
 
-}  // namespace
-}  // namespace n3mapping
+}
+}

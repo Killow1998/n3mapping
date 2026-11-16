@@ -14,7 +14,7 @@ struct SaveDirectory {
     if (!path.empty()) { std::error_code ignored; std::filesystem::remove_all(path, ignored); }
   }
 };
-} // namespace
+}
 bool N3MappingCore::saveMap(const std::string &map_path) {
   LogOperation operation("map_save", map_path);
   if (async_loops_ || (map_loaded_ && config_.loop_geometry_enable)) {
@@ -37,8 +37,7 @@ bool N3MappingCore::saveMap(const std::string &map_path) {
   }
   const bool with_atlas = config_.reloc_atlas_enable ||
                          !session_->optimizer.sharedPlanes().empty();
-  // Prepare both files before publication. Atlas SHA binding makes even the
-  // short interval between renames fail closed for concurrent readers.
+
   SaveDirectory stage;
   if (with_atlas) {
     auto parent = std::filesystem::path(map_path).parent_path();
@@ -139,4 +138,4 @@ core::LioFrame::PointCloud::Ptr N3MappingCore::buildGlobalMap() const {
       session_->keyframes, config_.global_map_voxel_size);
 }
 
-} // namespace n3mapping
+}

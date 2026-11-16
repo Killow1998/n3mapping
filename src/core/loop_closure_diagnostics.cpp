@@ -383,7 +383,6 @@ VerticalHypothesisDiagnostics computeVerticalHypothesisDiagnostics(
     try {
       add_result(z_offset, matcher.alignCloud(target, source, init));
     } catch (const std::exception &) {
-      // Diagnostics must never affect loop-closure behavior.
     }
   }
 
@@ -431,4 +430,4 @@ VerticalHypothesisDiagnostics computeVerticalHypothesisDiagnostics(
   return diagnostics;
 }
 
-} // namespace
+}

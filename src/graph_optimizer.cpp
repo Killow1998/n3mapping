@@ -32,8 +32,6 @@ GraphOptimizer::GraphOptimizer(const Config& config)
 
 GraphOptimizer::~GraphOptimizer() = default;
 
-// ==================== 添加因子 ====================
-
 void GraphOptimizer::addFloorAttitudeFactor(int64_t id,
                                             const Eigen::Vector3d& normal_body) {
     if (!config_.floor_attitude_enable) {
@@ -42,20 +40,14 @@ void GraphOptimizer::addFloorAttitudeFactor(int64_t id,
     if (!normal_body.allFinite() || normal_body.norm() < 1e-6) {
         return;
     }
-    // Pose3AttitudeFactor(key, nZ, model, bRef) asserts that bRef, taken through
-    // the pose's rotation, lands on nZ. Here bRef is the floor normal in the
-    // sensor frame and nZ is world up, so the factor constrains roll and pitch
-    // and nothing else.
+
     const gtsam::Key key = gtsam::Symbol('x', id);
     const double sigma = config_.floor_attitude_noise_deg * M_PI / 180.0;
     auto noise = gtsam::noiseModel::Isotropic::Sigma(2, sigma);
     gtsam_->new_factors_.add(gtsam::Pose3AttitudeFactor(
         key, gtsam::Unit3(0.0, 0.0, 1.0), noise,
         gtsam::Unit3(normal_body.normalized())));
-    // Transactional: the constraint enters the pending set and only becomes
-    // committed (and counted) when commitPending() runs after a successful
-    // optimization. rollbackToLastState()/clearPending() drop it without
-    // touching committed state.
+
     pending_floor_attitude_constraints_.push_back(
         FloorAttitudeConstraint{id, normal_body, sigma});
     const int total_factors = floor_attitude_factor_count_ +
@@ -70,8 +62,6 @@ void GraphOptimizer::addFloorAttitudeFactor(int64_t id,
     needs_optimization_ = true;
 }
 
-// ==================== 优化 ====================
-
 void GraphOptimizer::optimize() {
     gtsam::NonlinearFactorGraph candidate_graph = gtsam_->graph_;
     gtsam::Values candidate_values = gtsam_->initial_values_;
@@ -80,7 +70,7 @@ void GraphOptimizer::optimize() {
     if (candidate_graph.empty() || candidate_values.empty()) {
         return;
     }
-    
+
     gtsam::Values optimized_estimate;
     if (!optimizeCandidate(candidate_graph, candidate_values, &optimized_estimate)) {
         rollbackToLastState();
@@ -117,22 +107,18 @@ bool GraphOptimizer::incrementalOptimize() {
             }
 
             trial_isam2->update(gtsam_->new_factors_, gtsam_->new_values_);
-        
-            // Robust global constraints (loop or session anchor) receive the same
-            // additional relinearization updates.
+
             if (hasGlobalConstraint()) {
                 for (int i = 0; i < config_.optimization_iterations; ++i) {
                     trial_isam2->update();
                 }
             } else {
-                // 普通情况下也执行一次额外更新以确保收敛
+
                 trial_isam2->update();
             }
-        
-            // 获取当前估计
+
             gtsam::Values optimized_estimate = trial_isam2->calculateEstimate();
-        
-            // 检查优化健康度
+
             if (optimized_estimate.empty()) {
                 LOG(ERROR) << "Optimization unhealthy, rolling back to last state" << std::endl;
                 rollbackToLastState();
@@ -150,11 +136,9 @@ bool GraphOptimizer::incrementalOptimize() {
     }
 }
 
-// ==================== 获取结果 ====================
-
 std::map<int64_t, Eigen::Isometry3d> GraphOptimizer::getOptimizedPoses() const {
     std::map<int64_t, Eigen::Isometry3d> poses;
-    
+
     for (int64_t id : node_ids_) {
         gtsam::Key key = gtsam::Symbol('x', id);
         if (gtsam_->current_estimate_.exists(key)) {
@@ -171,13 +155,13 @@ std::map<int64_t, Eigen::Isometry3d> GraphOptimizer::getOptimizedPoses() const {
             poses[id] = gtsamToEigen(gtsam_->new_values_.at<gtsam::Pose3>(key));
         }
     }
-    
+
     return poses;
 }
 
 Eigen::Isometry3d GraphOptimizer::getOptimizedPose(int64_t id) const {
     gtsam::Key key = gtsam::Symbol('x', id);
-    
+
     if (gtsam_->current_estimate_.exists(key)) {
         return gtsamToEigen(gtsam_->current_estimate_.at<gtsam::Pose3>(key));
     } else if (gtsam_->initial_values_.exists(key)) {
@@ -185,7 +169,7 @@ Eigen::Isometry3d GraphOptimizer::getOptimizedPose(int64_t id) const {
     } else if (gtsam_->new_values_.exists(key)) {
         return gtsamToEigen(gtsam_->new_values_.at<gtsam::Pose3>(key));
     }
-    
+
     throw std::out_of_range("Node " + std::to_string(id) + " does not exist in graph");
 }
 
@@ -210,9 +194,6 @@ size_t GraphOptimizer::getNumEdges() const {
 bool GraphOptimizer::hasLoopClosure() const {
     return has_loop_closure_ || pending_has_loop_closure_;
 }
-
-
-// ==================== 序列化支持 ====================
 
 void GraphOptimizer::swapWith(GraphOptimizer& other) {
     if (this == &other) return;
@@ -265,8 +246,6 @@ void GraphOptimizer::clear() {
     gtsam_->isam2_ = createISAM2();
 }
 
-// ==================== 错误处理 ====================
-
 void GraphOptimizer::rollbackToLastState() {
     clearPending();
     if (!gtsam_->last_good_estimate_.empty()) {
@@ -285,8 +264,6 @@ void GraphOptimizer::rollbackToLastState() {
 bool GraphOptimizer::isOptimizationHealthy() const {
     return !gtsam_->current_estimate_.empty();
 }
-
-// ==================== 辅助函数 ====================
 
 std::unique_ptr<gtsam::ISAM2> GraphOptimizer::createISAM2() const {
     gtsam::ISAM2Params params;
@@ -430,9 +407,7 @@ void GraphOptimizer::appendPendingTo(gtsam::NonlinearFactorGraph* candidate_grap
 gtsam::Pose3 GraphOptimizer::eigenToGtsam(const Eigen::Isometry3d& pose) {
     Eigen::Matrix3d R = pose.rotation();
     Eigen::Vector3d t = pose.translation();
-    // Isometry::inverse uses transpose. Repeated snapshot corrections otherwise
-    // amplify even 1e-15 rotation scale error geometrically. Canonicalize at the
-    // graph boundary, including float-derived registration measurements.
+
     const Eigen::Quaterniond rotation = Eigen::Quaterniond(R).normalized();
     return gtsam::Pose3(gtsam::Rot3(rotation), gtsam::Point3(t));
 }
@@ -451,7 +426,7 @@ gtsam::noiseModel::Gaussian::shared_ptr GraphOptimizer::createNoiseModel(
 }
 
 gtsam::noiseModel::Diagonal::shared_ptr GraphOptimizer::createOdomNoiseModel() const {
-    // GTSAM 使用 (rotation, translation) 顺序
+
     gtsam::Vector6 sigmas;
     sigmas << config_.odom_noise_rotation, config_.odom_noise_rotation, config_.odom_noise_rotation,
               config_.odom_noise_position, config_.odom_noise_position, config_.odom_noise_position;
@@ -459,7 +434,7 @@ gtsam::noiseModel::Diagonal::shared_ptr GraphOptimizer::createOdomNoiseModel() c
 }
 
 gtsam::noiseModel::Diagonal::shared_ptr GraphOptimizer::createLoopNoiseModel() const {
-    // GTSAM 使用 (rotation, translation) 顺序
+
     gtsam::Vector6 sigmas;
     sigmas << config_.loop_noise_rotation, config_.loop_noise_rotation, config_.loop_noise_rotation,
               config_.loop_noise_position, config_.loop_noise_position, config_.loop_noise_position;
@@ -467,7 +442,7 @@ gtsam::noiseModel::Diagonal::shared_ptr GraphOptimizer::createLoopNoiseModel() c
 }
 
 gtsam::noiseModel::Diagonal::shared_ptr GraphOptimizer::createPriorNoiseModel() const {
-    // GTSAM 使用 (rotation, translation) 顺序
+
     gtsam::Vector6 sigmas;
     sigmas << config_.prior_noise_rotation, config_.prior_noise_rotation, config_.prior_noise_rotation,
               config_.prior_noise_position, config_.prior_noise_position, config_.prior_noise_position;
@@ -490,4 +465,4 @@ gtsam::noiseModel::Base::shared_ptr GraphOptimizer::createXYYawLoopNoiseModel(
         information, config_, use_robust).model;
 }
 
-}  // namespace n3mapping
+}

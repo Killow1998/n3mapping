@@ -13,7 +13,6 @@
 
 namespace n3mapping::core {
 
-// Replaced as one unit when loading a map; references are wired only here.
 struct N3MappingSession {
   explicit N3MappingSession(const Config& config)
       : keyframes(config), matcher(config), detector(config), loops(config),
@@ -33,4 +32,4 @@ struct N3MappingSession {
   MappingResuming resuming;
 };
 
-} // namespace n3mapping::core
+}

@@ -1,4 +1,3 @@
-// Lightweight ROS-free pbstream reader for downstream navigation consumers.
 #pragma once
 
 #include <map>
@@ -54,4 +53,4 @@ bool readN3NavResource(const std::string& pbstream_path,
                        N3NavResource* out,
                        std::string* error = nullptr);
 
-}  // namespace n3mapping
+}

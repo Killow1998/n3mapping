@@ -56,14 +56,12 @@ Config makeCoreTestConfig()
     config.rhpd_submap_voxel_size = 0.0;
     config.sc_num_exclude_recent = 0;
     config.loop_kf_gap = 1;
-    // These fixtures feed a fixed synthetic scan, so the platform never appears
-    // to move and the static-start guard would suppress every keyframe. They
-    // are testing something else.
+
     config.mapping_static_start_guard_enable = false;
     return config;
 }
 
-}  // namespace
+}
 
 TEST(N3MappingCoreTest, ConstructAndRejectInvalidMappingFrame)
 {
@@ -141,9 +139,7 @@ TEST(N3MappingCoreTest, MappingRetainsFrontendMotionWhenScansDisagree)
     config.keyframe_distance_threshold = 0.05;
     config.icp_refine_use_gicp = true;
     N3MappingCore core(config);
-    // The frontend reports motion, but repeated local geometry provides the
-    // same scan. Without an admitted loop or plane factor, this ambiguous
-    // pair must not introduce an unexplained map-to-odometry correction.
+
     for (int i = 0; i < 3; ++i) {
         auto pose = Eigen::Isometry3d::Identity();
         pose.translation().x() = 0.12 * i;
@@ -175,8 +171,7 @@ TEST(N3MappingCoreTest, RealtimeConsumerOmitsOnlyTheBackendWorldCloud)
         ASSERT_NE(expected.cloud_world, nullptr);
         EXPECT_EQ(realtime.getAllKeyframes().size(), synchronous.getAllKeyframes().size());
     }
-    // Rejected frames in every mode keep their failure semantics, not a fake
-    // successful projection just because a consumer does not request clouds.
+
     for (auto mode : {CoreRunMode::MAPPING, CoreRunMode::LOCALIZATION,
                       CoreRunMode::MAP_EXTENSION}) {
         const auto actual = realtime.processFrame(mode, core::LioFrame{});
@@ -231,8 +226,7 @@ TEST(N3MappingCoreTest, EnabledShadowSubmapIsPersistedFromMappingPath)
     second_pose.translation().x() = 1.0;
     ASSERT_TRUE(core.processMappingFrame(
         makeFrame(2000000000, second_pose)).accepted_keyframe);
-    // Simulate a rigid graph correction already copied into the keyframe
-    // manager. The save boundary must not persist the scaffold's stale origin.
+
     const auto keyframes = core.getAllKeyframes();
     ASSERT_EQ(keyframes.size(), 2u);
     for (const auto& keyframe : keyframes) {
@@ -308,8 +302,7 @@ TEST(N3MappingCoreTest, IntermediateMappingFramesUseLatestMapCorrection)
     Eigen::Isometry3d correction = Eigen::Isometry3d::Identity();
     correction.linear() = Eigen::AngleAxisd(0.3, Eigen::Vector3d::UnitZ()).toRotationMatrix();
     correction.translation() = Eigen::Vector3d(2.0, -1.0, 0.5);
-    // Inject the graph result at the keyframe-manager boundary, as in the
-    // snapshot tests. No loop detector or ROS transport is involved.
+
     keyframe->pose_optimized = correction * anchor;
     for (int i = 1; i <= 2; ++i) {
         Eigen::Isometry3d raw_pose = anchor;
@@ -326,7 +319,7 @@ TEST(N3MappingCoreTest, IntermediateMappingFramesUseLatestMapCorrection)
         EXPECT_TRUE(output.cloud_world->front().getVector3fMap().cast<double>().isApprox(expected_point, 1e-6));
         EXPECT_TRUE(core.getDenseOptimizedTrajectory().back().pose_world_lidar.isApprox(expected, 1e-9));
         EXPECT_TRUE(keyframe->pose_odom.isApprox(anchor, 1e-9));
-        // A later graph update must take effect without a new keyframe.
+
         correction.translation().y() += 1.0;
         keyframe->pose_optimized = correction * anchor;
     }
@@ -352,7 +345,7 @@ TEST(N3MappingCoreTest, DenseCorrectionPreservesDuplicateTimesAndEndpointRules)
             correction_y * 0.1, Eigen::Vector3d::UnitZ()).toRotationMatrix();
         keyframes[i]->pose_optimized = correction * keyframes[i]->pose_odom;
     }
-    // Legacy interpolation picks the first keyframe at a duplicate time.
+
     keyframes[1]->timestamp = 1.0;
     const std::vector<double> times = {0.0, 1.0, 2.0, 3.0, 4.0, 2.0};
     const std::vector<double> expected_y = {1.0, 1.0, 2.0, 3.0, 3.0, 2.0};
@@ -599,14 +592,14 @@ TEST(N3MappingCoreTest, AsyncLoopCommitRetainsKeyframesAppendedDuringGeometry)
     const auto dispatched = core.processPendingLoopClosuresAsync();
     ASSERT_TRUE(dispatched.async_pending);
     EXPECT_FALSE(dispatched.optimized);
-    // Even a worker that finishes immediately cannot mutate the owner graph.
+
     EXPECT_TRUE(core.getOptimizedPoses().at(1).isApprox(pose, 1e-9));
     pose.translation().x() = 2.0;
     ASSERT_TRUE(core.processMappingFrame(makeFrame(3000000000, pose)).accepted_keyframe);
     const auto completed = core.processPendingLoopClosures();
     EXPECT_TRUE(completed.optimized);
     EXPECT_FALSE(completed.async_pending);
-    EXPECT_EQ(completed.graph_rebase_count, 0U); // Appended nodes need no full solve.
+    EXPECT_EQ(completed.graph_rebase_count, 0U);
     EXPECT_GE(completed.edge_count, 1U);
     EXPECT_EQ(core.getOptimizedPoses().size(), 3U);
     EXPECT_EQ(core.getAllKeyframes().size(), 3U);
@@ -675,14 +668,12 @@ TEST(N3MappingCoreTest, SavingDrainsAsyncLoopsAndPreservesCorrectedDenseTrajecto
     ASSERT_TRUE(core.processPendingLoopClosuresAsync().async_pending);
     EXPECT_TRUE(core.getOptimizedPoses().at(1).isApprox(second_pose, 1e-9));
 
-    // Saving must drain and commit outstanding geometry before serializing
-    // either keyframes or the trajectory anchored to them.
     MapKeyframeSnapshot snapshot;
     std::string error;
-    ASSERT_TRUE(artifacts.save(&core, &error, &snapshot)) << error;
+    ASSERT_TRUE(artifacts.save(core, error, snapshot)) << error;
     ASSERT_EQ(snapshot.keyframes.size(), 2U);
     EXPECT_EQ(snapshot.revision, core.mapRevision());
-    artifacts.saveDebug(snapshot, &error);
+    artifacts.saveDebug(snapshot, error);
     ASSERT_TRUE(error.empty()) << error;
     core::LioFrame::PointCloud saved_cloud;
     ASSERT_EQ(pcl::io::loadPCDFile((dir / "global_map.pcd").string(), saved_cloud), 0);
@@ -801,8 +792,7 @@ TEST(N3MappingCoreTest, MapExtensionDenseSampleDoesNotDoubleApplyLoadedMapCorrec
 TEST(N3MappingCoreTest,
      MapExtensionDenseSamplesUseAuthoritativeTrackedPoses)
 {
-    // Keep the world surfaces fixed while moving the sensor. Repeating a body
-    // cloud unchanged at a new odometry pose describes moving world geometry.
+
     const auto observed_frame = [](int64_t stamp, const Eigen::Isometry3d& pose) {
         auto frame = makeFrame(stamp, pose);
         auto cloud = pcl::make_shared<core::LioFrame::PointCloud>(*frame.undistorted_cloud);
@@ -959,7 +949,7 @@ TEST(N3MappingCoreTest, MapExtensionFromFallbackDenseRequiresLockBeforeMixingSou
         SCOPED_TRACE(refine);
         Config config = makeCoreTestConfig();
         config.icp_refine_use_gicp = refine;
-        config.reloc_atlas_enable = false;  // Old-format fixture has no Atlas.
+        config.reloc_atlas_enable = false;
         config.reloc_temporal_window_size = 1;
         config.reloc_lock_min_winner_streak = 1;
         config.reloc_lock_min_converged_updates = 1;
@@ -998,9 +988,7 @@ TEST(N3MappingCoreTest, MapExtensionFromFallbackDenseRequiresLockBeforeMixingSou
         N3MappingCore extension_core(config);
         ASSERT_TRUE(extension_core.loadMap(old_map_path.string()));
         const auto query = makeFrame(2000000000, Eigen::Isometry3d::Identity());
-        // The old fixture paired a flat map with a different, non-planar query.
-        // Even permissive likelihood settings must not manufacture an XY lock or
-        // append an extension trajectory from geometry that does not support it.
+
         const auto rejected = extension_core.processMapExtensionFrame(query);
         EXPECT_FALSE(rejected.success);
         EXPECT_FALSE(rejected.relocalization_locked);
@@ -1008,8 +996,6 @@ TEST(N3MappingCoreTest, MapExtensionFromFallbackDenseRequiresLockBeforeMixingSou
         EXPECT_EQ(extension_core.getAllKeyframes().size(), 1U);
         EXPECT_EQ(extension_core.getDenseOptimizedTrajectory().size(), 1U);
 
-        // Exercise the original provenance contract with matching geometry while
-        // retaining the old-format map without a dense trajectory.
         cloud->clear_points();
         for (const auto &point : *query.undistorted_cloud) {
             cloud->add_points(point.x);
@@ -1125,8 +1111,7 @@ TEST(N3MappingCoreTest, AtlasAutoUpdatePreservesSessionWhenPublicationFails)
     const auto cache_time = std::filesystem::last_write_time(atlas_a);
     ASSERT_TRUE(loaded.loadMap(map_a.string()));
     EXPECT_EQ(std::filesystem::last_write_time(atlas_a), cache_time);
-    // Old format, stale feature settings, and a stale map binding all rebuild
-    // from the source pbstream and produce the same current cache.
+
     const auto current_sha = LocalizationAtlas::fileSha256(atlas_a);
     for (int stale = 0; stale < 3; ++stale) {
         LocalizationAtlasData data;
@@ -1156,7 +1141,6 @@ TEST(N3MappingCoreTest, AtlasAutoUpdatePreservesSessionWhenPublicationFails)
     ASSERT_NEAR(dense_before.front().pose_world_lidar.translation().x(),
                 0.0, 1e-9);
 
-    // B cannot publish its cache over an unrelated directory. Keep A live.
     EXPECT_FALSE(loaded.loadMap(map_b.string()));
     EXPECT_TRUE(std::filesystem::exists(std::filesystem::path(atlas_b) / "unrelated"));
     EXPECT_TRUE(loaded.mapLoaded());
@@ -1269,5 +1253,5 @@ TEST(N3MappingCoreTest, SaveLoadSmoke)
     std::filesystem::remove(map_path);
 }
 
-}  // namespace test
-}  // namespace n3mapping
+}
+}

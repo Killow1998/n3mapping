@@ -2,7 +2,7 @@
 #include "localization_atlas_codec.h"
 #include "mapped_target.h"
 #include "spatial_point_blocks.h"
-// LocalizationAtlas: compile/load a map-bound global prepared target sidecar.
+
 #include "n3mapping/localization_atlas.h"
 
 #include "localization_atlas.pb.h"
@@ -29,7 +29,7 @@ namespace n3mapping {
 namespace {
 
 constexpr const char* kAtlasFormatVersion = registration_detail::kMappedAtlasFormat;
-// Geometry/config binding is unchanged by the compact storage encoding.
+
 constexpr const char* kAtlasGeometryVersion = "n3mapping_localization_atlas_v2";
 constexpr std::uintmax_t kMaxAtlasBytes = std::uintmax_t{1} << 30;
 
@@ -71,7 +71,7 @@ std::string digestBytes(const void* data, std::size_t size) {
     return output.str();
 }
 
-}  // namespace
+}
 
 LocalizationAtlas::LocalizationAtlas(const Config& config, PointCloudMatcher& matcher)
     : config_(config), matcher_(matcher), global_map_(pcl::make_shared<PointCloudT>()) {}
@@ -287,9 +287,6 @@ bool LocalizationAtlas::compileAndSave(
         local_stats.free_space_prepare_ms = elapsedMs(grid_start);
     }
 
-    // Loading deliberately rejects sidecars larger than 1 GiB. Refuse the
-    // exact serialized message before opening a temporary file, so compilation
-    // cannot publish an artifact that the same binary is guaranteed to reject.
     const auto serialized_bytes =
         static_cast<std::uintmax_t>(data.ByteSizeLong());
     if (serialized_bytes == 0 || serialized_bytes > kMaxAtlasBytes) {
@@ -428,7 +425,6 @@ bool LocalizationAtlas::load(const std::string& map_path,
     global_map_->is_dense = true;
     blocks_ = std::make_shared<SpatialPointBlocks>(*global_map_);
 
-    // All global points have been validated and copied to their final cloud.
     google::protobuf::RepeatedField<float>{}.Swap(data.mutable_global_points());
 
     if (!mapped) {
@@ -504,4 +500,4 @@ void LocalizationAtlas::clear() {
     config_sha256_.clear();
 }
 
-}  // namespace n3mapping
+}

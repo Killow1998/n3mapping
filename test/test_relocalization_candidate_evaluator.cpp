@@ -23,7 +23,6 @@ class RelocalizationCandidateEvaluatorTest : public RegistrationFixture {
         offset.translation().z() = 0.6;
         const auto registration_cloud = transformCloud(query, offset);
 
-        // Distinct surfaces force the fallback branch; registration is real.
         FixedTargetProvider provider;
         provider.target.visibility_target = query;
         provider.target.registration_target = std::make_shared<PointCloudMatcher::PreparedTarget>(
@@ -77,16 +76,14 @@ TEST_F(RelocalizationCandidateEvaluatorTest, ReturningSeedReusesProposalButRequi
             Eigen::Isometry3d::Identity(), cost);
     };
     ASSERT_FALSE(evaluate(map).empty());
-    // Ranking temporarily loses this seed; returning to the same place should
-    // check current geometry without discarding the useful pose proposal.
+
     for (int i = 0; i < 3; ++i) evaluator.beginSeedPlan({}, keyframes.revision());
     evaluator.beginSeedPlan({{candidate.match_id, 0.0}}, keyframes.revision());
     RelocalizationPerformance returning;
     ASSERT_FALSE(evaluate(map, &returning).empty());
     EXPECT_EQ(returning.seed_continuations, 1U);
     EXPECT_EQ(returning.seed_initializations, 0U);
-    // The unreported 0.6 m sensor motion leaves the old pose within the loose
-    // fitness gate (0.18 < 0.3), but below the actual confidence requirement.
+
     Eigen::Isometry3d motion = Eigen::Isometry3d::Identity();
     motion.translation().z() = 0.6;
     RelocalizationPerformance changed;
@@ -95,7 +92,7 @@ TEST_F(RelocalizationCandidateEvaluatorTest, ReturningSeedReusesProposalButRequi
     EXPECT_NEAR(recovered.front().match.T_target_source.translation().z(), -0.6, 1e-3);
     EXPECT_LT(recovered.front().match.fitness_score, 0.01);
     EXPECT_EQ(changed.seed_retries, 1U);
-    // History remains bounded even when searches keep introducing other seeds.
+
     for (int i = 0; i < 32; ++i) evaluator.beginSeedPlan({}, keyframes.revision());
     evaluator.beginSeedPlan({{candidate.match_id, 0.0}}, keyframes.revision());
     RelocalizationPerformance expired;
@@ -136,9 +133,7 @@ TEST_F(RelocalizationCandidateEvaluatorTest, NeighboringHeadingSectorReusesItsSh
     RelocalizationPerformance first, adjacent;
     ASSERT_FALSE(evaluate(sector, first).empty());
     ASSERT_FALSE(evaluate(2.0F * sector, adjacent).empty());
-    // Only the new outer heading needs registration. The two overlapping
-    // measured headings still receive fresh geometric checks. The one-bin
-    // global grid now coincides with the measured heading, not absolute zero.
+
     EXPECT_EQ(adjacent.seed_initializations, 1U);
     EXPECT_EQ(adjacent.seed_continuations, 2U);
 }
@@ -156,4 +151,4 @@ TEST_F(RelocalizationCandidateEvaluatorTest, UnmeasurableFallbackDoesNotBorrowEn
         EXPECT_TRUE(match.information.isZero());
     }
 }
-}  // namespace n3mapping::test
+}

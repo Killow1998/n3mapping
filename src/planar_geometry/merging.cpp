@@ -93,8 +93,7 @@ std::vector<Plane> mergePlanes(std::vector<Plane> input,
         accepted.push_back({index, moment, center, n, variance});
       }
       if (!original_valid && accepted.size() != scans.size()) {
-        // A recovered subgroup must retain every original observation. If scan
-        // moments cannot be combined without changing the gates, keep its cells.
+
         for (int id : ids) {
           observations += input[id].patches.size();
           output.push_back(std::move(input[id]));
@@ -117,4 +116,4 @@ std::vector<Plane> mergePlanes(std::vector<Plane> input,
   return output;
 }
 
-} // namespace n3mapping::planar_geometry
+}

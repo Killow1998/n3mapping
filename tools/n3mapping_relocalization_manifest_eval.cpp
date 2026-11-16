@@ -240,10 +240,7 @@ std::vector<FrameRecord> readManifest(const fs::path &path) {
   const std::vector<std::string> pose_header = {
       "episode_id", "frame_index", "stamp_ns", "pcd_path", "tx", "ty",
       "tz",         "qx",          "qy",       "qz",       "qw"};
-  // The v2 gravity extractor appends gx, gy, gz and gravity_valid. Those four
-  // are read by the pipeline that has gravity on LioFrame, which this branch
-  // does not; the eleven pose fields are what this evaluation uses, so a
-  // manifest that carries the extra columns is accepted and they are skipped.
+
   const auto header = splitCsv(line);
   const std::vector<std::string> gravity_header = {
       "episode_id", "frame_index", "stamp_ns", "pcd_path", "tx",
@@ -903,8 +900,8 @@ int run(const Options &options) {
   return locked ? 0 : 2;
 }
 
-} // namespace
-} // namespace n3mapping
+}
+}
 
 int main(int argc, char **argv) {
   if (n3mapping::productBuildIdentityRequested(argc, argv)) {

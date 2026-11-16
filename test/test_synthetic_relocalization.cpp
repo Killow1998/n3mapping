@@ -34,7 +34,7 @@ double yawError(const Eigen::Isometry3d& estimated, const Eigen::Isometry3d& exp
     return std::abs(Eigen::AngleAxisd(R).angle());
 }
 
-}  // namespace
+}
 
 TEST(SyntheticRelocalizationTest, CoreRelocalizesBodyCloudWithFakeOdomFrame)
 {
@@ -254,8 +254,8 @@ TEST(SyntheticRelocalizationTest, RangeAndFovFilteringCanProduceExplicitEmptyVis
         point.z = static_cast<float>(z);
         world->push_back(point);
     };
-    add(50.0, 0.0, 0.0);   // Outside range.
-    add(-2.0, 0.0, 0.0);   // Inside range, behind a forward-facing FOV.
+    add(50.0, 0.0, 0.0);
+    add(-2.0, 0.0, 0.0);
 
     synthetic::QuerySynthesisOptions options;
     options.range_min = 0.1;
@@ -291,9 +291,9 @@ TEST(SyntheticRelocalizationTest, NeighborDilationSuppressesBackgroundWithoutDel
         point.intensity = intensity;
         world->push_back(point);
     };
-    addPolar(2.0, 0.0, 1.0f);    // Foreground.
-    addPolar(5.0, 1.2, 2.0f);    // Adjacent-bin background: should be suppressed.
-    addPolar(5.0, 10.2, 3.0f);   // Remote surface: outside dilation neighborhood.
+    addPolar(2.0, 0.0, 1.0f);
+    addPolar(5.0, 1.2, 2.0f);
+    addPolar(5.0, 10.2, 3.0f);
 
     synthetic::QuerySynthesisOptions options;
     options.range_min = 0.1;
@@ -598,5 +598,5 @@ TEST(SyntheticRelocalizationTest, PerQueryCsvPrecisionRoundTripsLargePoseCoordin
     }
 }
 
-}  // namespace test
-}  // namespace n3mapping
+}
+}

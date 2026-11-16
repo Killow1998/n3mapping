@@ -37,7 +37,7 @@ void N3MappingNoeticNode::initializeLiveSubscriptions()
     live_odom_sub_ = nh_.subscribe(live_options);
     logEvent("input_subscription", "topic=" + config_.odom_topic + " role=live_odom depth=1", true);
     ros::NodeHandle live_nh(nh_);
-    // Full cloud conversion/publication must not occupy the raw odom queue.
+
     live_nh.setCallbackQueue(&live_cloud_queue_);
     live_cloud_sub_.subscribe(live_nh, config_.cloud_topic, sync_queue_size);
     live_cloud_sub_.registerCallback(
@@ -258,4 +258,4 @@ geometry_msgs::Pose N3MappingNoeticNode::makePose(const Eigen::Isometry3d& pose)
     return out;
 }
 
-}  // namespace n3mapping
+}

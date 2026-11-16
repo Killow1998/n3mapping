@@ -11,7 +11,8 @@
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
 
-#include "n3mapping/keyframe_manager.h"
+#include "n3mapping/keyframe_map_revision.h"
+#include "n3mapping/keyframe.h"
 
 namespace n3mapping {
 
@@ -79,4 +80,4 @@ private:
     std::unordered_map<VoxelKey, VoxelAccum, VoxelKeyHash> voxel_cache_;
 };
 
-}  // namespace n3mapping
+}

@@ -1,4 +1,3 @@
-// Point-cloud preparation, bounded storage estimates and matcher orchestration.
 #include "n3mapping/point_cloud_matcher.h"
 #include "compact_kdtree_builder.h"
 #include "mapped_target.h"
@@ -57,7 +56,7 @@ bool isSmallGicpVoxelCoordSafe(const pcl::PointXYZI& pt, double leaf_size) {
     return coord_safe(pt.x) && coord_safe(pt.y) && coord_safe(pt.z);
 }
 
-}  // namespace
+}
 
 std::size_t estimatePreparedTargetMemoryBytes(
     const PointCloudMatcher::PreparedTarget& target) {
@@ -184,8 +183,7 @@ PointCloudMatcher::PreparedTarget PointCloudMatcher::prepareTargetCloud(
         }
         const auto& plane = prepared.plane_levels.back();
         auto& refine = prepared.refine_level;
-        // Avoid coordinate matching when sampling densities are very different.
-        // This is only a cost decision; actual reuse requires exact supports.
+
         const bool try_reuse = plane.kdtree && refine.kdtree &&
             plane.cloud->size() >= .95 * refine.cloud->size() &&
             refine.cloud->size() >= .95 * plane.cloud->size();
@@ -315,4 +313,4 @@ MatchResult PointCloudMatcher::resumePrepared(
     return alignPreparedWithSetting(target, source, init_guess, setting, metric.resolution);
 }
 
-} // namespace n3mapping
+}

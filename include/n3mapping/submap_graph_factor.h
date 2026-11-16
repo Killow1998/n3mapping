@@ -1,4 +1,3 @@
-// Shadow-only factor semantics for projected global-submap graphs.
 #pragma once
 
 #include <cstddef>
@@ -13,8 +12,6 @@
 
 namespace n3mapping {
 
-// Evaluates the existing keyframe factor after substituting
-// X_keyframe = X_submap * T_submap_keyframe. No optimizer state is created.
 struct SubmapGraphEdgeFactorEvaluation {
     bool valid = false;
     std::string failure_reason;
@@ -24,8 +21,6 @@ struct SubmapGraphEdgeFactorEvaluation {
     SubmapId to_submap_id = kInvalidSubmapId;
     EdgeConstraintMode constraint_mode = EdgeConstraintMode::FULL_6DOF;
 
-    // Exact residual used by the reference factor. FULL_6DOF follows GTSAM
-    // Pose3 tangent order [rotation, translation]; XY_YAW is [x, y, yaw].
     Eigen::VectorXd exact_lifted_residual;
     bool explicit_source_information_usable = false;
     std::string information_limitation;
@@ -33,9 +28,6 @@ struct SubmapGraphEdgeFactorEvaluation {
     double exact_lifted_mahalanobis_squared =
         std::numeric_limits<double>::quiet_NaN();
 
-    // A constant projected BetweenFactor is exactly equivalent only for the
-    // FULL_6DOF exponential-map residual. XY_YAW must retain the lifted
-    // keyframe residual instead of being approximated as a submap factor.
     bool direct_between_residual_equivalent = false;
     bool direct_between_information_transportable = false;
     std::string direct_between_limitation;
@@ -100,4 +92,4 @@ SubmapGraphFloorFactorEvaluation evaluateSubmapGraphFloorFactor(
 SubmapGraphFactorDiagnostics evaluateSubmapGraphFactors(
     const SubmapGraphSnapshot& snapshot);
 
-}  // namespace n3mapping
+}

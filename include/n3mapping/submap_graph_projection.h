@@ -1,4 +1,3 @@
-// Shadow-only projection of the reference keyframe graph onto submap owners.
 #pragma once
 
 #include <cstddef>
@@ -34,19 +33,16 @@ struct SubmapGraphKeyframeProjection {
     int64_t keyframe_id = -1;
     SubmapId submap_id = kInvalidSubmapId;
     MapSessionId session_id = kInvalidMapSessionId;
-    // Fixed during a shadow trial: this is derived from session odometry, not
-    // from the reference optimized pose being compared.
+
     Eigen::Isometry3d T_submap_keyframe = Eigen::Isometry3d::Identity();
-    // Immutable reference keyframe-graph pose at snapshot time.
+
     Eigen::Isometry3d T_map_keyframe_reference =
         Eigen::Isometry3d::Identity();
 };
 
 struct SubmapGraphEdgeProjection {
     std::size_t source_edge_index = 0;
-    // This is the exact reference keyframe edge. In particular, information
-    // remains in the source keyframe-factor tangent space; it is deliberately
-    // not advertised as a projected submap information matrix.
+
     EdgeInfo source_edge;
     SubmapGraphEdgeClass classification =
         SubmapGraphEdgeClass::UNASSIGNED_ENDPOINT;
@@ -72,9 +68,6 @@ struct SubmapGraphFloorProjection {
         Eigen::Isometry3d::Identity();
 };
 
-// Immutable, optimizer-free snapshot. It preserves every source edge/floor
-// observation and makes omissions explicit. No value in this structure is
-// written back to the keyframe graph, submaps, ranking, lock, or map output.
 struct SubmapGraphSnapshot {
     bool valid = false;
     std::string failure_reason;
@@ -108,14 +101,10 @@ struct SubmapGraphTopologyComponent {
     SubmapId anchor_submap_id = kInvalidSubmapId;
     std::vector<SubmapId> submap_ids;
     std::vector<MapSessionId> session_ids;
-    // Indices into SubmapGraphSnapshot::edge_projections. Parallel source
-    // constraints remain separate entries and are never fused here.
+
     std::vector<std::size_t> cross_edge_projection_indices;
 };
 
-// Structural qualification for a future shadow optimizer. shadow_graph_ready
-// is necessary, not sufficient: it says nothing about gauge handling,
-// information transport, numerical observability, or integration authority.
 struct SubmapGraphTopologyDiagnostics {
     bool valid = false;
     std::string failure_reason;
@@ -142,4 +131,4 @@ SubmapGraphSnapshot buildSubmapGraphSnapshot(
 SubmapGraphTopologyDiagnostics evaluateSubmapGraphTopology(
     const SubmapGraphSnapshot& snapshot);
 
-}  // namespace n3mapping
+}

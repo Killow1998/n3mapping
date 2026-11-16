@@ -7,18 +7,18 @@
 namespace n3mapping {
 
 struct LoopFeatures {
-    double descriptor_score = 0.0;     // higher is better
-    double spatial_score = 0.0;        // higher is better
-    double geometric_overlap = 0.0;    // higher is better
-    double temporal_gap = 0.0;         // normalized, higher means older
-    double local_map_consistency = 0.0;// higher is better
-    double segment_consistency = 0.0;  // higher is better
-    double segment_support = 0.0;      // normalized, higher means more neighbors agreed
-    bool descriptor_supported = false;
-    bool spatial_only = false;
-    double predicted_translation_norm = 0.0;
-    double icp_correction_yaw_abs = 0.0;
-    double segment_translation_median = 0.0;
+  double descriptor_score = 0.0;
+  double spatial_score = 0.0;
+  double geometric_overlap = 0.0;
+  double temporal_gap = 0.0;
+  double local_map_consistency = 0.0;
+  double segment_consistency = 0.0;
+  double segment_support = 0.0;
+  bool descriptor_supported = false;
+  bool spatial_only = false;
+  double predicted_translation_norm = 0.0;
+  double icp_correction_yaw_abs = 0.0;
+  double segment_translation_median = 0.0;
 };
 
 enum class LoopDecision {
@@ -39,7 +39,6 @@ public:
     static constexpr double kYawFlipRad = 2.8;
     static constexpr double kLargeSegmentTranslationM = 2.0;
 
-    // Empirical ranking weights, not an uncertainty or probability estimate.
     static double energy(const LoopFeatures& f)
     {
         const double segment = clamp01(f.segment_support) * clamp01(f.segment_consistency);
@@ -59,9 +58,6 @@ public:
         const double segment_consistency = clamp01(f.segment_consistency);
         const bool has_descriptor = f.descriptor_supported || clamp01(f.descriptor_score) > 0.0;
 
-        // Segment evidence here compares pose displacements. It is a cheap
-        // consistency screen, not independent neighbor registration evidence.
-        // Geometry, neighbor registration and graph trials have separate gates.
         const bool segment_confirmed = segment_consistency >= 1.0 - 1e-9 &&
                                        segment_support > 0.0;
         if (f.spatial_only && !has_descriptor && !segment_confirmed) {
@@ -71,7 +67,6 @@ public:
             return result;
         }
 
-        // Descriptor-free candidates also need consistent observed motion.
         if (segment_consistency <= 0.5 && !has_descriptor) {
             result.decision = LoopDecision::Reject;
             result.reason = "unconfirmed_weak_segment";
@@ -79,14 +74,6 @@ public:
             return result;
         }
 
-        // This also subsumes what used to be a separate rule for a supported
-        // but inconsistent segment: it asked for consistency < 0.5 with no
-        // descriptor, which the line above has already caught at <= 0.5, so
-        // the branch could never be reached.
-
-        // A yaw correction near half a turn is a flipped match whatever the
-        // segment says, so this one keeps its own evidence and drops the
-        // segment clause.
         if (std::isfinite(f.icp_correction_yaw_abs) &&
             f.icp_correction_yaw_abs > kYawFlipRad) {
             result.decision = LoopDecision::Reject;
@@ -120,4 +107,4 @@ private:
     }
 };
 
-} // namespace n3mapping
+}

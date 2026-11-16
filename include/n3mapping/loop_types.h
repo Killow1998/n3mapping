@@ -1,4 +1,3 @@
-// Loop evidence values, independent of detector, index and optimizer implementation.
 #pragma once
 #include <cstdint>
 #include <limits>
@@ -159,5 +158,4 @@ struct VerifiedLoop {
     bool isValid() const { return verified && query_id >= 0 && match_id >= 0; }
 };
 
-
-}  // namespace n3mapping
+}

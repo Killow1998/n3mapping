@@ -192,7 +192,7 @@ SubmapGraphTrialDiagnostics invalidTrial(const std::string& reason,
     return diagnostics;
 }
 
-}  // namespace
+}
 
 SubmapGraphTrialDiagnostics evaluateSubmapGraphOptimizationTrial(
     const SubmapGraphSnapshot& snapshot,
@@ -506,4 +506,4 @@ SubmapGraphTrialDiagnostics evaluateSubmapGraphOptimizationTrial(
     return diagnostics;
 }
 
-}  // namespace n3mapping
+}

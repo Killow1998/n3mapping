@@ -24,8 +24,6 @@ inline InputLinearVelocityFrame parseInputLinearVelocityFrame(
     throw std::invalid_argument("input_linear_velocity_frame must be child or parent");
 }
 
-// ROS 1 and ROS 2 Odometry have the same field layout. Keep the transport
-// conversion shared; motion measurements never enter the mapping algorithm.
 template <typename Odometry>
 bool forwardOdometryTwist(const Odometry& input,
                           InputLinearVelocityFrame linear_frame,
@@ -85,8 +83,6 @@ struct ProjectionMetadata {
     Eigen::Isometry3d source_from_body = Eigen::Isometry3d::Identity();
 };
 
-// Adds a self-contained association without changing scalar clocks. Invalid
-// metadata returns empty, never an untagged scalar masquerading as a cloud event.
 std::string appendProjectionMetadata(const std::string& scalar_status,
                                      const ProjectionMetadata& projection);
 
@@ -94,8 +90,7 @@ struct RealtimeLocalizationStatus {
     double estimate_stamp = 0.0;
     double observation_stamp = 0.0;
     double correction_stamp = 0.0;
-    // True only when this input frame requested an Odometry estimate. A
-    // lost/initializing backend may publish status without attempting one.
+
     bool estimate_attempted = false;
     bool estimate_available = false;
     std::string input_reason;
@@ -109,4 +104,4 @@ std::string localizationStatusJson(CoreRunMode mode,
                                    const std::string& frame_id,
                                    const RealtimeLocalizationStatus* realtime = nullptr);
 
-}  // namespace n3mapping
+}

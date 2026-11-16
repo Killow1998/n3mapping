@@ -6,8 +6,6 @@
 
 namespace n3mapping::core {
 
-// Single-owner admission for synchronized frames. Keep the complete payload
-// together so dropping queued work cannot mix a cloud with another frame's pose.
 template <typename Frame>
 class LatestFrameSlot {
  public:
@@ -29,4 +27,4 @@ class LatestFrameSlot {
   std::optional<Frame> pending_;
 };
 
-}  // namespace n3mapping::core
+}

@@ -1,4 +1,3 @@
-// Independent neighbor measurements, grouped by their unchanged target geometry.
 #include "n3mapping/loop_consensus_verifier.h"
 
 #include <algorithm>
@@ -45,7 +44,7 @@ struct NeighborTask {
     Keyframe::Ptr match_neighbor;
     Eigen::Isometry3d predicted;
 };
-}  // namespace
+}
 
 std::vector<LoopConsensusResult> LoopConsensusVerifier::evaluate(
     const KeyframeManager& keyframes, PointCloudMatcher& matcher,
@@ -78,8 +77,7 @@ std::vector<LoopConsensusResult> LoopConsensusVerifier::evaluate(
             Keyframe::Ptr match_neighbor;
             Eigen::Isometry3d predicted = Eigen::Isometry3d::Identity();
             if (cross_session) {
-                // Separate sessions need pose-based correspondence: their
-                // keyframe IDs do not describe equal sampling intervals.
+
                 if (query_neighbor->is_from_loaded_map) {
                     evidence.reject_reason = "session_boundary_neighbor";
                     continue;
@@ -114,9 +112,7 @@ std::vector<LoopConsensusResult> LoopConsensusVerifier::evaluate(
                 evidence.reject_reason = "session_boundary_neighbor";
                 continue;
             }
-            // A short spatial revisit is still a distinct observation. The
-            // descriptor's temporal exclusion is not a geometry veto, but the
-            // query scan itself must never enter its registration target.
+
             const int64_t excluded =
                 std::abs(query_neighbor->id - match_neighbor->id) <=
                     config_.gicp_submap_size ? query_neighbor->id : -1;
@@ -126,9 +122,6 @@ std::vector<LoopConsensusResult> LoopConsensusVerifier::evaluate(
         }
     }
 
-    // The map is immutable for this call. Candidate loops of the same query
-    // reuse its few neighbor sources, while only one target stays resident.
-    // Solves and votes still belong to each central candidate independently.
     struct Source {
         PointCloudMatcher::PreparedSource prepared;
         bool valid = false;
@@ -187,9 +180,7 @@ std::vector<LoopConsensusResult> LoopConsensusVerifier::evaluate(
             evidence.converged = match_result.converged;
             evidence.fitness_score = match_result.fitness_score;
             evidence.inlier_ratio = match_result.inlier_ratio;
-            // An unchanged iterate can satisfy the solver's convergence test
-            // with zero correspondences. That is no neighborhood observation,
-            // so it must neither support nor contradict the central loop.
+
             if (!evidence.valid) {
                 evidence.reject_reason = "no_neighbor_correspondences";
                 continue;
@@ -210,9 +201,7 @@ std::vector<LoopConsensusResult> LoopConsensusVerifier::evaluate(
                 evidence.reject_reason = "icp_not_converged";
             }
         }
-        // Includes failed tasks: their source will not be requested again.
-        // Release after its final target, without evicting or recomputing a
-        // source that another candidate still needs.
+
         for (const auto& task : tasks)
             if (--remaining_uses.at(task.query_neighbor->id) == 0)
                 sources.erase(task.query_neighbor->id);
@@ -235,4 +224,4 @@ std::vector<LoopConsensusResult> LoopConsensusVerifier::evaluate(
     return results;
 }
 
-}  // namespace n3mapping
+}

@@ -61,7 +61,7 @@ TEST(TrajectoryCheckpoint, OverlappingSessionClocksRetainTheOriginalCorrection) 
     auto map = checkpoint(interpolate);
     write(input, map);
     Config config;
-    config.reloc_atlas_enable = false;  // Hand-authored trajectory fixture, no Atlas.
+    config.reloc_atlas_enable = false;
     N3MappingCore original(config);
     ASSERT_TRUE(original.loadMap(input.string()));
     ASSERT_TRUE(original.saveMap(output.string()));
@@ -82,5 +82,5 @@ TEST(TrajectoryCheckpoint, OverlappingSessionClocksRetainTheOriginalCorrection) 
   }
   std::filesystem::remove_all(dir);
 }
-} // namespace
-} // namespace n3mapping
+}
+}

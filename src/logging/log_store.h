@@ -6,8 +6,7 @@
 #include <vector>
 
 namespace n3mapping {
-// Worker-only filesystem owner. Catalog entries are the only external files
-// subject to retention. Unregistered files are never removed.
+
 class LogStore {
 public:
   explicit LogStore(const LogOptions& options);
@@ -34,4 +33,4 @@ private:
   std::uint64_t sequence_ = 0, recovered_bytes_ = 0;
   static constexpr std::uint64_t metadata_reserve = 576 * 1024;
 };
-} // namespace n3mapping
+}

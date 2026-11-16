@@ -12,11 +12,6 @@
 namespace n3mapping {
 namespace {
 
-// Only the registration quality decides. `converged` describes the path the
-// solver took, not the answer it reached: a run that spends its whole
-// iteration budget and lands on an excellent alignment reports converged
-// false. The geometry check compares the correction against the prior, which
-// is the quantity the loop exists to fix.
 std::string loopRejectReason(bool fitness_ok, bool inlier_ok)
 {
     if (!fitness_ok) {
@@ -28,9 +23,6 @@ std::string loopRejectReason(bool fitness_ok, bool inlier_ok)
     return "";
 }
 
-// How each axis of one registration stood relative to the others, normalised so
-// the three factors multiply to one. Returns all-ones when the Hessian has
-// nothing usable to say, which leaves the configured noise untouched.
 Eigen::Vector3d axisWeights(const Eigen::Matrix<double, 6, 6>& information,
                             int offset, double max_ratio)
 {
@@ -68,7 +60,7 @@ double verticalInformationRatio(const Eigen::Matrix<double, 6, 6>& information)
     return xy_reference > 0.0 ? z / xy_reference : std::numeric_limits<double>::quiet_NaN();
 }
 
-}  // namespace
+}
 
 LoopVerifier::LoopVerifier(const Config& config) : config_(config)
 {
@@ -91,10 +83,6 @@ void LoopVerifier::finalizeRegistrationEvidence(
     loop.fitness_score = match.fitness_score;
     loop.inlier_ratio = match.inlier_ratio;
 
-    // An ICP Hessian is theoretically symmetric, but the numerical result is
-    // not guaranteed to be bit-for-bit symmetric. Canonicalize it before it can
-    // enter GTSAM or the serialized map. The default product path deliberately
-    // uses configured loop noise instead of this Hessian.
     const Eigen::Matrix<double, 6, 6> symmetric_icp_information =
         0.5 * (measurement_information + measurement_information.transpose());
     std::string icp_information_error;
@@ -237,9 +225,7 @@ LoopVerification LoopVerifier::finalizePreparedRegistration(
     loop.T_icp_correction_match = verification.T_icp_correction_match;
     loop.T_measured_match_query = verification.T_measured_match_query;
     loop.T_measurement_residual = verification.T_measurement_residual;
-    // A pretransformed source estimates a correction C, whereas the graph
-    // consumes Z = C * predicted. Transport its Hessian to the measurement's
-    // right tangent before using it as information or comparing its axes.
+
     const Eigen::Isometry3d right_transform =
         cloud_alignment.inverse() * measured_match_query;
     const Eigen::Matrix<double, 6, 6> measurement_information =
@@ -248,10 +234,6 @@ LoopVerification LoopVerifier::finalizePreparedRegistration(
             : rightComposedInformation(match_result.information, right_transform);
     finalizeRegistrationEvidence(&verification, measurement_information);
 
-    // Computed for every candidate the registration quality admits, so the
-    // referee downstream sees them. Previously this was gated on `converged`,
-    // which is why 541 of 588 candidates reached the referee with no evidence
-    // attached at all.
     if (verification.fitness_ok && verification.inlier_ok) {
         const auto heightmap = computeHeightmapConsistency(
             target_registration_cloud, source_registration_cloud,
@@ -265,15 +247,10 @@ LoopVerification LoopVerifier::finalizePreparedRegistration(
         loop.heightmap_vertical_consistency_score = heightmap.vertical_consistency_score;
     }
 
-    // icp_translation_norm, icp_rotation_norm and match_result.converged stay
-    // populated above and still reach the debug stream; they are evidence
-    // about the loop, not grounds to refuse it. A loop that moves the prior by
-    // five metres is not suspect -- on a map that has drifted by two and a
-    // half, it is the correction.
     if (loop.verified) {
         loop.T_match_query = verification.T_measured_match_query;
     }
     return verification;
 }
 
-}  // namespace n3mapping
+}

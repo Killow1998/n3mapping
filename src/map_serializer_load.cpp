@@ -19,23 +19,20 @@ struct SemVer {
     int patch = 0;
 };
 
-bool parseSemVer(const std::string& version, SemVer* out) {
-    if (!out) return false;
-    std::stringstream ss(version);
-    std::string major_str;
-    std::string minor_str;
-    std::string patch_str;
-    if (!std::getline(ss, major_str, '.')) return false;
-    if (!std::getline(ss, minor_str, '.')) return false;
-    if (!std::getline(ss, patch_str, '.')) return false;
-    try {
-        out->major = std::stoi(major_str);
-        out->minor = std::stoi(minor_str);
-        out->patch = std::stoi(patch_str);
-    } catch (...) {
-        return false;
-    }
-    return true;
+bool parseSemVer(const std::string &version, SemVer &out) {
+  std::stringstream ss(version);
+  std::string major_str;
+  std::string minor_str;
+  std::string patch_str;
+  if (!std::getline(ss, major_str, '.'))
+    return false;
+  if (!std::getline(ss, minor_str, '.'))
+    return false;
+  if (!std::getline(ss, patch_str, '.'))
+    return false;
+  return (std::istringstream(major_str) >> out.major) &&
+         (std::istringstream(minor_str) >> out.minor) &&
+         (std::istringstream(patch_str) >> out.patch);
 }
 
 int compareSemVer(const SemVer& a, const SemVer& b) {
@@ -44,8 +41,6 @@ int compareSemVer(const SemVer& a, const SemVer& b) {
     if (a.patch != b.patch) return (a.patch < b.patch) ? -1 : 1;
     return 0;
 }
-
-
 
 Keyframe::Ptr keyframeFromParsedProto(const ParsedKeyframeProto& parsed) {
     auto keyframe = std::make_shared<Keyframe>();
@@ -71,7 +66,7 @@ EdgeInfo edgeFromParsedProto(const ParsedEdgeProto& parsed) {
         : EdgeConstraintMode::FULL_6DOF;
     return edge;
 }
-} // namespace
+}
 
 bool MapSerializer::loadMap(const std::string& filepath,
                             KeyframeManager& keyframe_manager,
@@ -176,12 +171,13 @@ bool MapSerializer::loadMap(const std::string& filepath,
         phase("read_protobuf");
         const std::string file_version = map_proto.metadata().version();
         SemVer file_semver, code_semver;
-        if (parseSemVer(file_version, &file_semver) &&
-            parseSemVer(kMapVersion, &code_semver) &&
+        if (parseSemVer(file_version, file_semver) &&
+            parseSemVer(kMapVersion, code_semver) &&
             compareSemVer(file_semver, code_semver) > 0) {
-            LOG(ERROR) << "[MapSerializer] Reject map: file version " << file_version
-                       << " is newer than supported " << kMapVersion;
-            return false;
+          LOG(ERROR) << "[MapSerializer] Reject map: file version "
+                     << file_version << " is newer than supported "
+                     << kMapVersion;
+          return false;
         }
 
         std::string parse_error;
@@ -329,8 +325,7 @@ bool MapSerializer::loadMap(const std::string& filepath,
                     return false;
                 }
             }
-            // A loaded snapshot is immutable history. Any future extension
-            // starts a new session/submap instead of appending to this tail.
+
             temp_submap_builder.closeActiveSubmap();
             LOG(INFO) << "[MapSerializer] Rebuilt shadow submaps for legacy map metadata.";
         } else if (!temp_submap_builder.loadSubmaps(
@@ -365,8 +360,7 @@ bool MapSerializer::loadMap(const std::string& filepath,
         const auto prior = restore ? poseFromProto(map_proto.graph_gauge_prior())
                                    : Eigen::Isometry3d::Identity();
         if (restore && !prior.matrix().allFinite()) return false;
-        // Loading restores a checkpoint, including legacy maps. Re-solving here
-        // would disagree with the saved clouds/Atlas before the first live frame.
+
         if (!temp_optimizer.loadGraph(nodes, edges, floor_constraints, planes,
                                      true, restore ? &prior : nullptr)) {
             LOG(ERROR) << "[MapSerializer] Reject map: graph optimizer failed to load graph.";
@@ -390,4 +384,4 @@ bool MapSerializer::loadMap(const std::string& filepath,
     } catch (...) { return false; }
 }
 
-} // namespace n3mapping
+}

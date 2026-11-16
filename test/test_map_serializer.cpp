@@ -17,16 +17,10 @@
 namespace n3mapping {
 namespace test {
 
-/**
- * @brief MapSerializer 单元测试
- * 
- * 测试地图序列化和反序列化功能
- * Requirements: 7.2, 7.3, 8.2, 8.3
- */
 class MapSerializerTest : public ::testing::Test {
 protected:
     void SetUp() override {
-        // 初始化配置
+
         config_.map_save_path = "/tmp/n3mapping_test";
         config_.keyframe_distance_threshold = 1.0;
         config_.keyframe_angle_threshold = 0.5;
@@ -38,55 +32,51 @@ protected:
         config_.loop_noise_position = 0.1;
         config_.loop_noise_rotation = 0.1;
         config_.global_map_publish_hz = 1.0;
-        
-        // 创建测试目录
+
         std::filesystem::create_directories(config_.map_save_path);
     }
 
     void TearDown() override {
-        // 清理测试文件
+
         try {
             std::filesystem::remove_all(config_.map_save_path);
         } catch (...) {
-            // 忽略清理错误
         }
     }
 
-    // 生成随机点云
     pcl::PointCloud<pcl::PointXYZI>::Ptr generateRandomPointCloud(size_t num_points) {
         auto cloud = pcl::make_shared<pcl::PointCloud<pcl::PointXYZI>>();
         cloud->resize(num_points);
-        
+
         std::mt19937 rng(std::random_device{}());
         std::uniform_real_distribution<float> dist(-10.0f, 10.0f);
         std::uniform_real_distribution<float> intensity_dist(0.0f, 255.0f);
-        
+
         for (auto& pt : cloud->points) {
             pt.x = dist(rng);
             pt.y = dist(rng);
-            pt.z = dist(rng) * 0.1f;  // z 方向变化较小
+            pt.z = dist(rng) * 0.1f;
             pt.intensity = intensity_dist(rng);
         }
-        
+
         cloud->width = cloud->size();
         cloud->height = 1;
         cloud->is_dense = false;
-        
+
         return cloud;
     }
 
-    // 生成随机位姿
     Eigen::Isometry3d generateRandomPose() {
         std::mt19937 rng(std::random_device{}());
         std::uniform_real_distribution<double> pos_dist(-50.0, 50.0);
         std::uniform_real_distribution<double> angle_dist(-M_PI, M_PI);
-        
+
         Eigen::Isometry3d pose = Eigen::Isometry3d::Identity();
         pose.translation() = Eigen::Vector3d(pos_dist(rng), pos_dist(rng), 0.0);
-        
+
         Eigen::AngleAxisd yaw(angle_dist(rng), Eigen::Vector3d::UnitZ());
         pose.rotate(yaw);
-        
+
         return pose;
     }
 
@@ -131,27 +121,23 @@ protected:
     Config config_;
 };
 
-/**
- * @brief 测试基本的序列化和反序列化
- */
 TEST_F(MapSerializerTest, BasicSaveAndLoad) {
-    // 创建组件
+
     KeyframeManager kf_manager(config_);
     LoopDetector loop_detector(config_);
     GraphOptimizer optimizer(config_);
     MapSerializer serializer(config_);
-    
-    // 添加一些关键帧
+
     Eigen::Isometry3d pose = Eigen::Isometry3d::Identity();
     optimizer.addPriorFactor(0, pose);
-    
+
     for (int i = 0; i < 5; ++i) {
         auto cloud = generateRandomPointCloud(1000);
         pose.translation().x() += 1.0;
-        
+
         int64_t kf_id = kf_manager.addKeyframe(i * 0.1, pose, cloud);
         auto descriptor = loop_detector.addDescriptor(kf_id, cloud);
-        
+
         if (i > 0) {
             EdgeInfo edge;
             edge.from_id = i - 1;
@@ -163,32 +149,26 @@ TEST_F(MapSerializerTest, BasicSaveAndLoad) {
             optimizer.addOdometryEdge(edge);
         }
     }
-    
+
     optimizer.incrementalOptimize();
-    
-    // 保存地图
+
     std::string map_file = config_.map_save_path + "/test_map.pbstream";
     ASSERT_TRUE(serializer.saveMap(map_file, kf_manager, loop_detector, optimizer));
     ASSERT_TRUE(std::filesystem::exists(map_file));
-    
-    // 加载地图
+
     KeyframeManager kf_manager_loaded(config_);
     LoopDetector loop_detector_loaded(config_);
     GraphOptimizer optimizer_loaded(config_);
-    
+
     ASSERT_TRUE(serializer.loadMap(map_file, kf_manager_loaded, loop_detector_loaded, optimizer_loaded));
-    
-    // 验证关键帧数量
+
     EXPECT_EQ(kf_manager.size(), kf_manager_loaded.size());
     EXPECT_EQ(5, kf_manager_loaded.size());
-    
-    // 验证描述子数量
+
     EXPECT_EQ(loop_detector.size(), loop_detector_loaded.size());
-    
-    // 验证节点数量
+
     EXPECT_EQ(optimizer.getNumNodes(), optimizer_loaded.getNumNodes());
-    
-    // 验证边数量
+
     EXPECT_EQ(optimizer.getNumEdges(), optimizer_loaded.getNumEdges());
 }
 
@@ -248,74 +228,60 @@ TEST_F(MapSerializerTest, GraphOptimizerSwapWithExchangesGraphState) {
     EXPECT_NEAR(first.getOptimizedPose(2).translation().x(), 3.0, 1e-9);
 }
 
-/**
- * @brief 测试关键帧数据的完整性
- */
 TEST_F(MapSerializerTest, KeyframeDataIntegrity) {
     KeyframeManager kf_manager(config_);
     LoopDetector loop_detector(config_);
     GraphOptimizer optimizer(config_);
     MapSerializer serializer(config_);
-    
-    // 添加关键帧
+
     auto cloud = generateRandomPointCloud(500);
     Eigen::Isometry3d pose = generateRandomPose();
     double timestamp = 123.456;
-    
+
     int64_t kf_id = kf_manager.addKeyframe(timestamp, pose, cloud);
     auto descriptor = loop_detector.addDescriptor(kf_id, cloud);
     optimizer.addPriorFactor(kf_id, pose);
-    
-    // 保存和加载
+
     std::string map_file = config_.map_save_path + "/integrity_test.pbstream";
     ASSERT_TRUE(serializer.saveMap(map_file, kf_manager, loop_detector, optimizer));
-    
+
     KeyframeManager kf_manager_loaded(config_);
     LoopDetector loop_detector_loaded(config_);
     GraphOptimizer optimizer_loaded(config_);
     ASSERT_TRUE(serializer.loadMap(map_file, kf_manager_loaded, loop_detector_loaded, optimizer_loaded));
-    
-    // 验证关键帧数据
+
     auto kf_original = kf_manager.getKeyframe(kf_id);
     auto kf_loaded = kf_manager_loaded.getKeyframe(kf_id);
-    
+
     ASSERT_NE(kf_original, nullptr);
     ASSERT_NE(kf_loaded, nullptr);
-    
-    // 验证 ID 和时间戳
+
     EXPECT_EQ(kf_original->id, kf_loaded->id);
     EXPECT_DOUBLE_EQ(kf_original->timestamp, kf_loaded->timestamp);
-    
-    // 验证位姿
+
     EXPECT_TRUE(kf_original->pose_odom.isApprox(kf_loaded->pose_odom, 1e-6));
     EXPECT_TRUE(kf_original->pose_optimized.isApprox(kf_loaded->pose_optimized, 1e-6));
-    
-    // 验证点云大小
+
     EXPECT_EQ(kf_original->cloud->size(), kf_loaded->cloud->size());
-    
-    // 验证描述子
+
     EXPECT_TRUE(rhpdHeadingDenseValues(*loop_detector.getDescriptor(kf_id)).isApprox(
         rhpdHeadingDenseValues(*loop_detector_loaded.getDescriptor(kf_id)), 1e-12));
 }
 
-/**
- * @brief 测试约束边的序列化
- */
 TEST_F(MapSerializerTest, EdgeSerialization) {
     KeyframeManager kf_manager(config_);
     LoopDetector loop_detector(config_);
     GraphOptimizer optimizer(config_);
     MapSerializer serializer(config_);
-    
-    // 添加节点和边
+
     for (int i = 0; i < 3; ++i) {
         auto cloud = generateRandomPointCloud(100);
         Eigen::Isometry3d pose = Eigen::Isometry3d::Identity();
         pose.translation().x() = i * 1.0;
-        
+
         int64_t kf_id = kf_manager.addKeyframe(i * 0.1, pose, cloud);
         auto descriptor = loop_detector.addDescriptor(kf_id, cloud);
-        
+
         if (i == 0) {
             optimizer.addPriorFactor(kf_id, pose);
         } else {
@@ -329,8 +295,7 @@ TEST_F(MapSerializerTest, EdgeSerialization) {
             optimizer.addOdometryEdge(edge);
         }
     }
-    
-    // 添加回环边
+
     EdgeInfo loop_edge;
     loop_edge.from_id = 2;
     loop_edge.to_id = 0;
@@ -339,25 +304,22 @@ TEST_F(MapSerializerTest, EdgeSerialization) {
     loop_edge.information = Eigen::Matrix<double, 6, 6>::Identity() * 50.0;
     loop_edge.type = EdgeType::LOOP;
     optimizer.addLoopEdge(loop_edge);
-    
+
     optimizer.incrementalOptimize();
-    
-    // 保存和加载
+
     std::string map_file = config_.map_save_path + "/edge_test.pbstream";
     ASSERT_TRUE(serializer.saveMap(map_file, kf_manager, loop_detector, optimizer));
-    
+
     KeyframeManager kf_manager_loaded(config_);
     LoopDetector loop_detector_loaded(config_);
     GraphOptimizer optimizer_loaded(config_);
     ASSERT_TRUE(serializer.loadMap(map_file, kf_manager_loaded, loop_detector_loaded, optimizer_loaded));
-    
-    // 验证边数量
+
     auto edges_original = optimizer.getEdges();
     auto edges_loaded = optimizer_loaded.getEdges();
-    
+
     EXPECT_EQ(edges_original.size(), edges_loaded.size());
-    
-    // 验证回环边存在
+
     bool has_loop_original = optimizer.hasLoopClosure();
     bool has_loop_loaded = optimizer_loaded.hasLoopClosure();
     EXPECT_EQ(has_loop_original, has_loop_loaded);
@@ -390,15 +352,12 @@ TEST_F(MapSerializerTest, EmptyMapIsRejected) {
     EXPECT_EQ(optimizer_loaded.getNumNodes(), 0U);
 }
 
-/**
- * @brief 测试文件不存在的情况
- */
 TEST_F(MapSerializerTest, FileNotFound) {
     KeyframeManager kf_manager(config_);
     LoopDetector loop_detector(config_);
     GraphOptimizer optimizer(config_);
     MapSerializer serializer(config_);
-    
+
     std::string non_existent_file = config_.map_save_path + "/non_existent.pbstream";
     EXPECT_FALSE(serializer.loadMap(non_existent_file, kf_manager, loop_detector, optimizer));
 }
@@ -2016,34 +1975,28 @@ TEST_F(MapSerializerTest, LoadMapRebuildsCausalRhpdUsingSavedOptimizedPoses) {
     EXPECT_NEAR((rhpdDenseValues(loaded) - rhpdDenseValues(expected_saved)).norm(), 0.0, 1e-9);
 }
 
-/**
- * @brief 测试全局地图保存
- */
 TEST_F(MapSerializerTest, SaveGlobalMap) {
     KeyframeManager kf_manager(config_);
     MapSerializer serializer(config_);
-    
-    // 添加关键帧
+
     for (int i = 0; i < 3; ++i) {
         auto cloud = generateRandomPointCloud(500);
         Eigen::Isometry3d pose = Eigen::Isometry3d::Identity();
         pose.translation().x() = i * 2.0;
-        
+
         kf_manager.addKeyframe(i * 0.1, pose, cloud);
     }
-    
-    // 保存全局地图
+
     std::string pcd_file = config_.map_save_path + "/global_map.pcd";
     ASSERT_TRUE(serializer.saveGlobalMap(pcd_file, kf_manager, 0.1));
     ASSERT_TRUE(std::filesystem::exists(pcd_file));
-    
-    // 验证文件大小 > 0
+
     auto file_size = std::filesystem::file_size(pcd_file);
     EXPECT_GT(file_size, 0);
 }
 
 TEST_F(MapSerializerTest, FloorConstraintSaveLoadRoundTrip) {
-    // This round-trip covers the opt-in experimental floor factor.
+
     config_.floor_attitude_enable = true;
     KeyframeManager kf_manager(config_);
     LoopDetector loop_detector(config_);
@@ -2092,7 +2045,7 @@ TEST_F(MapSerializerTest, FloorConstraintSaveLoadRoundTrip) {
 }
 
 TEST_F(MapSerializerTest, MapWithoutFloorFieldsStillLoads) {
-    // 等价旧 2.3.0 语义：floor 列表为空仍可加载，不拒绝。
+
     KeyframeManager kf_manager(config_);
     LoopDetector loop_detector(config_);
     GraphOptimizer optimizer(config_);
@@ -2128,7 +2081,7 @@ TEST_F(MapSerializerTest, StrictRejectsInvalidFloorFactor) {
     bad->set_node_id(0);
     bad->set_nx(0.0);
     bad->set_ny(0.0);
-    bad->set_nz(0.0);  // zero normal: norm < 1e-6 -> invalid
+    bad->set_nz(0.0);
     bad->set_sigma_rad(0.02);
     meta->set_num_floor_attitude_factors(1);
 
@@ -2208,7 +2161,7 @@ TEST_F(MapSerializerTest, SessionAnchorSaveLoadRoundTrip) {
             optimizer.addOdometryEdge(edge);
         }
     }
-    // One cross-session anchor (node 0 -> node 2), committed through optimization.
+
     EdgeInfo anchor;
     anchor.from_id = 0;
     anchor.to_id = 2;
@@ -2539,7 +2492,6 @@ TEST_F(MapSerializerTest, StrictRejectsEdgeMetadataCountMismatch) {
     meta->set_num_keyframes(1);
     addValidKeyframeProto(&map_proto, 0);
     addValidEdgeProto(&map_proto, 0, 0);
-    // num_odometry_edges intentionally remains zero.
 
     const std::string map_file =
         config_.map_save_path + "/bad_edge_count.pbstream";
@@ -2584,5 +2536,5 @@ TEST_F(MapSerializerTest, MapWithoutSessionAnchorsStillLoads) {
     EXPECT_EQ(opt_loaded.getEdges().size(), 0u);
 }
 
-}  // namespace test
-}  // namespace n3mapping
+}
+}

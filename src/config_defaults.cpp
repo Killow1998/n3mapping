@@ -173,4 +173,4 @@ Config::Config()
       rhpd_enable_pca_confidence(true),
       rhpd_part_a_scale(1.0),
       rhpd_aux_scale(1.0) {}
-}  // namespace n3mapping
+}

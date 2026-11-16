@@ -19,17 +19,12 @@
 namespace n3mapping {
 namespace test {
 
-/**
- * @brief MappingResuming 单元测试
- *
- * Requirements: 12.1, 12.2, 12.3, 12.4, 12.5, 12.6, 12.7
- */
 class MappingResumingTest : public ::testing::Test
 {
   protected:
     void SetUp() override
     {
-        // 初始化配置
+
         config_.map_save_path = "/tmp/n3mapping_extension_test";
         config_.keyframe_distance_threshold = 1.0;
         config_.keyframe_angle_threshold = 0.5;
@@ -50,21 +45,18 @@ class MappingResumingTest : public ::testing::Test
         config_.prior_noise_position = 0.01;
         config_.prior_noise_rotation = 0.01;
 
-        // 创建测试目录
         std::filesystem::create_directories(config_.map_save_path);
     }
 
     void TearDown() override
     {
-        // 清理测试文件
+
         try {
             std::filesystem::remove_all(config_.map_save_path);
         } catch (...) {
-            // 忽略清理错误
         }
     }
 
-    // 生成走廊点云
     pcl::PointCloud<pcl::PointXYZI>::Ptr generateCorridorCloud(const Eigen::Isometry3d& pose, double corridor_width = 3.0)
     {
 
@@ -73,7 +65,6 @@ class MappingResumingTest : public ::testing::Test
         std::mt19937 rng(42);
         std::uniform_real_distribution<float> noise(-0.05f, 0.05f);
 
-        // 生成走廊两侧的墙壁点
         for (float x = -5.0f; x <= 5.0f; x += 0.3f) {
             for (float z = 0.0f; z <= 2.0f; z += 0.4f) {
                 pcl::PointXYZI pt_left, pt_right;
@@ -91,7 +82,6 @@ class MappingResumingTest : public ::testing::Test
             }
         }
 
-        // 变换到世界坐标系
         auto transformed = pcl::make_shared<pcl::PointCloud<pcl::PointXYZI>>();
         Eigen::Matrix4f transform = pose.matrix().cast<float>();
         pcl::transformPointCloud(*cloud, *transformed, transform);
@@ -103,7 +93,6 @@ class MappingResumingTest : public ::testing::Test
         return transformed;
     }
 
-    // 创建并保存测试地图
     std::string createTestMap(int num_keyframes = 5)
     {
         KeyframeManager kf_manager(config_);
@@ -170,16 +159,11 @@ class MappingResumingTest : public ::testing::Test
     Config config_;
 };
 
-/**
- * @brief 测试加载地图
- * Requirements: 12.1
- */
 TEST_F(MappingResumingTest, InitializeFromSerializedMap)
 {
-    // 创建测试地图
+
     std::string map_file = createTestMap(5);
 
-    // 创建新的组件
     KeyframeManager kf_manager(config_);
     LoopDetector loop_detector(config_);
     PointCloudMatcher matcher(config_);
@@ -195,7 +179,6 @@ TEST_F(MappingResumingTest, InitializeFromSerializedMap)
     EXPECT_EQ(extension.getCrossLoopCount(), 0u);
     EXPECT_EQ(extension.getCurrentSessionId(), kInvalidMapSessionId);
 
-    // 加载地图
     ASSERT_TRUE(loadForExtensionTest(map_file, kf_manager, loop_detector,
                                      optimizer, serializer, extension));
 
@@ -209,9 +192,6 @@ TEST_F(MappingResumingTest, InitializeFromSerializedMap)
     EXPECT_FALSE(extension.isFromOriginalMap(10));
 }
 
-/**
- * @brief 测试加载不存在的地图
- */
 TEST_F(MappingResumingTest, SerializedLoadFailureKeepsUninitialized)
 {
     KeyframeManager kf_manager(config_);
@@ -229,9 +209,6 @@ TEST_F(MappingResumingTest, SerializedLoadFailureKeepsUninitialized)
     EXPECT_EQ(extension.getState(), MappingResumingState::NOT_INITIALIZED);
 }
 
-/**
- * @brief 测试重置功能
- */
 TEST_F(MappingResumingTest, Reset)
 {
     std::string map_file = createTestMap(3);
@@ -245,12 +222,10 @@ TEST_F(MappingResumingTest, Reset)
 
     MappingResuming extension(config_, kf_manager, loop_detector, matcher, optimizer, serializer, relocalization);
 
-    // 加载地图
     ASSERT_TRUE(loadForExtensionTest(map_file, kf_manager, loop_detector,
                                      optimizer, serializer, extension));
     EXPECT_EQ(extension.getState(), MappingResumingState::MAP_LOADED);
 
-    // 重置
     extension.reset();
 
     EXPECT_EQ(extension.getState(), MappingResumingState::NOT_INITIALIZED);
@@ -259,10 +234,6 @@ TEST_F(MappingResumingTest, Reset)
     EXPECT_EQ(extension.getCurrentSessionId(), kInvalidMapSessionId);
 }
 
-/**
- * @brief 测试保存扩展地图
- * Requirements: 12.6, 12.7
- */
 TEST_F(MappingResumingTest, SaveExtendedMap)
 {
     config_.submap_shadow_enable = true;
@@ -286,12 +257,10 @@ TEST_F(MappingResumingTest, SaveExtendedMap)
         ASSERT_TRUE(submap_builder.appendKeyframe(keyframe));
     }
 
-    // 保存扩展地图
     std::string extended_map_file = config_.map_save_path + "/extended_map.pbstream";
     ASSERT_TRUE(extension.saveExtendedMap(extended_map_file));
     ASSERT_TRUE(std::filesystem::exists(extended_map_file));
 
-    // 验证保存的地图可以加载
     KeyframeManager kf_manager2(config_);
     LoopDetector loop_detector2(config_);
     GraphOptimizer optimizer2(config_);
@@ -388,14 +357,9 @@ TEST_F(MappingResumingTest, CommitsSessionAnchorThenRawOdometry)
     EXPECT_NEAR(anchor_edge->information(0, 0), 25.0, 1e-9);
     EXPECT_NEAR(anchor_edge->information(3, 3), 1.0 / 0.09, 1e-9);
 
-    // The explicit anchor is the only cross-session constraint on the first
-    // new keyframe. An immediate legacy loop would duplicate the same evidence
-    // and could overpower it with an ICP Hessian.
     EXPECT_EQ(extension.detectCrossLoops(first_id), 0);
     EXPECT_EQ(optimizer.getEdges().size(), 1u);
 
-    // Deliberately perturb the stored optimized pose. The next base edge must
-    // still come from the two raw session odometry poses.
     first_keyframe->pose_optimized.translation().y() += 50.0;
 
     Eigen::Isometry3d second_odom = first_odom;
@@ -544,8 +508,7 @@ TEST_F(MappingResumingTest, TrackedKeyframeAtomicallyPinsSessionDrift)
     EXPECT_EQ(refreshed_submaps.front().keyframe_ids,
               (std::vector<int64_t>{1, 2}));
     EXPECT_TRUE(refreshed_submaps.front().closed);
-    // Foreground extension pins the new pose without moving the already
-    // published map. Global corrections belong to the asynchronous worker.
+
     EXPECT_TRUE(refreshed_submaps.front().T_map_submap.isApprox(
         first_origin_before_tracking, 1e-12));
     EXPECT_TRUE(refreshed_submaps.front().T_map_submap.isApprox(
@@ -584,8 +547,6 @@ TEST_F(MappingResumingTest, OptimizeFailureLeavesNoGhostAndCanRetrySameId)
     const size_t edges_before = optimizer.getNumEdges();
     const int64_t next_id_before = kf_manager.getNextKeyframeId();
 
-    // This pending factor deterministically makes the combined iSAM2 update
-    // fail; GraphOptimizer then clears every pending factor in that update.
     EdgeInfo invalid_loop;
     invalid_loop.from_id = 0;
     invalid_loop.to_id = 999;
@@ -609,7 +570,6 @@ TEST_F(MappingResumingTest, OptimizeFailureLeavesNoGhostAndCanRetrySameId)
     EXPECT_FALSE(optimizer.hasGlobalConstraint());
     EXPECT_EQ(kf_manager.getSessions().size(), 1u);
 
-    // The first-frame state was not advanced, and rollback restored the id.
     EXPECT_EQ(extension.processNewKeyframe(11.0, new_odom, anchor->cloud),
               next_id_before);
     EXPECT_EQ(extension.getState(), MappingResumingState::EXTENDING);
@@ -617,5 +577,5 @@ TEST_F(MappingResumingTest, OptimizeFailureLeavesNoGhostAndCanRetrySameId)
     EXPECT_EQ(kf_manager.getSessions().size(), 2u);
 }
 
-} // namespace test
-} // namespace n3mapping
+}
+}

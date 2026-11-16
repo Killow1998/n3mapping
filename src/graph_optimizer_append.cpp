@@ -6,8 +6,7 @@
 
 namespace n3mapping {
 namespace {
-// Eliminate committed endpoints exactly from the small foreground solve.
-// The original factor is retained unchanged in the global graph for the worker.
+
 class ConditionedFactor : public gtsam::NoiseModelFactor {
   boost::shared_ptr<gtsam::NoiseModelFactor> factor_;
   gtsam::Values fixed_;
@@ -37,7 +36,7 @@ public:
     return error;
   }
 };
-} // namespace
+}
 
 bool GraphOptimizer::optimizeGeometryUpdate() {
   try {
@@ -50,7 +49,7 @@ bool GraphOptimizer::optimizeGeometryUpdate() {
         gtsam::NonlinearFactorGraph local;
         for (const auto& factor : gtsam_->new_factors_) {
           auto conditioned = boost::make_shared<ConditionedFactor>(factor, gtsam_->current_estimate_);
-          // An old-to-old update belongs to the asynchronous global solve.
+
           if (conditioned->size() == 0)
             throw std::runtime_error("Old-node update in append transaction");
           local.push_back(conditioned);
@@ -92,7 +91,7 @@ bool GraphOptimizer::appendCommittedTail(const GraphOptimizer& live,
   }
   for (int64_t id : live.node_ids_)
     if (!snapshot.node_ids_.count(id) && id <= *snapshot.node_ids_.rbegin()) return false;
-  // Stage only new factors, retaining their noise and measurement semantics.
+
   for (size_t i = snapshot.gtsam_->graph_.size(); i < live.gtsam_->graph_.size(); ++i) {
     bool touches_new = false;
     for (auto key : live.gtsam_->graph_[i]->keys())
@@ -113,9 +112,6 @@ bool GraphOptimizer::appendCommittedTail(const GraphOptimizer& live,
   }
   if (factors.empty()) return live.node_ids_ == snapshot.node_ids_;
 
-  // Replay the tail with the same causal conditioning as foreground append.
-  // A batch solve would let a later frame alter an earlier tail pose solely
-  // because the worker finished later. Keep failure transactional as well.
   auto staged = cloneCommitted();
   const int64_t anchor = *snapshot.node_ids_.rbegin();
   const auto correction = getOptimizedPose(anchor) * live.getOptimizedPose(anchor).inverse();
@@ -140,8 +136,7 @@ bool GraphOptimizer::appendCommittedTail(const GraphOptimizer& live,
       const auto& floor = live.committed_floor_attitude_constraints_[i];
       if (floor.node_id == id) staged->pending_floor_attitude_constraints_.push_back(floor);
     }
-    // Re-evaluate all raw body patches, including old-map rejects. Reusing
-    // admitted/merged patches or their corrected pose carries obsolete geometry.
+
     const auto moments = body_moments.find(id);
     if (moments != body_moments.end()) staged->appendPlaneObservations(id, moments->second);
     staged->pending_has_loop_closure_ = live.has_loop_closure_;
@@ -151,4 +146,4 @@ bool GraphOptimizer::appendCommittedTail(const GraphOptimizer& live,
   swapWith(*staged);
   return true;
 }
-} // namespace n3mapping
+}

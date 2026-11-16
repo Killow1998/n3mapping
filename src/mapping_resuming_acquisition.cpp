@@ -1,5 +1,3 @@
-// Acquisition identity and keyframe sampling for extension. Replaying data
-// still produces tracking outputs, but cannot add another independent factor.
 #include "n3mapping/mapping_resuming.h"
 #include "n3mapping/keyframe_manager.h"
 #include <glog/logging.h>
@@ -41,8 +39,7 @@ int64_t MappingResuming::reuseAcquisitionNoLock(
     if (previous_acquisitions != acquisitions_by_stamp_.end()) {
         for (const auto& previous : previous_acquisitions->second) {
             if (!acquisition.sameAcquisition(*previous)) continue;
-            // Advance sampling without adding another copy of its geometry,
-            // odometry or tracking factor. A later fresh frame can still extend.
+
             reused_gate_keyframe_id_ = previous->id;
             LOG(INFO) << "[MappingResuming] Reused acquisition keyframe=" << previous->id;
             return previous->id;
@@ -50,4 +47,4 @@ int64_t MappingResuming::reuseAcquisitionNoLock(
     }
     return -1;
 }
-} // namespace n3mapping
+}

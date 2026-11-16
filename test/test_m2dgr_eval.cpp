@@ -407,6 +407,6 @@ TEST(N3MappingM2DGREvalTest, RelocalizationWritesMetricsAndDebug)
     EXPECT_NE(queries.find("pose_success,lock_correct,false_lock,lock_latency_frames,failure_class"), std::string::npos);
 }
 
-}  // namespace
-}  // namespace test
-}  // namespace n3mapping
+}
+}
+}

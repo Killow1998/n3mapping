@@ -42,8 +42,7 @@ std::vector<std::vector<int>> partitionPlane(
       output.push_back(std::move(group));
       continue;
     }
-    // Split the largest normalized discrepancy, then restore spatial
-    // connectivity. A chain of locally similar cells cannot fuse two surfaces.
+
     const auto feature = [&](int id, int axis) {
       const auto& p = planes[id];
       return axis < 3 ? p.normal[axis] / std::sin(2 * M_PI / 180.)
@@ -84,4 +83,4 @@ std::vector<std::vector<int>> partitionPlane(
   });
   return output;
 }
-} // namespace n3mapping::planar_geometry
+}

@@ -70,10 +70,10 @@ bool qualifiedGraphLibrary() {
         !qualified && N3MAPPING_GTSAM_LOCKED_ELIMINATION);
     return qualified;
 }
-} // namespace
+}
 
 int graphSolveConcurrency(int num_threads) {
     static const bool qualified = qualifiedGraphLibrary();
     return qualified ? std::max(1, num_threads) : 1;
 }
-} // namespace n3mapping::internal
+}

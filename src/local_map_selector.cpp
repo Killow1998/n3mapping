@@ -17,7 +17,7 @@ double elapsedMs(const Clock::time_point &start) {
       .count();
 }
 
-} // namespace
+}
 
 KeyframeSpatialSearchResult
 KeyframeSpatialIndex::radiusSearch(const std::vector<Keyframe::Ptr> &keyframes,
@@ -190,4 +190,4 @@ LocalMapSelector::select(const LocalMapSelectionRequest &request) {
   return selection;
 }
 
-} // namespace n3mapping
+}

@@ -68,7 +68,7 @@ double normalizedConsensusResidual(const ImpliedQueryPose& lhs,
            rotation / config.loop_same_query_consensus_rotation_rad;
 }
 
-} // namespace
+}
 
 LoopClosureManager::LoopClosureManager(const Config& config)
   : config_(config)
@@ -236,10 +236,7 @@ LoopClosureManager::applyEdgeModel(const VerifiedLoop& loop) const
     VerifiedLoop modeled = loop;
     modeled.edge_mode = LoopEdgeMode::Full6Dof;
     modeled.vertical_downweighted = false;
-    // Left as the verifier computed it. This used to be overwritten with 1.0
-    // here, which meant a field named for a measurement reported the same
-    // constant for every loop while being written into the debug stream as
-    // though it were data.
+
     return modeled;
 }
 
@@ -258,8 +255,7 @@ LoopClosureManager::buildLoopEdges(const std::vector<VerifiedLoop>& loops, LoopE
             edge.from_id = loop.query_id;
             edge.to_id = loop.match_id;
             edge.measurement = loop.T_match_query.inverse();
-            // Inverting the measurement also changes its right tangent:
-            // delta_inverse = -Ad(Z) delta. The sign cancels in information.
+
             edge.information =
                 loop.edge_mode == LoopEdgeMode::Full6Dof
                     ? rightComposedInformation(loop.information, edge.measurement)
@@ -294,4 +290,4 @@ LoopClosureManager::applyEdges(const std::vector<EdgeInfo>& edges, LoopOptimizer
     return optimizer.incrementalOptimize();
 }
 
-} // namespace n3mapping
+}

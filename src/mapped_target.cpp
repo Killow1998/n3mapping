@@ -80,7 +80,7 @@ void AtlasMapping::prefetch(const std::vector<Eigen::AlignedBox3d>& requested) {
     });
   });
   if (key.empty() || covered) return;
-  // One extra cell retains overlap while the observed scan boundary moves.
+
   for (auto& box : key) for (int axis = 0; axis < 3; ++axis) {
     box[axis] -= 4;
     box[axis + 3] += 4;
@@ -152,5 +152,5 @@ void AtlasMapping::prefetch(const std::vector<Eigen::AlignedBox3d>& requested) {
         " advice_failures=" + std::to_string(failures));
   });
 }
-} // namespace registration_detail
-} // namespace n3mapping
+}
+}

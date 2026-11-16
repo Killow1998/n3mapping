@@ -198,12 +198,11 @@ SubmapPoseProjectionDiagnostics computePoseProjection(
     return diagnostics;
 }
 
-}  // namespace
+}
 
 std::uint64_t Submap::materializedCloudBytes() const {
     if (!registration_cloud) return 0;
-    // registration_cloud and visualization_cloud intentionally alias in this
-    // scaffold, so count the allocation once.
+
     return static_cast<std::uint64_t>(registration_cloud->size()) *
            sizeof(PointCloudT::PointType);
 }
@@ -373,8 +372,6 @@ bool SubmapBuilder::loadSubmaps(
         return false;
     }
 
-    // Build and validate the replacement off to the side. A failed load must
-    // leave the currently active builder untouched.
     std::vector<Submap> loaded = submaps;
     if (options_.enable) {
         std::map<int64_t, KeyframePoseSnapshot> pose_snapshots;
@@ -437,8 +434,7 @@ bool SubmapBuilder::materializeNoLock(
     materialized.visualization_cloud = materialized.registration_cloud;
     materialized.cloud_point_count = 0;
     materialized.cloud_truncated = false;
-    // Rebuilding the derived cache does not change the logical closed state or
-    // content revision. The original object remains untouched until success.
+
     materialized.closed = false;
     for (const int64_t keyframe_id : materialized.keyframe_ids) {
         const auto keyframe = keyframe_by_id.find(keyframe_id);
@@ -514,4 +510,4 @@ void SubmapBuilder::clear() {
     next_id_ = 0;
 }
 
-}  // namespace n3mapping
+}

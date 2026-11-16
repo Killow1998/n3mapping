@@ -28,4 +28,4 @@ std::string encodeAtlasSearchIndex(const PointCloudMatcher::SmallGicpKdTree& tre
   }
   return result;
 }
-} // namespace n3mapping::registration_detail
+}

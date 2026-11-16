@@ -1,0 +1,313 @@
+{
+  "date": "2026-11-15",
+  "baseline_commit": "24e5685e108b5b6869c4d0aa9a6efd008061c7f9",
+  "scope": "N3Mapping code simplification within existing ROS behavior, algorithms and acceptance thresholds",
+  "implementation": {
+    "map_artifacts": "Required core and output values use references; retain only save policy, path and run mode; cache cloud is borrowed inside its visitor",
+    "map_publication": "Both adapters use the serial backend owner and the shared artifact cache lock; remove duplicate adapter map mutexes",
+    "map_revision": "A standalone value contract replaces transitive dependency on the keyframe manager",
+    "map_reader": "Separate file parsing and resource admission from geometry decoding; both the core and navigation reader compile the shared sources",
+    "helpers": "Inline the one-use directory and world-cloud forwarding; remove the unused artifact revision accessor",
+    "version_parser": "Replace exception-based integer parsing with stream extraction while preserving accepted numeric prefixes",
+    "tests": "Remove one test of an impossible null internal backend; preserve real readonly, invalid-map, recovery and save/reload behavior tests"
+  },
+  "comment_cleanup": {
+    "files_checked": 341,
+    "files_with_comments_removed": 336,
+    "comments_removed": 2569,
+    "lines_removed": 1610,
+    "all_noncomment_tokens_identical": true,
+    "excluded_third_party_headers": [
+      "src/point_cloud_features.h",
+      "src/registration_reduction.h"
+    ]
+  },
+  "structural_cpp_files": 16,
+  "cpp_files_with_identical_noncomment_tokens_to_baseline": 325,
+  "line_counts": {
+    "files": [
+      {
+        "path": "include/n3mapping/core/map_artifacts.h",
+        "before_lines": 47,
+        "after_lines": 42
+      },
+      {
+        "path": "src/core/map_artifacts.cpp",
+        "before_lines": 135,
+        "after_lines": 99
+      },
+      {
+        "path": "include/n3mapping/keyframe_manager.h",
+        "before_lines": 95,
+        "after_lines": 77
+      },
+      {
+        "path": "src/n3map_proto_utils.cpp",
+        "before_lines": 569,
+        "after_lines": 436
+      },
+      {
+        "path": "src/n3map_proto_reader.cpp",
+        "before_lines": 0,
+        "after_lines": 137
+      },
+      {
+        "path": "humble/src/n3mapping_node_map.cpp",
+        "before_lines": 136,
+        "after_lines": 128
+      },
+      {
+        "path": "noetic/src/n3mapping_node_map.cpp",
+        "before_lines": 131,
+        "after_lines": 124
+      }
+    ],
+    "owned_cpp_lines_before": 73885,
+    "owned_cpp_lines_after": 72108,
+    "net_reduction": 1777
+  },
+  "keyframe_manager_dependencies": {
+    "before_count": 84,
+    "after_count": 62,
+    "removed_dependency_count": 22
+  },
+  "validation": {
+    "humble_ctest": {
+      "passed": 69,
+      "total": 69
+    },
+    "noetic_ctest": {
+      "passed": 67,
+      "total": 67
+    },
+    "clang_tidy_implementation_files": 6,
+    "semver_ablation": {
+      "cases": 115625,
+      "mismatches": 0
+    },
+    "fixed14": {
+      "cases": 14,
+      "frames": 4144,
+      "changed_behavior_frames": 0,
+      "max_translation_delta_m": 7.105427357601002e-15,
+      "baseline": {
+        "cpu_s": 149.815389827,
+        "alignments": 520,
+        "peak_rss_mib": 1027.17578125,
+        "locks": {
+          "01_west_corridor": [
+            4
+          ],
+          "02_east_corridor": [
+            4
+          ],
+          "03_south_corridor": [
+            4
+          ],
+          "04_north_corridor": [
+            4
+          ],
+          "05_southwest_office": [
+            4
+          ],
+          "06_south_meeting": [
+            4
+          ],
+          "07_south_pillars": [
+            4
+          ],
+          "08_west_shelves": [
+            4
+          ],
+          "09_east_shelves": [
+            4
+          ],
+          "10_northwest_meeting": [
+            4
+          ],
+          "11_northeast_pillars": [
+            4
+          ],
+          "12_north_office": [
+            4
+          ],
+          "13_south_door": [
+            4
+          ],
+          "14_north_door": [
+            4
+          ]
+        },
+        "max_position_error_m": 0.024808461521165497
+      },
+      "candidate": {
+        "cpu_s": 150.046753332,
+        "alignments": 520,
+        "peak_rss_mib": 1027.23046875,
+        "locks": {
+          "01_west_corridor": [
+            4
+          ],
+          "02_east_corridor": [
+            4
+          ],
+          "03_south_corridor": [
+            4
+          ],
+          "04_north_corridor": [
+            4
+          ],
+          "05_southwest_office": [
+            4
+          ],
+          "06_south_meeting": [
+            4
+          ],
+          "07_south_pillars": [
+            4
+          ],
+          "08_west_shelves": [
+            4
+          ],
+          "09_east_shelves": [
+            4
+          ],
+          "10_northwest_meeting": [
+            4
+          ],
+          "11_northeast_pillars": [
+            4
+          ],
+          "12_north_office": [
+            4
+          ],
+          "13_south_door": [
+            4
+          ],
+          "14_north_door": [
+            4
+          ]
+        },
+        "max_position_error_m": 0.024808461521165392
+      }
+    },
+    "routes": {
+      "cases": 2,
+      "frames": 5902,
+      "changed_behavior_frames": 0,
+      "max_translation_delta_m": 4.2633467637842766e-14,
+      "case_results": [
+        {
+          "name": "reentry",
+          "frames": 2236,
+          "changed_behavior_frames": 0,
+          "max_translation_delta_m": 1.4238587042798853e-14,
+          "max_pose_coefficient_delta": 1.4210854715202004e-14,
+          "baseline": {
+            "frames": 2236,
+            "outputs": 2232,
+            "lock_frames": [
+              4
+            ],
+            "cpu_s": 51.342658007999894,
+            "wall_s": 17.39105798599996,
+            "peak_rss_mib": 1159.21875,
+            "alignments": 35,
+            "max_position_error_m": 0.07944252610037059,
+            "position_rmse_m": 0.009715046968543832
+          },
+          "candidate": {
+            "frames": 2236,
+            "outputs": 2232,
+            "lock_frames": [
+              4
+            ],
+            "cpu_s": 51.68993337399986,
+            "wall_s": 17.60437368000001,
+            "peak_rss_mib": 1159.171875,
+            "alignments": 35,
+            "max_position_error_m": 0.07944252610037059,
+            "position_rmse_m": 0.009715046968543741
+          }
+        },
+        {
+          "name": "independent",
+          "frames": 3666,
+          "changed_behavior_frames": 0,
+          "max_translation_delta_m": 4.2633467637842766e-14,
+          "max_pose_coefficient_delta": 4.263256414560601e-14,
+          "baseline": {
+            "frames": 3666,
+            "outputs": 3662,
+            "lock_frames": [
+              4,
+              1938
+            ],
+            "cpu_s": 110.89556458300001,
+            "wall_s": 39.89708880600012,
+            "peak_rss_mib": 1194.90234375,
+            "alignments": 444,
+            "max_position_error_m": 0.03246676415405081,
+            "position_rmse_m": 0.008528370809612365
+          },
+          "candidate": {
+            "frames": 3666,
+            "outputs": 3662,
+            "lock_frames": [
+              4,
+              1938
+            ],
+            "cpu_s": 111.16062964499969,
+            "wall_s": 39.97045366300002,
+            "peak_rss_mib": 1197.0390625,
+            "alignments": 444,
+            "max_position_error_m": 0.03246676415404559,
+            "position_rmse_m": 0.008528370809612105
+          }
+        }
+      ]
+    }
+  },
+  "build_identity": {
+    "humble": {
+      "core_sha256": "84a0d2d7fe071dc5684a8c7678d6e3419d62dac59e7601517815a60ca1f465ba",
+      "matched_source_files": 395,
+      "mismatched_source_files": []
+    },
+    "noetic": {
+      "core_sha256": "3917b128c27752b9fe95c52afe37653d14b9ed461b0610faa1bc9d19f860dd56",
+      "matched_source_files": 395,
+      "mismatched_source_files": []
+    }
+  },
+  "preserved": [
+    "Existing ROS topics, services, status payloads and algorithm thresholds",
+    "External input/resource checks and transaction rollback",
+    "Third-party code and license notices",
+    "Original installation, navigation frozen runtimes and existing tags"
+  ],
+  "limits": [
+    "This is a structure and maintenance change; no localization speedup or reduced RAM is claimed",
+    "Private qualification builds retain their UNVERIFIED working-tree identity; production installation is unchanged"
+  ],
+  "compiled_source_sha256": "98620567fe34ba75ef5e27f285e57fc70beffd476635dd10e3c914839458a776",
+  "changed_contract_files": [
+    "humble/src/n3mapping_node.h",
+    "humble/src/n3mapping_node_map.cpp",
+    "include/n3mapping/core/map_artifacts.h",
+    "include/n3mapping/core/n3mapping_core.h",
+    "include/n3mapping/global_map_cache.h",
+    "include/n3mapping/keyframe_manager.h",
+    "include/n3mapping/keyframe_map_revision.h",
+    "noetic/src/n3mapping_node.h",
+    "noetic/src/n3mapping_node_map.cpp",
+    "src/core/map_artifacts.cpp",
+    "src/core/n3mapping_core.cpp",
+    "src/map_serializer_load.cpp",
+    "src/n3map_proto_reader.cpp",
+    "src/n3map_proto_utils.cpp",
+    "test/test_global_map_cache.cpp",
+    "test/test_n3mapping_core.cpp"
+  ],
+  "publication": "Validated source; no runtime deployment"
+}

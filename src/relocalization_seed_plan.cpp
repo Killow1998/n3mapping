@@ -1,4 +1,3 @@
-// Pure candidate grouping and seed planning, independent of runtime state.
 #include "relocalization_seed_plan.h"
 
 #include <algorithm>
@@ -12,9 +11,6 @@ makeRelocalizationSeedPlan(const std::vector<LoopCandidate> &candidates,
   auto &basins = plan.basins;
   basins.reserve(kRelocMaxBasinCount);
 
-  // Candidates are already sorted by coarse descriptor distance.
-  // Build up to top-K spatial basins, then verify per-basin with local-submap
-  // ICP.
   for (const auto &candidate : candidates) {
     auto kf = keyframes.getKeyframe(candidate.match_id);
     if (!kf)
@@ -55,4 +51,4 @@ makeRelocalizationSeedPlan(const std::vector<LoopCandidate> &candidates,
   return plan;
 }
 
-} // namespace n3mapping
+}

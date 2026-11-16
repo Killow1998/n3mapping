@@ -1,4 +1,3 @@
-// Compile-time identity for Product V1 executables.
 #pragma once
 
 #include <cstddef>
@@ -87,4 +86,4 @@ inline bool productBuildIdentityRequested(int argc, char **argv) {
   return false;
 }
 
-}  // namespace n3mapping
+}

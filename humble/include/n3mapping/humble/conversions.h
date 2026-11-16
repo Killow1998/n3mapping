@@ -16,4 +16,4 @@ Eigen::Isometry3d odometryPoseToIsometry(const nav_msgs::msg::Odometry& odom_msg
 core::LioFrame toCoreLioFrame(const sensor_msgs::msg::PointCloud2& cloud_msg,
                               const nav_msgs::msg::Odometry& odom_msg);
 
-}  // namespace n3mapping
+}

@@ -21,4 +21,4 @@ size_t GraphOptimizer::appendPlaneObservations(
   }
   return matches.size();
 }
-}  // namespace n3mapping
+}

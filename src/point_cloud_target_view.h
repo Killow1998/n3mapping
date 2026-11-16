@@ -11,9 +11,7 @@ inline Eigen::Matrix4d covarianceFromNormal(const Eigen::Vector4d& normal) {
       .999 * normal.head<3>() * normal.head<3>().transpose();
   return result;
 }
-// small_gicp's fixed spectrum (.001, 1, 1) is fully determined by the normal.
-// Retain arbitrary explicitly supplied covariances; compact prepared targets
-// reconstruct only the matrix requested by the current correspondence.
+
 struct TargetView {
   const small_gicp::PointCloud& cloud;
   const LazyTargetNormals* lazy_normals = nullptr;
@@ -34,7 +32,7 @@ struct MappedTargetView {
     return level.covariance_from_normal ? covarianceFromNormal(normal(i)) : level.covariance(i);
   }
 };
-}  // namespace n3mapping::registration_detail
+}
 
 namespace small_gicp::traits {
 template <>
@@ -67,4 +65,4 @@ struct Traits<n3mapping::registration_detail::MappedTargetView> {
   static Eigen::Vector4d normal(const View& view, std::size_t i) { return view.normal(i); }
   static Eigen::Matrix4d cov(const View& view, std::size_t i) { return view.covariance(i); }
 };
-}  // namespace small_gicp::traits
+}

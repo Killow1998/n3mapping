@@ -1,5 +1,5 @@
 #include "causal_submap.h"
-// KeyframeManager: keyframe CRUD, submap building (world frame and virtual root frame).
+
 #include "n3mapping/keyframe_manager.h"
 
 #include <atomic>
@@ -24,7 +24,7 @@ bool validSessionInfo(const MapSessionInfo& session) {
            session.T_map_session_initial.matrix().allFinite();
 }
 
-}  // namespace
+}
 
 KeyframeManager::KeyframeManager(const Config& config)
     : config_(config), next_id_(0), last_keyframe_(nullptr) {
@@ -360,5 +360,4 @@ Keyframe::PointCloudT::Ptr KeyframeManager::buildCausalSubmapInRootFrame(
     return buildCausalSubmap(keyframes_, center_id, range, root_id, poses == PoseSource::Odometry);
 }
 
-
-} // namespace n3mapping
+}

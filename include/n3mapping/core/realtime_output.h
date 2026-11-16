@@ -41,26 +41,21 @@ struct CloudEmission {
   std::string status_json;
 };
 
-// One owner for backend authority, its matching observation snapshot, and the
-// live output contract. Registration and cloud conversion run outside it.
 class RealtimeOutput {
 public:
   RealtimeOutput(CoreRunMode mode, std::string world_frame,
                  std::size_t retention);
-  // Backend owner changes policy without discarding the current correction.
+
   void setMode(CoreRunMode mode);
 
   void startInputMonitoring(double cloud_timeout_sec);
   void observeCloudInput(int64_t stamp_nsec);
   std::string checkInputHealth();
 
-  // Called by the existing single backend owner after processing a paired scan.
   BackendPublication acceptBackend(const OdometrySource &source,
                                    TimeStamp observation_stamp,
                                    BackendOutput &output);
 
-  // The adapter reports whether its standard twist conversion can be published;
-  // rejected inputs, projection metadata and scalar clocks are decided here.
   OdometryEmission observeOdometry(const OdometrySource &source,
                                    int64_t now_nsec, bool twist_publishable);
   std::optional<CloudEmission> observeCloud(const OdometrySource &source,
@@ -79,8 +74,7 @@ private:
   const std::string session_id_;
   RelocalizationOutputAuthority authority_;
   RealtimeOdometry odometry_;
-  // Lock order is snapshot -> odometry. No serialization, publication or cloud
-  // processing holds the snapshot lock; scan projection never takes it nested.
+
   std::mutex snapshot_mutex_;
   BackendOutput backend_status_;
   double observation_stamp_ = 0.0;
@@ -93,4 +87,4 @@ private:
   double applied_correction_stamp_ = 0.0;
 };
 
-} // namespace n3mapping::core
+}

@@ -1,4 +1,3 @@
-// free_space_grid.cpp
 #include "n3mapping/free_space_grid.h"
 
 #include <algorithm>
@@ -61,8 +60,6 @@ bool FreeSpaceGrid::build(const pcl::PointCloud<pcl::PointXYZI> &map_cloud,
                             static_cast<std::size_t>(dims_.y()) *
                             static_cast<std::size_t>(dims_.z());
 
-  // Occupancy counts live in a saturating byte per cell only while the grid is
-  // being built; the grid itself keeps one bit per cell per layer.
   {
     std::vector<std::uint8_t> counts(cells, 0);
     for (const auto &pt : map_cloud.points) {
@@ -86,12 +83,6 @@ bool FreeSpaceGrid::build(const pcl::PointCloud<pcl::PointXYZI> &map_cloud,
     }
   }
 
-  // Ray origins: the nearest position the map was observed from. This is an
-  // approximation of the true per-point observation frame, and it is the same
-  // approximation the offline validation used.
-  // Use the same float coordinates, L2 distance and 15-point leaves as
-  // KdTreeFLANN. Reuse its one-neighbor result storage instead of allocating
-  // a query vector and entering a one-query OpenMP region for every map point.
   std::vector<float> coordinates;
   std::vector<std::size_t> origin_indices;
   coordinates.reserve(observation_origins.size() * 3);
@@ -168,8 +159,7 @@ FreeSpaceGrid::score(const pcl::PointCloud<pcl::PointXYZI> &cloud_in_sensor,
     if (!inside(cellOf(point)))
       continue;
     ++scored;
-    // Hard cell lookup can flip a whole planar return at a submillimeter
-    // boundary crossing. Interpolate the existing evidence, not the lock gates.
+
     const Eigen::Vector3d local = (point - origin_) / resolution_ -
                                   Eigen::Vector3d::Constant(0.5);
     const Eigen::Vector3i lower = local.array().floor().cast<int>();
@@ -206,8 +196,7 @@ FreeSpaceGrid::score(const pcl::PointCloud<pcl::PointXYZI> &cloud_in_sensor,
     out.free_given_known = free_hits / known;
   }
   out.value = out.occupied_fraction - out.free_fraction;
-  // Interpolation assigns mass to exclusive occupied/free/unknown labels.
-  // Their second moment is p_o + p_f; retain one sample per query point.
+
   const double variance =
       (out.occupied_fraction + out.free_fraction -
        (out.occupied_fraction - out.free_fraction) *
@@ -217,4 +206,4 @@ FreeSpaceGrid::score(const pcl::PointCloud<pcl::PointXYZI> &cloud_in_sensor,
   return out;
 }
 
-} // namespace n3mapping
+}

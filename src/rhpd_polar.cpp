@@ -28,8 +28,7 @@ void RHPDescriptor::computePolar(const CloudT::Ptr& cloud,
     std::optional<detail::HeadingAccumulator> heading_accumulator;
     if (heading) heading_accumulator.emplace(params_.heading);
     for (const auto& pt : cloud->points) {
-        // Ring-height and heading share sqrt(float) and atan2(float).
-        // Auxiliary ranges retain hypot(float), including its boundary rounding.
+
         const double r = std::sqrt(pt.x * pt.x + pt.y * pt.y);
         const float azimuth = std::atan2(pt.y, pt.x);
         if (heading_accumulator) heading_accumulator->add(pt, r, azimuth);
@@ -111,11 +110,11 @@ void RHPDescriptor::computePolar(const CloudT::Ptr& cloud,
             const double frontier_span_norm = hit
                 ? std::clamp((farthest[i] - nearest[i]) / params_.max_range, 0.0, 1.0)
                 : 0.0;
-            double open_unknown_state = 0.5;  // no hit and no neighboring support: unknown
+            double open_unknown_state = 0.5;
             if (hit) {
                 open_unknown_state = (farthest[i] >= 0.75 * params_.max_range) ? 1.0 : 0.0;
             } else if (neighbor_observed) {
-                open_unknown_state = 0.75;  // likely open gap between observed sectors
+              open_unknown_state = 0.75;
             }
             out(offset + i * RHPD_NEG_SPACE_CHANS + 0) = nearest_norm;
             out(offset + i * RHPD_NEG_SPACE_CHANS + 1) = frontier_span_norm;
@@ -126,4 +125,4 @@ void RHPDescriptor::computePolar(const CloudT::Ptr& cloud,
     out(offset) = params_.enable_pca_confidence ? std::clamp(pca_confidence, 0.0, 1.0) : 1.0;
     if (heading) *heading = heading_accumulator->finish();
 }
-} // namespace n3mapping
+}

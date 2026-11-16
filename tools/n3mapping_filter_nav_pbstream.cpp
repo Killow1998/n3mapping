@@ -424,7 +424,7 @@ bool savePcdOrEmptyHeader(const std::filesystem::path& path,
     return true;
 }
 
-}  // namespace
+}
 
 int main(int argc, char** argv) {
     Options options;

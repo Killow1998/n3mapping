@@ -12,7 +12,7 @@ namespace {
 void setError(std::string* error, const std::string& message) {
     if (error) *error = message;
 }
-}  // namespace
+}
 
 bool encodeLevel(const PointCloudMatcher::PreparedTargetLevel& input,
                  LocalizationAtlasPreparedLevel& output,
@@ -46,8 +46,7 @@ bool encodeLevel(const PointCloudMatcher::PreparedTargetLevel& input,
             setError(error, "prepared target contains non-finite data");
             return false;
         }
-        // small_gicp uses homogeneous storage. Only the spatial components
-        // carry information; reject unexpected padding instead of discarding it.
+
         if (point[3] != 1.0 || normal[3] != 0.0 ||
             !covariance.row(3).isZero(0.0) || !covariance.col(3).isZero(0.0)) {
             setError(error, "prepared target has non-canonical homogeneous padding");
@@ -80,7 +79,7 @@ Eigen::Matrix4d decodedCovariance(const LocalizationAtlasPreparedLevel& input,
     return covariance;
 }
 
-}  // namespace
+}
 
 bool decodeLevel(LocalizationAtlasPreparedLevel& input,
                  PointCloudMatcher::PreparedTargetLevel& output,
@@ -122,8 +121,7 @@ bool decodeLevel(LocalizationAtlasPreparedLevel& input,
         if (with_covariances && !input.covariance_from_normal()) {
             if (compact_covariances && !covariance.isApprox(
                     registration_detail::covarianceFromNormal(cloud->normal(i)), 1e-12)) {
-                // Only a nonstandard covariance needs storage. Backfill the
-                // exact serialized matrices, including any earlier entries.
+
                 compact_covariances = false;
                 cloud->covs.resize(cloud->size());
                 for (std::size_t j = 0; j < i; ++j)
@@ -134,8 +132,7 @@ bool decodeLevel(LocalizationAtlasPreparedLevel& input,
     }
     output.resolution = input.resolution();
     output.cloud = cloud;
-    // The validated arrays now belong to cloud. Release the serialized copy
-    // before building the tree or decoding the next level; Clear retains it.
+
     LocalizationAtlasPreparedLevel{}.Swap(&input);
     output.kdtree = std::make_shared<PointCloudMatcher::SmallGicpKdTree>(
         cloud, registration_detail::CompactKdTreeBuilder<small_gicp::KdTreeBuilder>(*cloud, true));
@@ -143,4 +140,4 @@ bool decodeLevel(LocalizationAtlasPreparedLevel& input,
     return true;
 }
 
-}  // namespace n3mapping::atlas_codec
+}

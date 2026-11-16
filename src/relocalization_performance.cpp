@@ -11,7 +11,7 @@ Json::Value phaseJson(const DescriptorPhaseCost &phase) {
   value["calls"] = Json::UInt64(phase.calls);
   return value;
 }
-} // namespace
+}
 
 Json::Value relocalizationPerformanceJson(const RelocalizationPerformance &cost) {
   Json::Value value;
@@ -64,7 +64,7 @@ Json::Value relocalizationPerformanceJson(const RelocalizationPerformance &cost)
   value["align_scope"] = "sum_of_call_wall_times_may_overlap_across_candidates";
   auto &descriptor = value["descriptor"];
   descriptor["cpu_scope"] = "calling_thread_serial_descriptor_work";
-  // Total contains the other descriptor phases; do not add it to them.
+
   descriptor["total"] = phaseJson(cost.descriptor.total);
   descriptor["generation"] = phaseJson(cost.descriptor.generation);
   descriptor["index_rebuild"] = phaseJson(cost.descriptor.index_rebuild);
@@ -84,4 +84,4 @@ Json::Value relocalizationPerformanceJson(const RelocalizationPerformance &cost)
   descriptor["returned_candidates"] = Json::UInt64(cost.descriptor.returned_candidates);
   return value;
 }
-} // namespace n3mapping
+}

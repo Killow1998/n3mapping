@@ -113,4 +113,4 @@ std::vector<Plane> associate(const std::vector<Keyframe::Ptr>& keyframes,
   return output;
 }
 
-} // namespace n3mapping::planar_geometry
+}

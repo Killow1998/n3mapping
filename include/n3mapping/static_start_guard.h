@@ -1,4 +1,3 @@
-// static_start_guard.h - rejects unsettled odometry at mapping startup.
 #pragma once
 
 #include <cstdint>
@@ -12,23 +11,18 @@ namespace n3mapping {
 
 struct Config;
 
-// A stable view plus a bounded, continuous pose window permits stationary start.
-// Otherwise require scan-observed motion or timeout; odometry drift alone does
-// not count as physical motion.
 class StaticStartGuard {
 public:
     struct Options {
-        // Coarse enough to be insensitive to range noise, fine enough that a
-        // metre of travel empties most of them.
+
         double voxel_m = 0.3;
-        // Compare with the opening view so slow displacement accumulates.
+
         double moved_overlap = 0.6;
-        // One frame below the threshold can be a passer-by; a run of them is
-        // the platform leaving.
+
         int moved_consecutive = 3;
-        // Minimum scan support for an overlap estimate.
+
         int min_points = 200;
-        // Maximum startup delay; non-positive bypasses the guard.
+
         double max_wait_s = 120.0;
     };
 
@@ -39,7 +33,7 @@ public:
                 const Eigen::Isometry3d& odom_pose);
 
     bool released() const { return released_; }
-    // Diagnostics for the frame that released the guard.
+
     double releaseTimestamp() const { return release_timestamp_; }
     double lastOverlap() const { return last_overlap_; }
     bool releasedByTimeout() const { return released_by_timeout_; }
@@ -65,4 +59,4 @@ private:
 
 StaticStartGuard::Options staticStartGuardOptionsFromConfig(const Config& config);
 
-}  // namespace n3mapping
+}

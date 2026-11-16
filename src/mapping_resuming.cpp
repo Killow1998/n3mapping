@@ -126,11 +126,8 @@ bool MappingResuming::beginSessionNoLock(const Eigen::Isometry3d& T_map_odom,
         keyframe_manager_.getNextSessionId();
     if (next_session_id == kInvalidMapSessionId) return false;
 
-    // Prepare the authoritative anchor before the first tracking callback.
     world_localizing_.warmLoadedMapTrackingTarget(matched_keyframe_id);
 
-    // Ordinary localization also initializes a loaded session, but never
-    // inserts observations. Prepare this index only when extension starts.
     for (const auto& keyframe : keyframe_manager_.getAllKeyframes())
         if (keyframe) acquisitions_by_stamp_[keyframe->timestamp].push_back(keyframe);
 
@@ -218,4 +215,4 @@ void MappingResuming::reset() {
     world_localizing_.reset();
 }
 
-}  // namespace n3mapping
+}

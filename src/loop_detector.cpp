@@ -1,4 +1,3 @@
-// LoopDetector: RHPD place/heading retrieval and spatial candidates.
 #include <map>
 #include <chrono>
 #include "causal_submap.h"
@@ -26,7 +25,7 @@ double wrapYaw(double yaw) {
     while (yaw < -M_PI) yaw += 2.0 * M_PI;
     return yaw;
 }
-} // anonymous namespace
+}
 
 namespace n3mapping {
 
@@ -47,10 +46,7 @@ std::vector<double> buildDescriptorYawHypotheses(
         std::isfinite(candidate.sc_distance)) {
         const double sector_rad =
             2.0 * M_PI / static_cast<double>(std::max(4, config.sc_num_sectors));
-        // Matching shifts the reference's polar image into the query image.
-        // A pose seed transforms query points into the reference frame, so
-        // it needs the inverse rotation. Uniform yaw seeds can mask this sign
-        // error, but then ICP starts far from the descriptor's actual heading.
+
         const double base_yaw = -static_cast<double>(candidate.yaw_diff_rad);
         heading_phase = base_yaw;
         append_unique(base_yaw);
@@ -59,9 +55,7 @@ std::vector<double> buildDescriptorYawHypotheses(
     }
     if (candidate.fromRHPD() || yaws.empty()) {
         const int count = std::max(1, config.rhpd_yaw_hypotheses);
-        // Keep the global grid uniform, but phase it with the measured yaw.
-        // A half-turn-symmetric observation then gets equally precise opposite
-        // seeds instead of one good seed and one distant local-optimizer guess.
+
         for (int i = 0; i < count; ++i) {
             append_unique(heading_phase + 2.0 * M_PI * static_cast<double>(i) /
                           static_cast<double>(count));
@@ -151,9 +145,7 @@ std::vector<LoopCandidate> LoopDetector::detectLoopCandidates(
         std::none_of(candidates.begin(), candidates.end(), [&](const auto& candidate) {
             return within_work_bound(candidate.match_id);
         })) {
-        // Preserve the original set: a later graph commit may bring it into
-        // range. Only when it is wholly unusable, retrieve one alternative.
-        // Eligibility must precede both coarse preselection and final top-k.
+
         const auto usable = rankLoopCandidates(query_id, keyframes, [&](int64_t id) {
             return (!accept_match || accept_match(id)) && within_work_bound(id);
         });
@@ -171,18 +163,11 @@ std::vector<LoopCandidate> LoopDetector::rankLoopCandidates(
     if (it == id_to_index_.end()) return candidates;
     size_t query_index = it->second;
 
-    // Scan Context searches a contiguous prefix of its key matrix, so it still
-    // needs an index cutoff; RHPD does not, and is excluded by travelled path
-    // below. A query too early for the prefix therefore skips Scan Context but
-    // still gets RHPD candidates -- previously it returned nothing at all,
-    // which is why no keyframe below 50 was ever examined.
     const int num_exclude = config_.sc_num_exclude_recent;
     const size_t search_end = static_cast<int>(query_index) >= num_exclude
                                   ? query_index - num_exclude
                                   : 0;
 
-    // Cumulative odometry path length per keyframe index, so the distance
-    // travelled between any two of them is one subtraction.
     std::vector<double> path_at(index_to_id_.size(), 0.0);
     {
         const Eigen::Vector3d *prev = nullptr;
@@ -210,8 +195,7 @@ std::vector<LoopCandidate> LoopDetector::rankLoopCandidates(
         RHPDPlace query_rhpd;
         if (rhpd_manager_.get(query_id, &query_rhpd) && !query_rhpd.isZero()) {
             const int preselect = std::max(config_.rhpd_num_candidates * 3, config_.sc_num_candidates * 4);
-            // Informative rather than merely old: the pair must be separated by
-            // enough travel that the odometry no longer pins it down.
+
             auto accept_old_enough = [&](int64_t id) {
                 if (accept_match && !accept_match(id))
                     return false;
@@ -284,14 +268,9 @@ std::vector<LoopCandidate> LoopDetector::rankLoopCandidates(
         }
     }
 
-    // Place retrieval disabled or unavailable: use the direction-preserving channels.
     if (search_end == 0) return candidates;
     const auto& query_ringkey_vec = descriptors_[query_index]->ring_key;
 
-    // Build a temporary eligible search set. Cross-session callers must apply
-    // their loaded-map boundary before top-k selection; filtering the returned
-    // top-k afterwards lets new-session descriptors crowd out every candidate
-    // that is actually legal to commit.
     KeyMat search_keys;
     std::vector<size_t> search_indices;
     search_keys.reserve(search_end);
@@ -305,10 +284,9 @@ std::vector<LoopCandidate> LoopDetector::rankLoopCandidates(
     }
     if (search_keys.empty()) return candidates;
     int tree_dim = getRHPDParams().heading.rows();
-    InvKeyTree search_tree(tree_dim, search_keys, 10 /* max leaf */);
+    InvKeyTree search_tree(tree_dim, search_keys, 10);
 
-    // KNN 搜索: 取 NUM_CANDIDATES_FROM_TREE 个初筛候选
-    constexpr size_t NUM_CANDIDATES_FROM_TREE = 20;  // 比 sc_num_candidates 大，给精排留余量
+    constexpr size_t NUM_CANDIDATES_FROM_TREE = 20;
     size_t num_search = std::min(NUM_CANDIDATES_FROM_TREE, search_keys.size());
     std::vector<size_t> knn_indices(num_search);
     std::vector<float>  knn_dists(num_search);
@@ -325,19 +303,18 @@ std::vector<LoopCandidate> LoopDetector::rankLoopCandidates(
                 << " kd_top1_L2=" << knn_dists[0];
     }
 
-    // -------- 阶段 2: 对 KD-tree 初筛候选做完整多通道距离精排 --------
     std::vector<std::tuple<double, int, size_t>> refined_candidates;
     refined_candidates.reserve(num_search);
 
     for (size_t k = 0; k < num_search; ++k) {
         if (knn_indices[k] >= search_indices.size()) continue;
         size_t match_index = search_indices[knn_indices[k]];
-        if (match_index >= search_end) continue;  // safety check
+        if (match_index >= search_end)
+          continue;
         auto [dist, yaw_shift] = computeDistance(query_desc, descriptors_[match_index]);
         refined_candidates.emplace_back(dist, yaw_shift, match_index);
     }
 
-    // 按多通道距离排序
     std::sort(refined_candidates.begin(), refined_candidates.end(),
               [](const auto& a, const auto& b) { return std::get<0>(a) < std::get<0>(b); });
 
@@ -348,7 +325,6 @@ std::vector<LoopCandidate> LoopDetector::rankLoopCandidates(
                 << " threshold=" << config_.sc_dist_threshold;
     }
 
-    // 输出最终候选
     int num_candidates = std::min(config_.sc_num_candidates,
                                   static_cast<int>(refined_candidates.size()));
     for (int i = 0; i < num_candidates; ++i) {
@@ -424,8 +400,6 @@ std::pair<double, int> LoopDetector::computeDistance(const RHPDHeadingPtr& sc1, 
     return matchRHPDHeading(*sc1, *sc2, getRHPDParams().heading);
 }
 
-// ---- RHPD methods ----
-
 RHPDPlace LoopDetector::computeRHPD(const PointCloudT::Ptr& cloud) const {
     return rhpd_manager_.compute(cloud);
 }
@@ -435,4 +409,4 @@ RHPDPlace LoopDetector::addRHPD(int64_t kf_id, const PointCloudT::Ptr& cloud) {
     return rhpd_manager_.addCloud(kf_id, cloud);
 }
 
-} // namespace n3mapping
+}

@@ -22,7 +22,7 @@ void cropPoints(const Config &config, const LocalizationAtlas::PointCloudT::Ptr 
   if (blocks) blocks->forEachCandidate(center, squared_radius, test);
   else for (std::size_t i = 0; i < map->size(); ++i) test(i);
 }
-} // namespace
+}
 
 void LocalizationAtlas::prefetchTarget(
     const PointCloudMatcher::PreparedSource& source,
@@ -70,10 +70,10 @@ LocalizationAtlas::PointCloudT::Ptr LocalizationAtlas::cropVisibilityTarget(
 std::shared_ptr<const std::vector<std::uint32_t>>
 LocalizationAtlas::cropVisibilityIndices(const Eigen::Vector3d &center) const {
   if (!global_map_ || global_map_->size() > std::numeric_limits<std::uint32_t>::max())
-    return {}; // Caller uses the full-width copied crop for oversized maps.
+    return {};
   auto indices = std::make_shared<std::vector<std::uint32_t>>();
   cropPoints(config_, global_map_, center, blocks_.get(),
              [&](std::size_t i) { indices->push_back(static_cast<std::uint32_t>(i)); });
   return indices;
 }
-} // namespace n3mapping
+}

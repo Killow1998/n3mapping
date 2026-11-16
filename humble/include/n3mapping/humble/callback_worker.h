@@ -9,8 +9,6 @@
 
 namespace n3mapping {
 
-// A serial ROS callback lane with its own executor. Explicit association keeps
-// the node's backend executor from claiming this group's subscriptions.
 class CallbackWorker {
   friend class HumbleOutputTestAccess;
  public:
@@ -52,4 +50,4 @@ class CallbackWorker {
   std::atomic<bool> stopping_{false};
 };
 
-}  // namespace n3mapping
+}

@@ -14,9 +14,7 @@ public:
 
     double squaredMahalanobisDistance(const gtsam::Vector& residual)
         const override {
-        // Factor error applies the robust loss to this distance. Robust::whiten
-        // also applies IRLS weights, so using it here would downweight twice
-        // and make the nonlinear objective disagree with linearization.
+
         return noise()->squaredMahalanobisDistance(residual);
     }
 };
@@ -54,7 +52,7 @@ gtsam::noiseModel::Base::shared_ptr wrapRobust(
     return boost::make_shared<GraphRobustNoise>(estimator, base);
 }
 
-}  // namespace
+}
 
 gtsam::noiseModel::Base::shared_ptr makeGraphRobustNoise(
     const gtsam::noiseModel::Base::shared_ptr& base, const Config& config) {
@@ -138,4 +136,4 @@ GraphFactorNoiseSelection makeXYYawGraphFactorNoise(
     return selection;
 }
 
-}  // namespace n3mapping
+}

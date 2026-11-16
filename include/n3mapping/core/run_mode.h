@@ -16,4 +16,4 @@ bool coreRunModeLoadsMap(CoreRunMode mode);
 bool coreRunModeSavesMap(CoreRunMode mode);
 bool coreRunModeProcessesLoopClosures(CoreRunMode mode);
 
-}  // namespace n3mapping
+}

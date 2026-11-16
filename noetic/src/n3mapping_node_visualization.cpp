@@ -164,4 +164,4 @@ void N3MappingNoeticNode::appendOptimizationLogLine(const std::string& line)
     appendLogLine(optimization_log_path_, line);
 }
 
-}  // namespace n3mapping
+}

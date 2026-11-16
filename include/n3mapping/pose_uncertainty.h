@@ -4,8 +4,6 @@
 
 namespace n3mapping {
 
-// Information uses right SE(3) perturbations in (translation, rotation) order.
-// For Z = C * P, delta_C = Ad(P) delta_Z, hence H_Z = Ad(P)^T H_C Ad(P).
 inline Eigen::Matrix<double, 6, 6> rightComposedInformation(
     const Eigen::Matrix<double, 6, 6>& information,
     const Eigen::Isometry3d& right_transform) {
@@ -22,4 +20,4 @@ inline Eigen::Matrix<double, 6, 6> rightComposedInformation(
     return 0.5 * (transported + transported.transpose());
 }
 
-} // namespace n3mapping
+}

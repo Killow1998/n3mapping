@@ -1,4 +1,3 @@
-// The concrete descriptor seeds requested for one global search window.
 #pragma once
 #include "n3mapping/loop_detector.h"
 #include "n3mapping/relocalization_target_provider.h"
@@ -18,9 +17,7 @@ inline std::vector<double> buildRelocalizationYawHypotheses(
   if (!candidate.fromRHPD() || !candidate.fromSC() ||
       !config.rhpd_use_sc_yaw || !std::isfinite(candidate.sc_distance) ||
       config.rhpd_yaw_hypotheses < 4) return yaws;
-  // The descriptor-phased grid already covers the full circle, including the
-  // opposite mode. Keep adjacent-sector starts for heading-only/reduced grids;
-  // do not add two more local solves to every full-coverage place candidate.
+
   const double phase = -static_cast<double>(candidate.yaw_diff_rad);
   yaws.erase(std::remove_if(yaws.begin(), yaws.end(), [&](double yaw) {
     for (int i = 0; i < config.rhpd_yaw_hypotheses; ++i) {
@@ -46,4 +43,4 @@ struct RelocalizationSeedPlan {
 RelocalizationSeedPlan
 makeRelocalizationSeedPlan(const std::vector<LoopCandidate> &candidates,
                            KeyframeManager &keyframes, const Config &config);
-} // namespace n3mapping
+}

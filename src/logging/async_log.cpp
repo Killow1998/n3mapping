@@ -111,7 +111,7 @@ struct AsyncLog::Impl {
       {
         std::unique_lock<std::mutex> lock(mutex);
         changed.wait_until(lock, next_batch, [this] { return stopping || force || urgent; });
-        // Error bursts may wake promptly, but cannot turn every record into I/O.
+
         if (urgent && !stopping && !force && Clock::now() < next_batch) {
           urgent = false;
           changed.wait_for(lock, std::chrono::milliseconds(20), [this] { return stopping || force; });
@@ -123,7 +123,7 @@ struct AsyncLog::Impl {
       const auto count = pending.size();
       std::size_t accounted = 0;
       try {
-        // Coalesce complete records by destination, with bounded write batches.
+
         struct Batch { std::string data; std::size_t records = 0; };
         std::map<std::string, Batch> output;
         auto write = [&](const std::string& path, Batch& batch) {
@@ -240,4 +240,4 @@ LogOperation::~LogOperation() {
         target_ + " elapsed_ms=" + std::to_string(ms), true);
   } catch (...) { }
 }
-} // namespace n3mapping
+}

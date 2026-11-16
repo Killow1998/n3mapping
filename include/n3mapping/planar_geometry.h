@@ -3,7 +3,7 @@
 #include <vector>
 
 namespace n3mapping {
-// Body-frame sufficient statistics. No transformed cloud or truth is retained.
+
 struct PlaneMoment {
   int count = 0;
   Eigen::Vector3d sum = Eigen::Vector3d::Zero();
@@ -40,9 +40,8 @@ struct GeometryOptimizationStats {
 std::vector<SharedPlane> buildSharedPlanes(
     const std::vector<Keyframe::Ptr>& keyframes,
     GeometryOptimizationStats& stats);
-// Body-frame patches for a newly appended scan. No map or future pose is used.
+
 std::vector<PlaneMoment> extractPlaneMoments(const Keyframe::PointCloudT& cloud);
-// Only identical acquisition time, raw pose and point payload share an identity.
-// Nearby/repeated views with different measurements remain independent here.
+
 std::vector<size_t> geometrySourceIds(const std::vector<Keyframe::Ptr>& keyframes);
-}  // namespace n3mapping
+}

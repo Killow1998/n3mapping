@@ -93,7 +93,7 @@ bool LogStore::enrollLegacy() {
       legacy.push_back({path, static_cast<std::uint64_t>(st.st_size), static_cast<std::int64_t>(st.st_mtime)});
   }
   std::sort(legacy.begin(), legacy.end(), [](const File& a, const File& b) { return a.time < b.time; });
-  // Reserve room for active streams; only recognized n3mapping glog files may expire.
+
   while (!legacy.empty() && legacy.size() + paths_.size() > 24) {
     fs::remove(legacy.front().path); legacy.erase(legacy.begin());
   }
@@ -159,7 +159,7 @@ std::uint64_t LogStore::retainedBytes() const {
   std::set<std::string> registered;
   for (const auto& file : files())
     if (registered.insert(file.path).second) size += file.size;
-  // Unknown files consume the budget but may never be deleted by retention.
+
   for (const auto& entry : fs::directory_iterator(options_.directory)) {
     if (!entry.is_regular_file()) continue;
     const auto name = entry.path().filename().string();
@@ -187,7 +187,7 @@ bool LogStore::trim(std::uint64_t incoming) {
 bool LogStore::registerPath(const std::string& path) {
   if (std::find(paths_.begin(), paths_.end(), path) != paths_.end()) return true;
   if (paths_.size() == 32) {
-    // Retention may discard a stream's old files, but never forget live files.
+
     const auto entries = files();
     for (const auto& file : entries)
       if (file.path == paths_.front() || file.path.rfind(paths_.front() + ".n3m.", 0) == 0) {
@@ -236,4 +236,4 @@ bool LogStore::health(const std::string& json) {
   if (!writeFile(path + ".tmp", json + "\n", false)) return false;
   std::error_code error; fs::rename(path + ".tmp", path, error); return !error;
 }
-} // namespace n3mapping
+}

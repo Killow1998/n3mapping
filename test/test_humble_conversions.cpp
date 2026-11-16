@@ -106,5 +106,5 @@ TEST(HumbleConversionsTest, InvalidOdometryCannotBecomeAValidCoreFrame)
     EXPECT_TRUE(frame.T_world_lidar.isApprox(Eigen::Isometry3d::Identity()));
 }
 
-}  // namespace test
-}  // namespace n3mapping
+}
+}

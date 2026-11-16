@@ -192,7 +192,7 @@ TEST(RelocTargetProviderTest, ReuseConstructionAblation) {
     const std::size_t expected = mode == "local_no_cache" ? kRequests : 1;
     EXPECT_EQ(builds, expected);
     EXPECT_EQ(preparations, expected);
-    // Timings are evidence, not a load-sensitive pass/fail threshold.
+
     RecordProperty(mode + "_milliseconds", std::to_string(ms));
     RecordProperty(mode + "_builds", static_cast<int>(builds));
     RecordProperty(mode + "_preparations", static_cast<int>(preparations));
@@ -278,8 +278,6 @@ TEST(RelocTargetProviderTest, LegacyUsesLoadedGlobalAtlasForRegistration) {
   indexed_request.build_fallback_target = {};
   EXPECT_FALSE(fixture.provider->getTarget(indexed_request).valid());
 
-  // An active Atlas working set can exceed the old local-target entry count
-  // while remaining well below the unchanged 128 MiB byte budget.
   fixture.provider->clear();
   indexed_request.crop_center = Eigen::Vector3d::Zero();
   for (int id = 0; id < 12; ++id) {
@@ -410,5 +408,5 @@ TEST(RelocTargetProviderTest, ConcurrentHitsKeepSharedTargetAlive) {
   EXPECT_GE(diagnostics.cache_hits, 8u);
 }
 
-} // namespace
-} // namespace n3mapping
+}
+}

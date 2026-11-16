@@ -15,7 +15,7 @@ void combine(PlaneMoment& target, const PlaneMoment& source) {
   target.sum += source.sum;
   target.square += source.square;
 }
-}  // namespace
+}
 
 std::vector<PlaneMoment> extractPlaneMoments(const Keyframe::PointCloudT& cloud) {
   std::map<planar_geometry::Cell, PlaneMoment> cells;
@@ -37,8 +37,7 @@ std::vector<std::pair<size_t, Moment>> associateToPlanes(
     const std::vector<Moment>& moments, const gtsam::Pose3& pose,
     const std::vector<SharedPlane>& planes,
     const std::map<int64_t, Eigen::Isometry3d>& reference_poses) {
-  // Bound support by the observed footprints, rather than extending a saved
-  // plane to infinity. Ambiguous associations are omitted, never tie-broken.
+
   std::vector<Eigen::AlignedBox3d> support(planes.size());
   for (size_t i = 0; i < planes.size(); ++i)
     for (const auto& observation : planes[i].observations) {
@@ -88,5 +87,5 @@ std::vector<std::pair<size_t, Moment>> associateToPlanes(
   }
   return result;
 }
-}  // namespace planar_geometry
-}  // namespace n3mapping
+}
+}

@@ -44,9 +44,7 @@ std::vector<std::pair<int64_t, double>> RHPDManager::searchFiltered(
 
     DescriptorPhaseTimer coarse_timer(performance ? &performance->coarse : nullptr);
     const VecD query_key = makeCoarseKey(query);
-    // Keep the same half-turn symmetry as the full descriptor distance.
-    // Otherwise the shortlist can discard the correct reverse-facing place
-    // before its heading and geometry are ever evaluated.
+
     VecD flipped_key = query_key;
     for (int sector = 0; sector < RHPD_NEG_SPACE_SECTORS; ++sector) {
         flipped_key(RHPD_RINGS + sector) = query_key(
@@ -173,5 +171,4 @@ RHPDescriptor::Params rhpdParamsFromConfig(const Config& config) {
   return params;
 }
 
-
-} // namespace n3mapping
+}

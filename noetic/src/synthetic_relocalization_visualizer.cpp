@@ -482,8 +482,8 @@ bool posePassed(double translation_error_m, double yaw_error_deg, double roll_pi
     return translation_error_m <= 1.0 && yaw_error_deg <= 10.0 && roll_pitch_error_deg <= 5.0;
 }
 
-}  // namespace
-}  // namespace n3mapping
+}
+}
 
 int main(int argc, char** argv)
 {

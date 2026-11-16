@@ -1,4 +1,3 @@
-// A previous lock proposes one local search basin, never acceptance evidence.
 #include "n3mapping/world_localizing.h"
 #include "relocalization_observation.h"
 #include <algorithm>
@@ -61,4 +60,4 @@ void WorldLocalizing::appendTrackingRecovery(
   hyp.visibility_evidence_sum = after.evidence_log_odds;
   hypotheses.push_back(std::move(hyp));
 }
-} // namespace n3mapping
+}

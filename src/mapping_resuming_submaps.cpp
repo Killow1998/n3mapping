@@ -40,7 +40,7 @@ bool MappingResuming::refreshSubmapPosesNoLock(const char* context) {
         submap_builder_->getSubmaps(), keyframes, optimizer_.getEdges(),
         optimizer_.floorAttitudeConstraints());
     if (!graph_snapshot.valid) {
-        // Shadow graph construction cannot veto the established keyframe graph.
+
         LOG(WARNING) << "[MappingResuming][SubmapGraphShadow] snapshot failed context="
                      << (context ? context : "unknown")
                      << " reason=" << graph_snapshot.failure_reason;
@@ -157,4 +157,4 @@ bool MappingResuming::refreshSubmapPosesNoLock(const char* context) {
     return true;
 }
 
-}  // namespace n3mapping
+}

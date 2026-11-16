@@ -4,9 +4,7 @@
 #include <Eigen/Geometry>
 
 namespace n3mapping {
-// Compute the correction once, with identical semantics for admission and
-// publication. Blend at the observed body pose, then recover map-to-odometry;
-// the result must not depend on an arbitrary shift of the odometry origin.
+
 inline Eigen::Isometry3d trackingPoseCorrection(
     const Eigen::Isometry3d& current, const Eigen::Isometry3d& odom_pose,
     const Eigen::Isometry3d& endpoint, double confidence, bool strict) {
@@ -28,4 +26,4 @@ inline Eigen::Isometry3d trackingPoseCorrection(
       from.normalized().slerp(alpha, to.normalized()).normalized().toRotationMatrix();
   return filtered * odom_pose.inverse();
 }
-} // namespace n3mapping
+}

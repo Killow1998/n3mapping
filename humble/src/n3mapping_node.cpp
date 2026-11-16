@@ -8,11 +8,10 @@
 #include <string_view>
 #include <thread>
 
-// 信号处理
 void
 signalHandler(int signum)
 {
-    (void)signum; // 避免未使用参数警告
+    (void)signum;
     n3mapping::g_shutdown_requested = true;
 }
 
@@ -53,15 +52,12 @@ main(int argc, char** argv)
     init_options.auto_initialize_logging(false);
     rclcpp::init(argc, argv, init_options);
 
-    // 注册信号处理
     signal(SIGINT, signalHandler);
     signal(SIGTERM, signalHandler);
 
     auto node =
       std::make_shared<n3mapping::N3MappingNode>(authority_probe_scenario);
 
-    // The backend remains serial. Live odometry and cloud groups are explicitly
-    // owned by two independent executors, including message-filter subscribers.
     rclcpp::executors::SingleThreadedExecutor executor;
     executor.add_node(node);
     node->startLiveOutput();

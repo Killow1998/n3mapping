@@ -1,4 +1,3 @@
-// Export the native non-degraded dense trajectory from a pbstream as exact-ns CSV.
 #include <array>
 #include <filesystem>
 #include <fstream>
@@ -250,7 +249,7 @@ bool writeEvidence(const Options& options,
     return true;
 }
 
-}  // namespace
+}
 
 int main(int argc, char** argv) {
     Options options;

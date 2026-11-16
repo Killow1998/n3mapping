@@ -1,4 +1,3 @@
-// Isolated, no-writeback optimization trial for the shadow submap graph.
 #pragma once
 
 #include <cstddef>
@@ -45,8 +44,6 @@ struct SubmapGraphTrialKeyframeResult {
     double optimized_rotation_error_rad = 0.0;
 };
 
-// A successful result is still diagnostic only. It carries no authority to
-// update Submap, Keyframe, GraphOptimizer, map output, or runtime decisions.
 struct SubmapGraphTrialDiagnostics {
     bool valid = false;
     bool attempted = false;
@@ -77,11 +74,8 @@ struct SubmapGraphTrialDiagnostics {
     std::vector<SubmapGraphTrialKeyframeResult> keyframes;
 };
 
-// Builds and solves a temporary batch graph from an immutable SG-02 snapshot.
-// SG-03 readiness and SG-04 factor semantics are re-evaluated internally.
-// The graph is destroyed before return and no input object is mutated.
 SubmapGraphTrialDiagnostics evaluateSubmapGraphOptimizationTrial(
     const SubmapGraphSnapshot& snapshot,
     const Config& config);
 
-}  // namespace n3mapping
+}

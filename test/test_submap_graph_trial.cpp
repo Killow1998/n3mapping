@@ -567,5 +567,5 @@ TEST(SubmapGraphTrialTest, RepeatedIsolatedSolveIsDeterministic) {
     }
 }
 
-}  // namespace
-}  // namespace n3mapping
+}
+}

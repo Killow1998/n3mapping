@@ -110,7 +110,7 @@ void appendSize(std::ostream &stream, bool *first, const char *key,
   stream << '"' << key << "\":" << value;
 }
 
-} // namespace
+}
 
 RuntimePerformanceDebugLogger::RuntimePerformanceDebugLogger(
     const Config &config)
@@ -245,4 +245,4 @@ bool RuntimePerformanceDebugLogger::append(
   return appendLogLine(path_, record.str());
 }
 
-} // namespace n3mapping
+}

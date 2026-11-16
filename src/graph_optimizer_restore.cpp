@@ -24,7 +24,6 @@ bool GraphOptimizer::loadGraph(
         return true;
     }
 
-    // 添加节点
     for (const auto& [id, pose] : nodes) {
         gtsam::Key key = gtsam::Symbol('x', id);
         gtsam::Pose3 gtsam_pose = eigenToGtsam(pose);
@@ -36,7 +35,6 @@ bool GraphOptimizer::loadGraph(
         temp.node_ids_.insert(id);
     }
 
-    // 添加第一个节点的先验因子
     int64_t first_id = nodes.front().first;
     gtsam::Key first_key = gtsam::Symbol('x', first_id);
     gtsam::Pose3 first_pose = prior_pose ? eigenToGtsam(*prior_pose) :
@@ -52,7 +50,6 @@ bool GraphOptimizer::loadGraph(
         }
     }
 
-    // 添加边
     for (const auto& edge : edges) {
         gtsam::Key key_from = gtsam::Symbol('x', edge.from_id);
         gtsam::Key key_to = gtsam::Symbol('x', edge.to_id);
@@ -91,8 +88,6 @@ bool GraphOptimizer::loadGraph(
         temp.edges_.push_back(edge);
     }
 
-    // This API also accepts graphs constructed without the serializer.
-    // Ignore floor records that cannot form a factor on an existing node.
     for (const auto& fc : floor_constraints) {
         if (!fc.normal_body.allFinite() || fc.normal_body.norm() < 1e-6 ||
             !std::isfinite(fc.sigma_rad) || fc.sigma_rad <= 0.0) {
@@ -110,12 +105,10 @@ bool GraphOptimizer::loadGraph(
         ++temp.floor_attitude_factor_count_;
     }
 
-    // 执行优化
     if (!restore_estimates && planes.empty() &&
         !temp.gtsam_->graph_.empty() && !temp.gtsam_->initial_values_.empty()) {
         gtsam::Values optimized_estimate;
-        // optimizeCandidate owns the same local execution boundary used by
-        // live graph solves; reload does not change process-wide concurrency.
+
         if (!temp.optimizeCandidate(temp.gtsam_->graph_, temp.gtsam_->initial_values_, &optimized_estimate)) {
             LOG(ERROR) << "GraphOptimizer::loadGraph() failed; existing graph left unchanged" << std::endl;
             return false;
@@ -138,4 +131,4 @@ bool GraphOptimizer::loadGraph(
     return true;
 }
 
-} // namespace n3mapping
+}

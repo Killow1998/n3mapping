@@ -1,5 +1,3 @@
-// Exercise the production node's subscriptions, executors and publishers.
-// The test subclass pauses conversion; it does not replace output decisions.
 #include "../humble/src/n3mapping_node.h"
 
 #include <condition_variable>
@@ -380,8 +378,7 @@ TEST_F(HumbleLiveOutput, SameProductionSequenceMatchesSharedCoreInAllModes) {
     update(epoch + 9, trusted(20.0));
     compare_live(raw(epoch + 10), true);
     if (mode == CoreRunMode::LOCALIZATION) {
-      // Published snapshots must retain their own history when the node reuses
-      // its accumulated path for subsequent publications.
+
       ASSERT_EQ(paths[path_count - 1].poses.size(), 1U);
       ASSERT_EQ(paths.back().poses.size(), 3U);
       EXPECT_EQ(paths.back().header.frame_id, "map");
@@ -580,9 +577,9 @@ TEST_F(HumbleLiveOutput, ShutdownWritesRealMapAfterWorkersStop) {
   EXPECT_TRUE(std::filesystem::exists(directory / "n3map.pbstream"));
   EXPECT_TRUE(std::filesystem::exists(directory / "global_map.pcd"));
   real.reset();
-  // Only artifacts created by this fixture are removed.
+
   std::filesystem::remove_all(directory);
 }
 
-}  // namespace
-}  // namespace n3mapping
+}
+}

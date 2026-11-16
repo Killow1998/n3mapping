@@ -1,5 +1,3 @@
-// Tracking target geometry and bounded preparation caches. Calls are serialized
-// by WorldLocalizing; only requested targets are prepared.
 #pragma once
 
 #include <cstdint>
@@ -21,8 +19,7 @@ public:
 
   struct TargetResult {
     std::shared_ptr<const PointCloudMatcher::PreparedTarget> target;
-    // Exact raw local visibility crop from the same frozen map as the shared
-    // registration target; never a downsampled registration representation.
+
     PointCloudT::Ptr visibility_cloud;
     bool enabled = false;
     bool hit = false;
@@ -52,8 +49,7 @@ public:
   TargetResult acquireLocal(int64_t anchor_id, int submap_range);
   TargetResult acquireLoaded(int64_t anchor_id);
   PointCloudT::Ptr loadedVisibilityTarget(const Eigen::Vector3d &center);
-  // A map replacement invalidates all targets. Session reset deliberately
-  // leaves these map-derived targets available for reuse.
+
   void clearMap();
   void installLoadedReference(const PointCloudT::Ptr& cloud,
                              const PointCloudMatcher::PreparedTarget& target,
@@ -93,7 +89,7 @@ private:
   PointCloudT::Ptr loaded_map_;
   std::shared_ptr<const SpatialPointBlocks> blocks_;
   std::shared_ptr<const PointCloudMatcher::PreparedTarget> loaded_prepared_;
-  // Crop identity belongs to the frozen loaded geometry, not live graph poses.
+
   std::map<int64_t, Eigen::Vector3d> loaded_anchor_positions_;
   std::size_t loaded_keyframe_count_ = 0;
   KeyframeMapRevision loaded_revision_;
@@ -104,4 +100,4 @@ private:
   static constexpr std::size_t kLoadedEntries = 4;
 };
 
-} // namespace n3mapping
+}

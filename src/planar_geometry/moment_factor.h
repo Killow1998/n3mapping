@@ -1,5 +1,3 @@
-// Shared moment factor. A shared plane retains cross-scan dependence;
-// its Jacobian contains no information along the plane's tangent directions.
 #pragma once
 #include <Eigen/Eigenvalues>
 #include "n3mapping/planar_geometry.h"
@@ -20,7 +18,7 @@ inline gtsam::SharedNoiseModel momentNoise(const Config& config, double sigma,
   auto geometry = config;
   const double scale = std::sqrt(information_weight);
   geometry.robust_kernel_type = "Cauchy";
-  // Scale cost and Jacobians without changing the robust transition in metres.
+
   geometry.robust_kernel_delta = 3. * scale;
   return makeGraphRobustNoise(
       gtsam::noiseModel::Isotropic::Sigma(4, sigma / scale), geometry);
@@ -75,4 +73,4 @@ public:
   }
 };
 
-} // namespace n3mapping::planar_geometry
+}

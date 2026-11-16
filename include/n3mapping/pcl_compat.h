@@ -17,5 +17,5 @@ typename T::Ptr make_shared(Args&&... args)
     return typename T::Ptr(new T(std::forward<Args>(args)...));
 }
 
-}  // namespace pcl
+}
 #endif

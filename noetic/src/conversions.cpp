@@ -53,4 +53,4 @@ core::LioFrame toCoreLioFrame(const sensor_msgs::PointCloud2& cloud_msg,
     return frame;
 }
 
-}  // namespace n3mapping
+}

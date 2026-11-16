@@ -324,10 +324,19 @@ Both ROS adapters keep one state/lock owner in their private
 The ROS-free `MapArtifacts` owns map snapshots, save orchestration, global-cloud
 caching and debug PCDs. Saving captures poses after draining pending loop work;
 immutable clouds are shared, and cache visitors run under the cache lock.
+Map artifact operations take references to their required core, result and error
+objects. Keyframe snapshots come from the core's non-null owned keyframe list.
+The global cloud is borrowed only for the duration of the cache visitor.
+`MapArtifacts` retains the save path, save policy and run mode instead of a
+second complete configuration. Adapter map callbacks and services run on the
+serial backend owner; live input workers do not access map artifacts.
 Adapters track map revisions and publish on demand; middleware retains the
 latched message without a second adapter copy. Core headers expose value contracts
 through `loop_types.h` and `registration_probe.h` without pulling session and
 registration implementation headers into every adapter source.
+`keyframe_map_revision.h` is the shared value contract for map generations,
+structure changes and pose changes. The core facade and display cache include
+that contract without importing the keyframe manager implementation.
 
 Both adapters compile their node methods into an internal static implementation
 target. Humble's real node and live-output E2E link the same objects; Noetic's
@@ -341,12 +350,22 @@ These are implementation boundaries, without new managers or state copies.
 `N3MappingCore` keeps mapping, extension, load and save implementations in
 corresponding files. `MapSerializer` separates pbstream read/write from PCD export;
 its public header does not import graph, loop-detector or generated protobuf
-implementation headers. Both distributions register core tests from
+implementation headers. `n3map_proto_reader.cpp` owns file admission, protobuf
+parsing and resource limits. `n3map_proto_utils.cpp` owns geometry and metadata
+decoding. Both the SLAM core and standalone navigation resource reader build the
+same reader and decoder sources, without a dependency on one another.
+Invalid maps, resource-limit failures and transactional rollback remain boundary
+responsibilities. Internal operations consume the validated values directly.
+Both distributions register core tests from
 `cmake/n3mapping_core_tests.cmake` through native ament/catkin macros. These tests
 use GoogleTest directly, without starting a ROS context. Adapter tests retain
 their native middleware setup.
 Use the relevant behavioral tests during a module change and the integrated
 mapping/localization/extension checks at release boundaries.
+The [2026-11-15 cleanup evidence](evidence/code_cleanup_20261115.json) records
+the ownership and dependency reductions, non-comment token comparison,
+version-parser ablation, both native ROS suites, and the unchanged 14-point
+and two-route localization results.
 
 Localization callback admission in Humble stays on its serial backend owner.
 `N3MappingNode::spinOnce` uses bounded repeated collection before consuming the

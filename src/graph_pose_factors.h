@@ -92,5 +92,4 @@ class Pose3XYYawFactor : public gtsam::NoiseModelFactor2<gtsam::Pose3, gtsam::Po
     }
 };
 
-
-} // namespace n3mapping
+}

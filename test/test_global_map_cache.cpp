@@ -46,20 +46,6 @@ Keyframe::Ptr makeKeyframe(int64_t id, const Eigen::Vector3d& translation, const
     return keyframe;
 }
 
-TEST(MapArtifactsTest, RejectsSaveWithoutAuthorityOrBackend)
-{
-    Config config;
-    config.mode = "localization";
-    MapArtifacts localization(config);
-    std::string error;
-    EXPECT_FALSE(localization.save(nullptr, &error, nullptr));
-    EXPECT_EQ(error, "save_disabled_in_mode:localization");
-    config.mode = "mapping";
-    MapArtifacts mapping(config);
-    EXPECT_FALSE(mapping.save(nullptr, &error, nullptr));
-    EXPECT_EQ(error, "core_unavailable");
-}
-
 TEST(GlobalMapCacheTest, RepeatedUpdateWithoutNewKeyframesKeepsRevision)
 {
     GlobalMapCache cache(0.0);
@@ -153,5 +139,5 @@ TEST(GlobalMapCacheTest, VoxelModeMergesPointsInSameVoxel)
     EXPECT_NEAR(cloud->points.front().z, 0.15f, 1e-5f);
 }
 
-}  // namespace
-}  // namespace n3mapping
+}
+}

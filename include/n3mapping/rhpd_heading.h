@@ -9,7 +9,7 @@
 #include <pcl/point_types.h>
 
 namespace n3mapping {
-// Direction-preserving channels of RHPD; derived from keyframe/query clouds.
+
 struct RHPDHeadingParams {
     static constexpr int channels = 7;
     int rings = 20;
@@ -26,8 +26,6 @@ struct RHPDHeadingParams {
     double sectorAngleDeg() const { return 360.0 / sectors; }
 };
 
-// Immutable after construction. Sparse ring columns retain full angular and
-// radial resolution; keys and column norms are computed once, then shared.
 struct RHPDHeading {
     int rings = 0, sectors = 0;
     std::vector<int> offsets, ring_indices;
@@ -43,4 +41,4 @@ Eigen::MatrixXd rhpdHeadingDenseValues(const RHPDHeading& heading);
 std::pair<double, int> matchRHPDHeading(const RHPDHeading& query,
                                       const RHPDHeading& reference,
                                       const RHPDHeadingParams& params);
-} // namespace n3mapping
+}

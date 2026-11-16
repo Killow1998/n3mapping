@@ -1,5 +1,3 @@
-// Exercise parameter values at their behavioural consumers using distinct inputs.
-
 #include <gtest/gtest.h>
 
 #include "n3mapping/RHPDescriptor.h"
@@ -37,16 +35,16 @@ TEST(ConfigWiringTest, VisibilityOptionsCarryEveryKey) {
     Config config;
     config.rhpd_max_range = 17.0;
     config.global_map_voxel_size = 0.11;
-    config.gicp_downsampling_resolution = 0.23;   // the larger of the two
+    config.gicp_downsampling_resolution = 0.23;
     config.reloc_visibility_occlusion_aware = true;
 
     const auto options = visibilityOptionsFromConfig(config);
     EXPECT_DOUBLE_EQ(options.range_max_m, 17.0);
-    // The tolerance follows whichever resolution is coarser, three voxels of it.
+
     EXPECT_DOUBLE_EQ(options.range_tolerance_m, 3.0 * 0.23);
     EXPECT_TRUE(options.occlusion_aware);
 
-    config.global_map_voxel_size = 0.31;          // now the coarser one
+    config.global_map_voxel_size = 0.31;
     EXPECT_DOUBLE_EQ(visibilityOptionsFromConfig(config).range_tolerance_m,
                      3.0 * 0.31);
 }
@@ -88,24 +86,20 @@ TEST(ConfigWiringTest, DescriptorParamsCarryEveryKey) {
 TEST(ConfigWiringTest, DescriptorHeightRangeCannotCollapse) {
     Config config;
     config.rhpd_z_min = 2.0;
-    config.rhpd_z_max = 1.0;   // inverted
+    config.rhpd_z_max = 1.0;
     const auto params = rhpdParamsFromConfig(config);
     EXPECT_GT(params.z_max, params.z_min);
 }
 
 TEST(ConfigWiringTest, DescriptorBlockScalesDefaultToThePublishedDistance) {
-    // distance() is shared with relocalization, which has a contract. Measured
-    // on 0723, quartering these scales costs a correct lock, so one is not an
-    // arbitrary default -- it is the published arithmetic.
+
     const auto params = rhpdParamsFromConfig(Config{});
     EXPECT_DOUBLE_EQ(params.part_a_scale, 1.0);
     EXPECT_DOUBLE_EQ(params.aux_scale, 1.0);
 }
 
 TEST(ConfigWiringTest, CanonicalCarriesEveryFreeSpaceAndPersistenceKey) {
-    // The canonical serialization is what proves a ROS-loaded product_v1.yaml
-    // and makeProductLocalizationConfig() are equivalent. A field missing from
-    // it would silently exempt that key from the equivalence check.
+
     Config config;
     config.reloc_free_space_enable = false;
     config.reloc_free_space_mode = "kill";
@@ -147,5 +141,5 @@ TEST(ConfigWiringTest, CanonicalCarriesLocalizationTrackingCacheBudgets) {
               std::string::npos);
 }
 
-}  // namespace
-}  // namespace n3mapping
+}
+}

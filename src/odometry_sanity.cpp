@@ -1,4 +1,3 @@
-// odometry_sanity.cpp
 #include "n3mapping/odometry_sanity.h"
 
 #include <cmath>
@@ -23,7 +22,7 @@ OdometrySanity::check(double timestamp, const Eigen::Isometry3d &pose) {
 
   const double dt = timestamp - previous_timestamp_;
   if (dt < limits_.min_dt_s) {
-    // Out of order or duplicated stamps say nothing about the front end.
+
     return verdict_;
   }
 
@@ -36,8 +35,6 @@ OdometrySanity::check(double timestamp, const Eigen::Isometry3d &pose) {
     rate = std::abs(delta.angle()) * 180.0 / M_PI / dt;
   }
 
-  // A non-finite pose is already past any limit; treat it as a violation
-  // rather than letting the comparisons below decide it silently.
   const bool violated = !pose_finite || speed > limits_.max_speed_mps ||
                         rate > limits_.max_angular_rate_dps;
   if (violated) {
@@ -60,4 +57,4 @@ OdometrySanity::check(double timestamp, const Eigen::Isometry3d &pose) {
   return verdict_;
 }
 
-} // namespace n3mapping
+}

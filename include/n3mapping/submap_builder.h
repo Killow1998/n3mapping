@@ -1,4 +1,3 @@
-// Submap snapshots and bounded cloud accumulation.
 #pragma once
 
 #include <cstdint>
@@ -27,7 +26,7 @@ struct Submap {
     Eigen::Isometry3d T_session_submap = Eigen::Isometry3d::Identity();
     Eigen::Isometry3d T_map_submap = Eigen::Isometry3d::Identity();
     PointCloudT::Ptr registration_cloud;
-    // Registration and visualization share an immutable snapshot.
+
     PointCloudT::Ptr visualization_cloud;
     int64_t descriptor_keyframe_id = -1;
     std::uint64_t cloud_byte_budget = 0;
@@ -45,9 +44,6 @@ struct SubmapBuilderOptions {
     std::uint64_t cloud_max_bytes = 16ull * 1024ull * 1024ull;
 };
 
-// Shadow comparison between the current keyframe graph and the rigid
-// submap-origin decomposition. Residuals are observations only: they never
-// update keyframe poses or graph constraints.
 struct SubmapPoseProjectionDiagnostics {
     bool valid = false;
     std::string failure_reason;
@@ -73,9 +69,7 @@ public:
                      const std::vector<MapSessionInfo>& sessions);
     bool materialize(SubmapId id,
                      const std::vector<Keyframe::Ptr>& keyframes);
-    // Re-anchor every T_map_submap from its descriptor keyframe (or the first
-    // member for legacy metadata), then report how well one rigid submap pose
-    // projects all member keyframes. The update is all-or-nothing.
+
     SubmapPoseProjectionDiagnostics refreshMapPoses(
         const std::vector<Keyframe::Ptr>& keyframes);
     SubmapPoseProjectionDiagnostics evaluatePoseProjection(
@@ -99,4 +93,4 @@ private:
     mutable std::mutex mutex_;
 };
 
-}  // namespace n3mapping
+}

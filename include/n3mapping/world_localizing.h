@@ -1,5 +1,3 @@
-// WorldLocalizing: global relocalization via RHPD + ICP, and tracking
-// localization with T_map_odom.
 #pragma once
 #include "n3mapping/relocalization_performance.h"
 
@@ -46,13 +44,11 @@ struct RelocResult {
   bool success = false;
   RelocalizationState state = RelocalizationState::SEARCHING;
   PoseSource pose_source = PoseSource::NONE;
-  // Machine-readable terminal or pending decision for this relocalize() call.
-  // Examples: no_candidates, temporal_window_pending, log_likelihood,
-  // accepted. This is evidence output; it does not participate in decisions.
+
   std::string decision = "not_attempted";
   int64_t seed_keyframe_id = -1;
   int64_t support_keyframe_id = -1;
-  // Legacy alias for support_keyframe_id.
+
   int64_t matched_keyframe_id = -1;
   Eigen::Isometry3d pose_in_map = Eigen::Isometry3d::Identity();
   double confidence = 0.0;
@@ -72,19 +68,16 @@ public:
              double query_timestamp = std::numeric_limits<double>::quiet_NaN());
   RelocResult trackLocalization(const PointCloudT::Ptr &cloud,
                                 const Eigen::Isometry3d &odom_pose);
-  // Strict local tracking used while extending a loaded map. Registration
-  // targets and visibility evidence come only from immutable loaded-map
-  // keyframes; corrections are bounded and applied without lag. A frame with
-  // no geometric evidence fails closed instead of silently accepting odometry.
+
   RelocResult trackLoadedMap(const PointCloudT::Ptr &cloud,
                              const Eigen::Isometry3d &odom_pose);
   bool isRelocalized() const;
   Eigen::Isometry3d getMapToOdomTransform() const;
   void reset();
-  // State reset retains map caches; map replacement discards them.
+
   void resetLocalizationState();
   void notifyMapReplaced();
-  // 只读诊断：外部测试可观察缓存状态，但不允许修改内部状态。
+
   struct WorldLocalizingCacheDiagnostics {
     bool atlas_loaded = false;
     std::size_t frame_rhpd_indexed_keyframes = 0;
@@ -117,12 +110,11 @@ public:
   probeRegistrationSeeds(const PointCloudT::Ptr &cloud,
                          const Eigen::Isometry3d &odom_pose,
                          const Eigen::Isometry3d &oracle_pose);
-  // Cross-session constraints must explain the current scan in the immutable
-  // loaded map, not in keyframes added by the extension they are judging.
+
   VisibilityConsistencyResult
   evaluateLoadedMapPoseVisibility(const PointCloudT::Ptr &query_cloud,
                                   const Eigen::Isometry3d &T_map_lidar);
-  // Prepare only the immutable target of the committed extension anchor.
+
   void warmLoadedMapTrackingTarget(int64_t anchor_id);
 
 private:
@@ -203,8 +195,7 @@ private:
   bool free_space_grid_failed_ = false;
 
   bool is_relocalized_;
-  // Distinguishes initial SEARCHING from a previously authoritative session
-  // that has exhausted its RECENTLY_LOST grace period.
+
   bool has_ever_relocalized_;
   Eigen::Isometry3d T_map_odom_;
   int64_t last_matched_id_;
@@ -214,4 +205,4 @@ private:
   mutable std::mutex mutex_;
 };
 
-} // namespace n3mapping
+}

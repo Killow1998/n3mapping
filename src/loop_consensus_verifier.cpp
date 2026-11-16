@@ -239,7 +239,7 @@ std::string consensusReason(LoopConsensusDecision decision,
     return "weak_consensus";
 }
 
-}  // namespace
+}
 
 const char* loopConsensusDecisionName(LoopConsensusDecision decision)
 {
@@ -394,4 +394,4 @@ void assignLoopConsensus(VerifiedLoop* loop, const LoopConsensusResult& result)
     loop->consensus_estimator_recommendation = result.estimator_recommendation;
 }
 
-}  // namespace n3mapping
+}

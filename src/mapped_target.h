@@ -22,7 +22,7 @@ struct AtlasSearchHeader {
 struct AtlasSearchNode {
   double threshold = 0;
   std::uint32_t left = UINT32_MAX, right = UINT32_MAX;
-  // Leaves store [first,last); inner nodes store the split axis in first.
+
   std::uint32_t first = 0, last = 0;
   std::array<float, 3> lower{}, upper{};
 };
@@ -66,8 +66,6 @@ struct MappedTargetLevel {
   }
 };
 
-// Owns the read-only mapping and the existing reusable background worker.
-// Paged levels retain their mapping while registration uses the typed views.
 class AtlasMapping {
 public:
   ~AtlasMapping();
@@ -92,5 +90,5 @@ bool loadMappedAtlas(const std::string& path, LocalizationAtlasData& metadata,
 std::string encodeAtlasSearchIndex(
     const PointCloudMatcher::SmallGicpKdTree& tree);
 
-} // namespace registration_detail
-} // namespace n3mapping
+}
+}

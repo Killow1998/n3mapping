@@ -4,8 +4,6 @@
 
 namespace n3mapping {
 
-// Shared parameter surface for ROS input and canonical provenance. Order is
-// stable because saved runtime configuration fingerprints depend on it.
 template <class Configuration, class Visitor>
 void forEachConfigField(Configuration& config, Visitor&& visit) {
     visit("mode", config.mode);
@@ -177,4 +175,4 @@ void forEachConfigField(Configuration& config, Visitor&& visit) {
     visit("rhpd_aux_scale", config.rhpd_aux_scale);
 }
 
-}  // namespace n3mapping
+}

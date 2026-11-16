@@ -154,7 +154,7 @@ void expectPreparedLevelExact(
   }
 }
 
-} // namespace
+}
 
 TEST(FreeSpaceGridTest, SurfaceBoundaryIsContinuousAndObservedFreeSpaceStillContradicts) {
   pcl::PointCloud<pcl::PointXYZI> floor;
@@ -338,7 +338,6 @@ TEST(LocalizationAtlasTest, RoundTripsPreparedTargetExactly) {
   EXPECT_FALSE(loaded.takeFreeSpaceGrid().valid());
 }
 
-
 TEST(LocalizationAtlasTest, MappedGeometryKeepsOtherFloorsAndSurvivesReferenceReplacement) {
   TemporaryAtlasFiles files;
   auto config = makeConfig();
@@ -494,7 +493,7 @@ TEST(LocalizationAtlasTest, CompiledPlaceViewsMatchLoadedMapPreparation) {
   ASSERT_EQ(atlas.placeCatalog()->size(), 2u);
   EXPECT_EQ(atlas.placeCatalog()->at(0), std::vector<int64_t>{0});
   EXPECT_EQ(atlas.placeCatalog()->at(1), std::vector<int64_t>{1});
-  // Catalog construction is a map artifact operation; input observations stay intact.
+
   EXPECT_EQ(frames.size(), 6u);
   EXPECT_FALSE(frames[0]->is_from_loaded_map);
   LocalizationAtlasData data;
@@ -568,7 +567,7 @@ TEST(LocalizationAtlasTest, KeepsExplicitCovarianceWhenItIsNotTheFixedNormalMode
   ASSERT_TRUE(atlas.load(files.map().string(), files.atlas().string(), nullptr, &error));
   const AtlasLevelFeatures loaded(atlas.preparedTarget().refine_level);
   ASSERT_TRUE(loaded.hasExplicitCovariance());
-  // A change in storage order cannot hide a modified covariance model.
+
   size_t changed = 0;
   for (size_t i = 0; i < loaded.size(); ++i) {
     if (std::abs(loaded.covariance(i).trace() - 4.002) < 1e-12) ++changed;
@@ -629,5 +628,5 @@ TEST(LocalizationAtlasTest, RejectsOldFormatAndTruncatedPreparedArrays) {
   EXPECT_FALSE(atlas.loaded());
 }
 
-} // namespace test
-} // namespace n3mapping
+}
+}

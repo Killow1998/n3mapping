@@ -39,11 +39,9 @@ public:
     RosLogging();
     ~RosLogging();
 };
-// Shared by the process signal handler and the finite authority probe.
+
 extern std::atomic<bool> g_shutdown_requested;
 
-// Owns the ROS subscriptions, publication workers and shutdown transaction.
-// Definitions are grouped by responsibility; backend decisions stay in core.
 class N3MappingNode : public rclcpp::Node
 {
     friend class HumbleOutputTestAccess;
@@ -91,8 +89,6 @@ class N3MappingNode : public rclcpp::Node
                            const nav_msgs::msg::Odometry::ConstSharedPtr& odom);
 
   protected:
-    // Conversion is outside the core and backend locks. This boundary also lets
-    // contract tests pause real publication during conversion and invalidate it.
     virtual sensor_msgs::msg::PointCloud2 transformLiveCloud(
         const sensor_msgs::msg::PointCloud2& cloud, const Eigen::Isometry3d& pose);
 
@@ -156,8 +152,8 @@ class N3MappingNode : public rclcpp::Node
 
     void markGlobalMapFullRebuildRequired();
 
-    bool refreshGlobalMapMessage(const MapKeyframeSnapshot& snapshot,
-                                 sensor_msgs::msg::PointCloud2* out_msg);
+    bool refreshGlobalMapMessage(const MapKeyframeSnapshot &snapshot,
+                                 sensor_msgs::msg::PointCloud2 &out_msg);
 
     void publishGlobalMap(const MapKeyframeSnapshot& snapshot);
 
@@ -173,19 +169,16 @@ class N3MappingNode : public rclcpp::Node
     void printStatistics();
 
   private:
-    // 配置
     Config config_;
     InputLinearVelocityFrame input_linear_velocity_frame_ = InputLinearVelocityFrame::CHILD;
     rclcpp::Publisher<std_msgs::msg::String>::SharedPtr localization_status_pub_;
     CoreRunMode run_mode_ = CoreRunMode::MAPPING;
     bool product_profile_v1_ = false;
 
-    // 核心组件
     std::unique_ptr<N3MappingCore> n3mapping_core_;
     std::unique_ptr<RuntimePerformanceDebugLogger>
       performance_debug_logger_;
 
-    // ROS 接口
     message_filters::Subscriber<sensor_msgs::msg::PointCloud2> cloud_sub_;
     message_filters::Subscriber<nav_msgs::msg::Odometry> odom_sub_;
     std::unique_ptr<message_filters::Synchronizer<ApproxSyncPolicy>>
@@ -216,11 +209,8 @@ class N3MappingNode : public rclcpp::Node
     std::unique_ptr<MapArtifacts> map_artifacts_;
     std::optional<std::uint64_t> global_map_last_published_revision_;
 
-    // 线程和同步
     std::mutex data_mutex_;
-    std::mutex global_map_mutex_;
 
-    // 状态
     bool map_loaded_ = false;
     std::atomic<bool> shutdown_called_{false};
     RuntimeEvents runtime_events_;
@@ -229,11 +219,10 @@ class N3MappingNode : public rclcpp::Node
     rclcpp::TimerBase::SharedPtr input_health_timer_;
     double input_cloud_timeout_sec_ = 0.5;
     std::string optimization_log_path_;
-    nav_msgs::msg::Path localization_path_; // 定位模式累积轨迹
+    nav_msgs::msg::Path localization_path_;
     std::vector<std::pair<int64_t, int64_t>> loop_marker_history_;
     std::optional<rclcpp::Time> last_tf_stamp_;
 
-    // 统计
     bool odometry_divergence_reported_ = false;
     std::atomic<bool> performance_log_failure_reported_{false};
     uint64_t performance_frame_index_ = 0;
@@ -258,4 +247,4 @@ class N3MappingNode : public rclcpp::Node
     int authority_probe_tick_ = 0;
 };
 
-}  // namespace n3mapping
+}

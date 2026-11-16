@@ -60,8 +60,7 @@ TEST_F(LocalizationEpisode, OutOfMapMotionKeepsTrustedCorrectionAndReentryRelock
 }
 
 TEST_F(LocalizationEpisode, ConfirmationCorrectsBiasedOdometryBeforePublishing) {
-  // Geometry stays in the same map while odometry develops a translation bias
-  // during confirmation. Reusing a proposal must not publish that bias.
+
   const auto original_map_from_odom = map_from_odom_;
   Step step;
   Eigen::Isometry3d true_pose;
@@ -83,8 +82,7 @@ TEST_F(LocalizationEpisode, ConfirmationCorrectsBiasedOdometryBeforePublishing) 
 }
 
 TEST_F(LocalizationEpisode, StationaryTrackingKeepsRigidOutputWithoutRelocking) {
-  // Repeated matrix/quaternion conversions at a large world-frame yaw used
-  // to amplify roundoff until publication rejected an otherwise tracked pose.
+
   map_from_odom_ = makePose(20.0, -8.0, -110.0 * M_PI / 180.0);
   const auto locked = lock();
   const auto pose = makePose(6.0, 0.0, 0.0);
@@ -138,8 +136,7 @@ TEST_F(LocalizationEpisode, FreshMapLifecycleCannotReuseOldAuthorityOrPose) {
   const auto replacement = directory_ / "replacement.pbstream";
   buildMap(replacement, 100.0);
   ASSERT_TRUE(localizer_->loadMap(replacement.string()));
-  // Loading the backend and restarting its live-output owner form the same
-  // fresh lifecycle used by a node restart; this is not a hot-swap feature.
+
   startOutput();
   const auto searching = run("replacement_unmapped", makePose(106.0, 0.0, 0.0), unrelatedCloud());
   EXPECT_FALSE(searching.live.pose);
@@ -163,7 +160,7 @@ TEST_F(LocalizationEpisode, RepeatedPlacesStayUnpublishedAndFreshGeometryCanLock
     point.y *= 1.6F;
     point.z *= 1.3F;
   }
-  // Authored keyframes still obey the mapping input velocity limit.
+
   const auto repeated_path = directory_ / "repeated.pbstream";
   {
     N3MappingCore mapper(config_, N3MappingCore::WorldCloudOutput::Disabled);
@@ -222,8 +219,7 @@ TEST_F(LocalizationEpisode, RepeatedFloorsRemainIndependentDuringInitialSearch) 
 }
 
 TEST_F(LocalizationEpisode, NewlyVisibleRegionGetsItsOwnConfirmationWithoutRestartingOthers) {
-  // The sensor stays in one room. Initially missing returns hide its extra
-  // walls, so two repeated rooms occupy the shortlist; later returns reveal it.
+
   const auto common = synthesizeBodyCloud(scene_, makePose(6, 0, 0), 12, 0, 0, 5001);
   auto complete = pcl::make_shared<Cloud>(*common);
   for (float x = 1.0F; x < 5.0F; x += 0.15F) {
@@ -235,9 +231,7 @@ TEST_F(LocalizationEpisode, NewlyVisibleRegionGetsItsOwnConfirmationWithoutResta
       }
     }
   }
-  // Map occupancy requires two surface returns per voxel. Sample along the
-  // authored planes/pillars, rather than interpreting isolated synthetic
-  // points as occupied walls while the unchanged free-space grid rejects them.
+
   const auto sample_surfaces = [](const Cloud::Ptr& cloud) {
     const auto count = cloud->size();
     for (std::size_t i = 0; i < count; ++i) {
@@ -278,8 +272,7 @@ TEST_F(LocalizationEpisode, NewlyVisibleRegionGetsItsOwnConfirmationWithoutResta
     const auto cost = relocalizationPerformanceJson(step.backend.relocalization_performance);
     if (i == 0) {
       EXPECT_GE(cost["admitted_basins"].asUInt64(), 1U);
-      // The experimental kill mode discards rejected regions; preservation
-      // applies to surviving hypotheses, not to those intentionally removed.
+
       if (config_.reloc_free_space_mode != "kill") {
         EXPECT_EQ(cost["admitted_basins"].asUInt64(), 1U);
         EXPECT_GE(cost["preserved_basins"].asUInt64(), 1U);
@@ -331,8 +324,7 @@ TEST_F(LocalizationEpisode, OppositeHeadingsInSymmetricGeometryRemainAmbiguous) 
 }
 
 TEST_F(LocalizationEpisode, UnchangedSeedsCannotStrandSearchInOldPoseModes) {
-  // All three places remain in retrieval with the same uniform yaw seeds.
-  // The third mode has no geometric support in the initial observation.
+
   config_.rhpd_use_sc_yaw = false;
   const auto repeated = synthesizeBodyCloud(scene_, makePose(6, 0, 0), 12, 0, 0, 1442);
   auto distinct = pcl::make_shared<Cloud>(*repeated);
@@ -365,8 +357,7 @@ TEST_F(LocalizationEpisode, UnchangedSeedsCannotStrandSearchInOldPoseModes) {
 
 TEST_F(LocalizationEpisode, NoPlaceCandidateLeavesPoseUnavailable) {
   config_.rhpd_dist_threshold = 1e-9;
-  // With a populated RHPD map this also disables building a ScanContext query,
-  // so an unrelated descriptor cannot be rescued by SC fallback.
+
   config_.rhpd_use_sc_yaw = false;
   localizer_ = std::make_unique<N3MappingCore>(
       config_, N3MappingCore::WorldCloudOutput::Disabled);
@@ -405,5 +396,5 @@ TEST_F(LocalizationEpisode, MapExtensionTracksImmutableLoadedGeometryAcrossAncho
   }
 }
 
-}  // namespace
-}  // namespace n3mapping::test
+}
+}

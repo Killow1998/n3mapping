@@ -217,4 +217,4 @@ bool RelocalizationDecisionPolicy::samePhysicalPose(
          rotation < config_.reloc_track_max_rotation;
 }
 
-} // namespace n3mapping
+}

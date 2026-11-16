@@ -1,4 +1,3 @@
-// Immutable, map-bound prepared target sidecar for global relocalization.
 #pragma once
 
 #include <cstddef>
@@ -44,8 +43,7 @@ public:
     using PointCloudT = pcl::PointCloud<PointT>;
 
     LocalizationAtlas(const Config& config, PointCloudMatcher& matcher);
-    // Prepare an immutable in-memory reference in the worker. The owner swaps
-    // only its payload; the matcher reference never crosses ownership domains.
+
     bool prepare(const std::vector<Keyframe::Ptr>& keyframes,
                  LocalizationAtlasStats* stats = nullptr);
     void swapData(LocalizationAtlas& other);
@@ -82,7 +80,7 @@ public:
     }
 
     PointCloudT::Ptr cropVisibilityTarget(const Eigen::Vector3d& center) const;
-    // Original point order and exact sphere predicate, sharing immutable map data.
+
     std::shared_ptr<const std::vector<std::uint32_t>> cropVisibilityIndices(
         const Eigen::Vector3d& center) const;
 
@@ -113,4 +111,4 @@ private:
     std::shared_ptr<const SpatialPointBlocks> blocks_;
 };
 
-}  // namespace n3mapping
+}

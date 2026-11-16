@@ -50,7 +50,7 @@ TEST(VisibilityConsistencyTest, MatchingFloorCannotHideContradictoryWalls) {
   const auto result = evaluatePreparedVisibilityConsistency(
       map, observation, Eigen::Isometry3d::Identity());
   ASSERT_TRUE(result.valid);
-  ASSERT_GT(result.consistency_ratio, 0.5); // The old pooled witness passes.
+  ASSERT_GT(result.consistency_ratio, 0.5);
   EXPECT_LT(result.planar_min_support, 0.5);
 }
 
@@ -86,7 +86,7 @@ TEST(VisibilityConsistencyTest, GeometryInterpolationCannotReplaceDirectForegrou
     }
   }
   pcl::PointCloud<pcl::PointXYZI> map;
-  point.y = -0.02; // Matching return lies just across the bearing boundary.
+  point.y = -0.02;
   map.push_back(point);
   const auto interpolated = evaluatePreparedVisibilityConsistency(
       map, observed, Eigen::Isometry3d::Identity());
@@ -109,8 +109,7 @@ TEST(VisibilityConsistencyTest, PlanarWitnessHandlesTiltAndMissingReturns) {
     pose.linear() = (Eigen::AngleAxisd(tilt, Eigen::Vector3d::UnitX()) *
                      Eigen::AngleAxisd(0.3, Eigen::Vector3d::UnitZ())).toRotationMatrix();
     auto query = pcl::make_shared<pcl::PointCloud<pcl::PointXYZI>>();
-    // Missing query returns do not turn the remaining measured surfaces into
-    // contradiction. Use a deterministic dropout independent of surface type.
+
     for (std::size_t i = 0; i < map->size(); ++i) {
       if (i % 4 == 0) continue;
       const auto q = pose.inverse() * (*map)[i].getVector3fMap().cast<double>();
@@ -137,8 +136,7 @@ TEST(VisibilityConsistencyTest, GrazingSamplesDoNotHideRealForegroundBlockers) {
         map.push_back(point);
         if (x % 10 == 0 && z % 2 == 0) query->push_back(point);
       }
-  // Elevated transverse patches constrain along-corridor translation without
-  // occluding the long side walls observed below them.
+
   for (double side : {-1.0, 1.0})
     for (int y = -4; y <= 4; ++y)
       for (int z = 12; z <= 24; ++z) {
@@ -473,9 +471,7 @@ TEST(VisibilityConsistencyTest, NoKnownBinsRemainUndefinedShadowEvidence) {
 
 TEST(VisibilityConsistencyTest,
      ExperimentalRangeMatchingCanHideForegroundContradictions) {
-  // Characterize the experimental mode's limitation: matching the background
-  // erases the nearer return's contradiction. This does not certify visibility
-  // through an opaque foreground surface; the Product profile leaves it off.
+
   const auto query = makeFourRayCloud(5.0);
   auto doubled_map = makeFourRayCloud(5.0);
   const auto nearer = makeFourRayCloud(2.0);
@@ -499,8 +495,7 @@ TEST(VisibilityConsistencyTest,
 
 TEST(VisibilityConsistencyTest,
      OcclusionAwarenessStillContradictsAWallThatIsNotThere) {
-  // Nothing at the measured range: every accumulated return falls short, so the
-  // bearing is a contradiction whichever return is scored against.
+
   const auto query = makeFourRayCloud(5.0);
   const auto foreground_map = makeFourRayCloud(2.0);
 
@@ -530,5 +525,5 @@ TEST(VisibilityConsistencyTest, SymmetricObservationProvidesEqualPoseEvidence) {
   EXPECT_DOUBLE_EQ(identity.evidence_log_odds, rotated.evidence_log_odds);
 }
 
-} // namespace
-} // namespace n3mapping
+}
+}

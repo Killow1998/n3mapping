@@ -1,4 +1,3 @@
-// ROS-free core data contracts for n3mapping.
 #pragma once
 
 #include <cstdint>
@@ -26,7 +25,7 @@ struct LioFrame {
   using PointCloud = pcl::PointCloud<pcl::PointXYZI>;
 
   TimeStamp stamp;
-  // Frame in which T_world_lidar is expressed by the upstream LIO source.
+
   std::string source_frame_id;
   Eigen::Isometry3d T_world_lidar = Eigen::Isometry3d::Identity();
   PointCloud::Ptr undistorted_cloud;
@@ -60,16 +59,14 @@ struct BackendOutput {
   bool relocalization_locked = false;
   RelocalizationState relocalization_state = RelocalizationState::SEARCHING;
   PoseSource pose_source = PoseSource::NONE;
-  // Decision from the relocalization attempt made for this frame. "tracking"
-  // means the already-locked tracker supplied the pose without a new attempt.
+
   std::string relocalization_decision = "not_attempted";
   int64_t keyframe_id = -1;
   int64_t relocalization_seed_keyframe_id = -1;
   int64_t relocalization_support_keyframe_id = -1;
-  // Legacy alias for relocalization_support_keyframe_id.
+
   int64_t matched_keyframe_id = -1;
-  // Successful mapping outputs use the latest backend map correction for
-  // both keyframes and intermediate frames. cloud_world uses this same pose.
+
   Eigen::Isometry3d T_world_lidar = Eigen::Isometry3d::Identity();
   LioFrame::PointCloud::Ptr cloud_body;
   LioFrame::PointCloud::Ptr cloud_world;
@@ -97,9 +94,9 @@ struct DenseTrajectoryPose {
   uint64_t seq = 0;
   double timestamp = 0.0;
   Eigen::Isometry3d pose_world_lidar = Eigen::Isometry3d::Identity();
-  // Checkpoint provenance; absent in legacy/export-only trajectories.
+
   std::optional<AnchoredDenseTrajectorySample> correction_source;
 };
 
-} // namespace core
-} // namespace n3mapping
+}
+}

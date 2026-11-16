@@ -16,7 +16,7 @@ using Clock = std::chrono::steady_clock;
 double elapsedMs(const Clock::time_point &started) {
   return std::chrono::duration<double, std::milli>(Clock::now() - started).count();
 }
-} // namespace
+}
 
 TrackingTargetCache::TrackingTargetCache(const Config &config,
                                         KeyframeManager &keyframe_manager,
@@ -121,7 +121,7 @@ void TrackingTargetCache::rebuildLoadedMapIfNeeded() {
   if (loaded_map_ && !loaded_map_->empty() &&
       loaded_revision_.generation == revision.generation &&
       loaded_keyframe_count_ == loaded_keyframes.size()) {
-    // Keep the loaded reference immutable across extension graph corrections.
+
     return;
   }
   loaded_entries_.clear();
@@ -181,9 +181,7 @@ TrackingTargetCache::acquireLoadedFromSnapshot(int64_t anchor_id) {
   if (result.submap_points == 0) return result;
   result.miss = true;
   ++loaded_misses_;
-  // The map does not change when a different anchor becomes nearest. Build
-  // its exact-search trees and normal/covariance levels once per generation.
-  // Local raw crops remain available for the independent visibility gate.
+
   if (!loaded_prepared_) {
     const auto prepare_started = Clock::now();
     const auto cpu_started = std::clock();
@@ -232,9 +230,7 @@ void TrackingTargetCache::installLoadedReference(
   clearMap();
   loaded_map_ = cloud;
   blocks_ = std::move(blocks);
-  // Occupied bounds pay off for distant search seeds. Tracking starts inside
-  // an established correspondence basin, where another box test costs more
-  // than the split-cell/hint search. Share exactly the same geometry and trees.
+
   auto tracking_target = target;
   for (auto& level : tracking_target.plane_levels) {
     level.search_bounds.reset();
@@ -264,4 +260,4 @@ TrackingTargetCache::Diagnostics TrackingTargetCache::diagnostics() const {
   return result;
 }
 
-} // namespace n3mapping
+}

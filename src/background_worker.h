@@ -7,7 +7,7 @@
 #include <utility>
 
 namespace n3mapping {
-// One isolated job at a time, on a reusable thread.
+
 class BackgroundWorker {
 public:
   ~BackgroundWorker() {
@@ -40,7 +40,7 @@ private:
         if (!task_.valid()) return;
         task = std::move(task_);
       }
-      task();  // Exceptions are delivered by the existing future.get() path.
+      task();
     }
   }
   std::mutex mutex_;
@@ -50,4 +50,4 @@ private:
   std::thread thread_;
 };
 
-} // namespace n3mapping
+}

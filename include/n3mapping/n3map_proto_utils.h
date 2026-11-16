@@ -1,4 +1,3 @@
-// Shared ROS-free pbstream proto validation and parsing utilities.
 #pragma once
 
 #include <cstdint>
@@ -25,7 +24,7 @@ enum class PbstreamLoadPolicy {
 struct PbstreamLoadOptions {
     PbstreamLoadPolicy policy = PbstreamLoadPolicy::STRICT;
     bool allow_keyframe_fallback_dense = false;
-    // Core loading restores these after the map-bound Atlas has been validated.
+
     bool rebuild_descriptors = true;
 };
 
@@ -86,7 +85,6 @@ struct ParsedEdgeProto {
     PbstreamEdgeConstraintMode constraint_mode = PbstreamEdgeConstraintMode::FULL_6DOF;
 };
 
-// Floor attitude constraint as parsed from a pbstream (map format 2.4.0).
 struct ParsedFloorAttitudeConstraint {
     int64_t node_id = -1;
     Eigen::Vector3d normal_body = Eigen::Vector3d::UnitZ();
@@ -151,4 +149,4 @@ bool parseFloorAttitudeFactorsFromProto(
     std::vector<ParsedFloorAttitudeConstraint>* floors,
     std::string* error);
 
-}  // namespace n3mapping
+}

@@ -6,14 +6,14 @@ namespace n3mapping {
 void N3MappingNode::publishPath(const std_msgs::msg::Header& header, const Eigen::Isometry3d* current_pose)
 {
     nav_msgs::msg::Path mapping_path;
-    // Serialize localization history directly, without copying every pose.
+
     auto& path_msg = run_mode_ == CoreRunMode::LOCALIZATION
       ? localization_path_ : mapping_path;
     path_msg.header = header;
     path_msg.header.frame_id = config_.world_frame;
 
     if (run_mode_ == CoreRunMode::LOCALIZATION) {
-        // 定位模式: 只累积发布实时定位轨迹
+
         if (current_pose) {
             geometry_msgs::msg::PoseStamped pose;
             pose.header = header;
@@ -29,10 +29,9 @@ void N3MappingNode::publishPath(const std_msgs::msg::Header& header, const Eigen
             path_msg.poses.push_back(pose);
         }
     } else {
-        // 建图/续建模式: 按 version 分段构建彩色轨迹 marker
-        // 同时保留 nav_msgs/Path 发布全部轨迹（用于数据记录/导航）
-        std::vector<geometry_msgs::msg::Point> loaded_points; // 旧地图 (蓝色)
-        std::vector<geometry_msgs::msg::Point> new_points;    // 新建帧 (绿色)
+
+        std::vector<geometry_msgs::msg::Point> loaded_points;
+        std::vector<geometry_msgs::msg::Point> new_points;
 
         for (const auto& kf : getKeyframesForPublishing()) {
             if (!kf) continue;
@@ -83,7 +82,6 @@ void N3MappingNode::publishPath(const std_msgs::msg::Header& header, const Eigen
             new_points.push_back(pt);
         }
 
-        // 发布彩色轨迹 marker 到 loop_closure_markers 话题
         publishPathMarkers(loaded_points, new_points, header);
     }
 
@@ -96,7 +94,6 @@ void N3MappingNode::publishPathMarkers(const std::vector<geometry_msgs::msg::Poi
 {
     visualization_msgs::msg::MarkerArray markers;
 
-    // 旧地图轨迹 (蓝色)
     if (loaded_points.size() >= 2) {
         visualization_msgs::msg::Marker loaded_marker;
         loaded_marker.header.frame_id = config_.world_frame;
@@ -114,7 +111,6 @@ void N3MappingNode::publishPathMarkers(const std::vector<geometry_msgs::msg::Poi
         markers.markers.push_back(loaded_marker);
     }
 
-    // 新建轨迹 (绿色)
     if (new_points.size() >= 2) {
         visualization_msgs::msg::Marker new_marker;
         new_marker.header.frame_id = config_.world_frame;
@@ -252,4 +248,4 @@ void N3MappingNode::initializeOptimizationLogging()
     logEvent("optimization_log_started", optimization_log_path_);
 }
 
-}  // namespace n3mapping
+}

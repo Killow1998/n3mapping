@@ -1,5 +1,3 @@
-// Localization lifecycle and public entry points. Search, tracking, map
-// evidence and offline probes are implemented in separate translation units.
 #include "n3mapping/world_localizing.h"
 #include "n3mapping/tracking_target_cache.h"
 #include "n3mapping/async_log.h"
@@ -84,9 +82,7 @@ void WorldLocalizing::notifyMapReplaced() {
   consecutive_track_failures_ = 0;
   query_builder_.reset();
   hypothesis_manager_.reset();
-  // Map-derived state: none of it may survive into the next map. A map that
-  // happens to have the same keyframe count as the previous one must still
-  // rebuild its frame-RHPD index, reloc map cache, free-space grid and atlas.
+
   place_index_.resetMapDerivedState();
   releaseSearchPreparation();
   tracking_targets_->clearMap();
@@ -153,7 +149,6 @@ void WorldLocalizing::installOptimizedReference(
   query_builder_.reset();
   hypothesis_manager_.reset();
   releaseSearchPreparation();
-  // Keep lock state, failure counters and the last raw odometry sample.
 }
 
 bool WorldLocalizing::loadLocalizationAtlas(const std::string &map_path,
@@ -181,7 +176,7 @@ bool WorldLocalizing::loadLocalizationAtlas(const std::string &map_path,
   std::string rebuild_reason;
   const bool auto_prepare = config_.reloc_atlas_path.empty();
   if (!localization_atlas_->load(map_path, atlas_path, &stats, &rebuild_reason, auto_prepare)) {
-    // Explicit artifacts can belong to a frozen deployment or Product bundle.
+
     if (!auto_prepare) {
       if (error) *error = rebuild_reason;
       return false;
@@ -263,4 +258,4 @@ VisibilityConsistencyResult WorldLocalizing::evaluateLoadedMapPoseVisibility(
                                        visibilityOptionsFromConfig(config_));
 }
 
-} // namespace n3mapping
+}

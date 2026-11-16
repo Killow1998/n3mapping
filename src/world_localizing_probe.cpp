@@ -110,4 +110,4 @@ WorldLocalizing::probeRegistrationSeeds(const PointCloudT::Ptr &cloud,
   return result;
 }
 
-} // namespace n3mapping
+}

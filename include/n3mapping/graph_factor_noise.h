@@ -1,4 +1,3 @@
-// Shared noise-model selection for reference and shadow graph factors.
 #pragma once
 
 #include <Eigen/Core>
@@ -23,8 +22,6 @@ struct GraphFactorNoiseSelection {
 gtsam::noiseModel::Gaussian::shared_ptr makeExplicitFullGraphFactorNoise(
     const Eigen::Matrix<double, 6, 6>& information);
 
-// Dimension-independent robust wrapping with matching nonlinear cost and IRLS
-// derivatives. Geometry factors must use the same convention as pose factors.
 gtsam::noiseModel::Base::shared_ptr makeGraphRobustNoise(
     const gtsam::noiseModel::Base::shared_ptr& base, const Config& config);
 
@@ -39,4 +36,4 @@ GraphFactorNoiseSelection makeXYYawGraphFactorNoise(
     const Config& config,
     bool use_robust);
 
-}  // namespace n3mapping
+}

@@ -21,8 +21,6 @@ class Callback final : public ros::CallbackInterface {
   std::function<void()> function_;
 };
 
-// Exercise the real ROS callback queues without init, master, topics or services.
-// The wrapper guard checks that production wires these same distinct queues.
 bool odomCompletesBeforeCloudRelease(bool separate_queues) {
   ros::CallbackQueue cloud_queue;
   ros::CallbackQueue odom_queue;
@@ -64,4 +62,4 @@ TEST(NoeticLiveOutputQueues, OriginalSingleQueueAblationDoesDelayOdom) {
   EXPECT_FALSE(odomCompletesBeforeCloudRelease(false));
 }
 
-}  // namespace
+}

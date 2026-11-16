@@ -21,9 +21,8 @@ std::unique_ptr<GraphOptimizer> GraphOptimizer::cloneCommitted() const {
     result->committed_floor_attitude_constraints_ =
         committed_floor_attitude_constraints_;
     result->needs_optimization_ = needs_optimization_;
-    // incrementalOptimize reconstructs a trial ISAM2 from gtsam_->graph_ and the
-    // committed estimates. No mutable solver/Bayes-tree state is shared.
+
     return result;
 }
 
-} // namespace n3mapping
+}

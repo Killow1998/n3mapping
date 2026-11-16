@@ -97,7 +97,7 @@ bool GraphOptimizer::replaceSharedPlanes(const std::vector<SharedPlane>& planes,
     gtsam_->initial_values_ = values;
     gtsam_->last_good_estimate_ = values;
     shared_planes_ = planes;
-    gtsam_->isam2_ = createISAM2(); // Next graph update builds its own transactional solver.
+    gtsam_->isam2_ = createISAM2();
     stats.optimized = optimize;
     return true;
   } catch (const std::exception& e) {
@@ -105,4 +105,4 @@ bool GraphOptimizer::replaceSharedPlanes(const std::vector<SharedPlane>& planes,
     return false;
   }
 }
-}  // namespace n3mapping
+}

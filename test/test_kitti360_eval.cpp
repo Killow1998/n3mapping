@@ -152,7 +152,7 @@ std::filesystem::path makeMiniKitti360Fixture(
     return root;
 }
 
-}  // namespace
+}
 
 TEST(N3MappingKitti360EvalTest, MappingLoopWritesEvaluationArtifacts)
 {
@@ -826,5 +826,5 @@ TEST(N3MappingKitti360EvalTest, RelocalizationWritesMetricsAndDebug)
     EXPECT_NE(queries.find("pose_success,lock_correct,false_lock,lock_latency_frames,failure_class"), std::string::npos);
 }
 
-}  // namespace test
-}  // namespace n3mapping
+}
+}

@@ -29,10 +29,10 @@ pcl::PointCloud<pcl::PointXYZI>::Ptr makeSectorCloud() {
             cloud->push_back(point);
         }
     };
-    add(2.0f, 0.0f, 50);    // front
-    add(0.0f, 2.0f, 50);    // left side
-    add(0.0f, -2.0f, 50);   // right side
-    add(-2.0f, 0.0f, 50);   // rear sector
+    add(2.0f, 0.0f, 50);
+    add(0.0f, 2.0f, 50);
+    add(0.0f, -2.0f, 50);
+    add(-2.0f, 0.0f, 50);
     auto addAngle = [&](double angle_deg, int count) {
         const double rad = angle_deg * M_PI / 180.0;
         for (int i = 0; i < count; ++i) {
@@ -45,10 +45,10 @@ pcl::PointCloud<pcl::PointXYZI>::Ptr makeSectorCloud() {
             cloud->push_back(point);
         }
     };
-    addAngle(150.0, 10);     // outside default rear sector
-    addAngle(-150.0, 10);    // outside default rear sector
-    addAngle(157.5, 10);     // inclusive boundary, removed
-    addAngle(-157.5, 10);    // inclusive boundary, removed
+    addAngle(150.0, 10);
+    addAngle(-150.0, 10);
+    addAngle(157.5, 10);
+    addAngle(-157.5, 10);
     cloud->width = static_cast<uint32_t>(cloud->size());
     cloud->height = 1;
     cloud->is_dense = false;
@@ -65,9 +65,9 @@ pcl::PointCloud<pcl::PointXYZI>::Ptr makeRangeSelfCloud() {
         point.intensity = 1.0f;
         cloud->push_back(point);
     };
-    add(2.0f, 0.0f, 0.0f);   // kept
-    add(4.0f, 0.0f, 0.0f);   // max-range removed
-    add(0.25f, 0.0f, 0.0f);  // self-box removed
+    add(2.0f, 0.0f, 0.0f);
+    add(4.0f, 0.0f, 0.0f);
+    add(0.25f, 0.0f, 0.0f);
     cloud->width = static_cast<uint32_t>(cloud->size());
     cloud->height = 1;
     cloud->is_dense = false;
@@ -109,7 +109,7 @@ std::filesystem::path findFilterTool() {
     return {};
 }
 
-}  // namespace
+}
 
 TEST(N3MappingFilterNavPbstreamTest, RemovesOnlyRearSectorAndRecomputesDescriptors) {
     const auto tool = findFilterTool();
@@ -361,5 +361,5 @@ TEST(N3MappingFilterNavPbstreamTest, FailsFastWhenFilterWouldEmptyKeyframe) {
     std::filesystem::remove_all(config.map_save_path);
 }
 
-}  // namespace test
-}  // namespace n3mapping
+}
+}

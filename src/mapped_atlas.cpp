@@ -24,7 +24,6 @@ struct RestoredAtlasTreeBuilder {
   }
 };
 
-
 bool slice(CodedInputStream& input, const char* base, const char** pointer,
            std::size_t* bytes) {
   std::uint32_t length;
@@ -130,7 +129,7 @@ std::shared_ptr<MappedTargetLevel> readLevel(
   if (next_point != count) return {};
   return level;
 }
-} // namespace
+}
 
 bool loadMappedAtlas(const std::string& path, LocalizationAtlasData& metadata,
     PointCloudMatcher::PreparedTarget& target,
@@ -229,4 +228,4 @@ bool loadMappedAtlas(const std::string& path, LocalizationAtlasData& metadata,
   if (refine) install(refine, target.refine_level, metadata.mutable_refine_level());
   return true;
 }
-} // namespace n3mapping::registration_detail
+}

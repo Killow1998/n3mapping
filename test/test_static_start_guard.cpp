@@ -8,21 +8,19 @@ namespace {
 
 using n3mapping::StaticStartGuard;
 
-// A room the sensor sits in: floor, and four walls a few metres out.
 pcl::PointCloud<pcl::PointXYZI> roomSeenFrom(double x, double y, double yaw = 0.0)
 {
     pcl::PointCloud<pcl::PointXYZI> cloud;
     const double c = std::cos(-yaw), s = std::sin(-yaw);
     for (int i = -60; i <= 60; ++i) {
         for (int j = -60; j <= 60; ++j) {
-            // Points are in the sensor frame, so moving the sensor moves them
-            // the other way.
+
             const double wx = i * 0.1 - x;
             const double wy = j * 0.1 - y;
             pcl::PointXYZI p;
             p.x = static_cast<float>(wx * c - wy * s);
             p.y = static_cast<float>(wx * s + wy * c);
-            p.z = -0.65f;  // off the 0.3 m voxel boundary, as a real floor is
+            p.z = -0.65f;
             p.intensity = 0.0f;
             cloud.points.push_back(p);
         }
@@ -50,8 +48,6 @@ TEST(StaticStartGuard, ReleasesStableStationaryInputAfterThreeSeconds)
     EXPECT_FALSE(guard.releasedByTimeout());
 }
 
-// The odometry claims 9.37 m across the stationary opening it should claim none
-// of. Stable scans must not excuse that odometry drift.
 TEST(StaticStartGuard, RejectsDriftingOdometryDespiteStableNoisyScans)
 {
     StaticStartGuard guard;
@@ -65,8 +61,6 @@ TEST(StaticStartGuard, RejectsDriftingOdometryDespiteStableNoisyScans)
     EXPECT_FALSE(guard.released());
 }
 
-// 0.17 m/s at 10 Hz advances 17 mm a frame, which is why the reference is the
-// opening view and not the previous one: consecutive frames barely differ.
 TEST(StaticStartGuard, ReleasesOnceSlowMotionAccumulates)
 {
     StaticStartGuard guard;
@@ -83,10 +77,6 @@ TEST(StaticStartGuard, ReleasesOnceSlowMotionAccumulates)
     EXPECT_FALSE(guard.releasedByTimeout());
 }
 
-// Turning on the spot over a floor-dominated scene barely changes which cells
-// are occupied, so the guard need not release on it. That is acceptable: the
-// rotation is itself the excitation the estimator was short of, and the
-// translation that follows releases the guard anyway.
 TEST(StaticStartGuard, MayNotSeeRotationAlone_ButSeesWhatFollows)
 {
     StaticStartGuard guard;
@@ -103,7 +93,6 @@ TEST(StaticStartGuard, MayNotSeeRotationAlone_ButSeesWhatFollows)
     EXPECT_TRUE(released);
 }
 
-// Having moved once, a platform does not become un-moved.
 TEST(StaticStartGuard, Latches)
 {
     StaticStartGuard guard;
@@ -123,8 +112,6 @@ TEST(StaticStartGuard, Latches)
     EXPECT_DOUBLE_EQ(guard.releaseTimestamp(), released_at);
 }
 
-// A test that fails to notice motion must not suppress the map for a whole
-// session, so the wait is bounded.
 TEST(StaticStartGuard, GivesUpWaitingAfterTheCap)
 {
     StaticStartGuard::Options options;
@@ -190,4 +177,4 @@ TEST(StaticStartGuard, RejectsRotationalDriftAndRepeatedTimestamps)
     for (int i = 0; i < 100; ++i) EXPECT_FALSE(repeated.update(1.0, still, Eigen::Isometry3d::Identity()));
 }
 
-}  // namespace
+}

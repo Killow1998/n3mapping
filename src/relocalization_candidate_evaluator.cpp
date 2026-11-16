@@ -24,7 +24,7 @@ bool sameSeed(const std::pair<int64_t, double>& lhs,
          std::abs(std::remainder(lhs.second - rhs.second, 2.0 * M_PI)) <
              kDescriptorYawMergeTolerance;
 }
-} // namespace
+}
 
 RelocalizationCandidateEvaluator::RelocalizationCandidateEvaluator(
     const Config &config, KeyframeManager &keyframe_manager,
@@ -143,9 +143,7 @@ RelocalizationCandidateEvaluator::evaluate(
     bool needs_registration = false;
     {
       std::lock_guard<std::mutex> lock(seed_mutex_);
-      // Generator deduplication already treats these tiny angular differences
-      // as the same seed. Exact floating keys otherwise miss neighboring SC
-      // sectors calculated through different float/double expressions.
+
       const auto previous = std::find_if(seed_poses_.begin(), seed_poses_.end(),
           [&](const auto& entry) { return sameSeed(seed, entry.first); });
       if (previous != seed_poses_.end()) {
@@ -175,7 +173,7 @@ RelocalizationCandidateEvaluator::evaluate(
         ++cost.fixed_pose_evaluations;
       }
     }
-    // Failure of an old mode must not suppress a new mode with the same seed.
+
     if (!evaluateRelocMatchQuality(match, config_).accepted) {
       ++cost.seed_initializations;
       if (continuing) ++cost.seed_retries;
@@ -203,8 +201,7 @@ RelocalizationCandidateEvaluator::evaluate(
               << " inlier_ratio=" << match.inlier_ratio;
       std::lock_guard<std::mutex> lock(seed_mutex_);
       const auto quality = evaluateRelocMatchQuality(match, config_);
-      // An unfinished solve may carry a useful proposal, but no evidence.
-      // Its next use must converge on the current observation before admission.
+
       if (config_.reloc_temporal_window_size > 1 &&
           match.termination == MatchTermination::MaxIterations &&
           isFiniteRigidPose(match.T_target_source) && quality.fitness_pass &&
@@ -223,9 +220,7 @@ RelocalizationCandidateEvaluator::evaluate(
         (!selected_visibility.valid ||
          initial_visibility.consistency_ratio >
              selected_visibility.consistency_ratio + 1e-9)) {
-      // ICP is only a local pose proposal. Keep the descriptor pose when it
-      // explains the measured first-return geometry better than the optimizer's
-      // endpoint.
+
       const auto fixed_started = std::chrono::steady_clock::now();
       match = matcher_.evaluatePreparedPose(
           *prepared_target.registration_target, prepared_query, initial_pose,
@@ -252,8 +247,7 @@ RelocalizationCandidateEvaluator::evaluate(
     evaluation.visibility = selected_visibility;
     seed_evaluations[index] = std::move(evaluation);
   };
-  // The enclosing search team also runs these tasks while a basin waits.
-  // Preparing its target once avoids repeating map work for each yaw.
+
   if (omp_in_parallel()) {
 #pragma omp taskgroup
     {
@@ -269,8 +263,7 @@ RelocalizationCandidateEvaluator::evaluate(
     cost.addCandidate(seed_costs[i]);
     if (seed_evaluations[i]) evaluations.push_back(std::move(*seed_evaluations[i]));
   }
-  // Seed tasks share this candidate's target; their local cost records have
-  // no cache budget of their own.
+
   cost.effective_cache_max_bytes = prepared_target.metrics.effective_max_bytes;
   cost.effective_cache_max_entries = prepared_target.metrics.effective_max_entries;
 
@@ -293,9 +286,6 @@ RelocalizationCandidateEvaluator::evaluate(
                                             rhs.match.T_target_source);
             });
 
-  // Different yaw seeds often converge onto the same physical solution. Keep
-  // one representative per mode, but retain genuinely different orientations
-  // so temporal ambiguity logic can reject unobservable symmetries.
   std::vector<RelocalizationCandidateEvaluation> distinct;
   distinct.reserve(evaluations.size());
   for (const auto &evaluation : evaluations) {
@@ -320,4 +310,4 @@ RelocalizationCandidateEvaluator::evaluate(
   return distinct;
 }
 
-} // namespace n3mapping
+}

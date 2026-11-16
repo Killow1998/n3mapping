@@ -51,10 +51,6 @@ public:
                                                  const Eigen::Isometry3d& measured_match_query);
 
 private:
-    // Both prepared registration paths attach identical quality evidence and
-    // information semantics. Keeping this in one place prevents either Mapping
-    // or Map Extension from bypassing loop_use_icp_information and the product
-    // loop thresholds.
     void finalizeRegistrationEvidence(
         LoopVerification* verification,
         const Eigen::Matrix<double, 6, 6>& measurement_information) const;
@@ -71,4 +67,4 @@ private:
     Config config_;
 };
 
-}  // namespace n3mapping
+}

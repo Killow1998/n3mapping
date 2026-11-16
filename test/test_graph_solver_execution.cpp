@@ -129,5 +129,5 @@ TEST(GraphSolverExecution, ConcurrentGraphSnapshotsMatchSerialNumerics) {
         EXPECT_TRUE(source.getOptimizedPose(id).matrix().isApprox(pose.matrix(), 0.));
 }
 
-}  // namespace
-}  // namespace n3mapping
+}
+}

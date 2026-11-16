@@ -1,4 +1,3 @@
-// Optional offline registration evidence; ordinary backend consumers do not need it.
 #pragma once
 #include "n3mapping/point_cloud_matcher.h"
 #include "n3mapping/visibility_consistency.h"
@@ -6,8 +5,7 @@
 #include <string>
 #include <vector>
 namespace n3mapping {
-// Offline-only registration evidence. The oracle pose is never used by the
-// runtime relocalization path; this result exists to locate which stage fails.
+
 struct RegistrationSeedProbeAttempt {
   std::string seed_kind;
   int64_t seed_keyframe_id = -1;
@@ -33,5 +31,4 @@ struct RegistrationSeedProbeResult {
   std::vector<RegistrationSeedProbeAttempt> attempts;
 };
 
-
-}  // namespace n3mapping
+}

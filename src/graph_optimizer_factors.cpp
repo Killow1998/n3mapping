@@ -8,13 +8,10 @@ void GraphOptimizer::addPriorFactor(int64_t id, const Eigen::Isometry3d& pose) {
     gtsam::Key key = gtsam::Symbol('x', id);
     gtsam::Pose3 gtsam_pose = eigenToGtsam(pose);
 
-    // 创建先验噪声模型
     auto noise_model = createPriorNoiseModel();
 
-    // 添加到待提交因子；只有优化成功后才进入 committed graph。
     gtsam_->new_factors_.add(gtsam::PriorFactor<gtsam::Pose3>(key, gtsam_pose, noise_model));
 
-    // 添加待提交初始值
     if (!hasAnyNode(id)) {
         gtsam_->new_values_.insert(key, gtsam_pose);
         pending_node_ids_.insert(id);
@@ -28,20 +25,16 @@ void GraphOptimizer::addOdometryEdge(const EdgeInfo& edge) {
     gtsam::Key key_to = gtsam::Symbol('x', edge.to_id);
     gtsam::Pose3 measurement = eigenToGtsam(edge.measurement);
 
-    // 创建噪声模型
     auto noise_model = createNoiseModel(edge.information);
     if (!noise_model) {
         noise_model = createOdomNoiseModel();
     }
 
-    // 添加到待提交因子；只有优化成功后才进入 committed graph。
     gtsam_->new_factors_.add(gtsam::BetweenFactor<gtsam::Pose3>(key_from, key_to, measurement, noise_model));
 
-    // 如果目标节点不存在，尝试从 from 节点推导待提交初始值。
     (void)ensureTargetInitialValue(
         edge.from_id, edge.to_id, edge.measurement);
 
-    // 存储待提交边信息
     pending_edges_.push_back(edge);
     needs_optimization_ = true;
 }
@@ -73,25 +66,21 @@ bool GraphOptimizer::addSessionOdometryEdge(
     return true;
 }
 
-
 void GraphOptimizer::addLoopEdge(const EdgeInfo& edge) {
     gtsam::Key key_from = gtsam::Symbol('x', edge.from_id);
     gtsam::Key key_to = gtsam::Symbol('x', edge.to_id);
     gtsam::Pose3 measurement = eigenToGtsam(edge.measurement);
 
-    // 创建带鲁棒核函数的噪声模型
     auto noise_model = edge.constraint_mode == EdgeConstraintMode::XY_YAW
         ? createXYYawLoopNoiseModel(edge.information, config_.use_robust_kernel)
         : createRobustNoiseModel(edge.information, config_.use_robust_kernel);
 
-    // 添加到待提交因子；只有优化成功后才进入 committed graph。
     if (edge.constraint_mode == EdgeConstraintMode::XY_YAW) {
         gtsam_->new_factors_.add(Pose3XYYawFactor(key_from, key_to, measurement, noise_model));
     } else {
         gtsam_->new_factors_.add(gtsam::BetweenFactor<gtsam::Pose3>(key_from, key_to, measurement, noise_model));
     }
 
-    // 存储待提交边信息
     EdgeInfo loop_edge = edge;
     loop_edge.type = EdgeType::LOOP;
     pending_edges_.push_back(loop_edge);
@@ -138,8 +127,7 @@ bool GraphOptimizer::rebaseSessionAndAddLoopEdge(
     if (shared_planes_.empty())
         return loadGraph(rebased_nodes, rebuilt_edges, committed_floor_attitude_constraints_);
     auto planes = sharedPlanes();
-    // A large cross-session rigid reset invalidates that session's associations.
-    // Keep old-map observations; the next geometry job reassociates the new ones.
+
     for (auto& plane : planes)
         plane.observations.erase(std::remove_if(plane.observations.begin(), plane.observations.end(),
             [&](const auto& o) { return o.node_id >= first_session_node_id; }), plane.observations.end());
@@ -166,14 +154,10 @@ bool GraphOptimizer::addSessionAnchorEdge(const EdgeInfo& edge) {
     gtsam::Key key_to = gtsam::Symbol('x', edge.to_id);
     gtsam::Pose3 measurement = eigenToGtsam(edge.measurement);
 
-    // Same robust-noise path as loop closures: a cross-session anchor is a
-    // global constraint, not an odometry chain link.
     auto noise_model = edge.constraint_mode == EdgeConstraintMode::XY_YAW
         ? createXYYawLoopNoiseModel(edge.information, config_.use_robust_kernel)
         : createRobustNoiseModel(edge.information, config_.use_robust_kernel);
 
-    // Unlike a loop, the first cross-session anchor may introduce a new graph
-    // node. Reject a missing source before staging a factor or edge.
     if (!ensureTargetInitialValue(
             edge.from_id, edge.to_id, edge.measurement)) {
         return false;
@@ -202,4 +186,4 @@ bool GraphOptimizer::hasGlobalConstraint() const {
     return hasLoopClosure() || has_session_anchor_ || pending_has_session_anchor_;
 }
 
-} // namespace n3mapping
+}

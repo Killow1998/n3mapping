@@ -1,4 +1,3 @@
-// KeyframeManager: keyframe selection, storage, retrieval, and local submap construction.
 #pragma once
 
 #include <cstdint>
@@ -8,24 +7,9 @@
 
 #include "n3mapping/config.h"
 #include "n3mapping/keyframe.h"
+#include "n3mapping/keyframe_map_revision.h"
 
 namespace n3mapping {
-
-struct KeyframeMapRevision {
-    std::uint64_t generation = 0;
-    std::uint64_t structure_revision = 0;
-    std::uint64_t pose_revision = 0;
-
-    bool operator==(const KeyframeMapRevision& other) const {
-        return generation == other.generation &&
-               structure_revision == other.structure_revision &&
-               pose_revision == other.pose_revision;
-    }
-
-    bool operator!=(const KeyframeMapRevision& other) const {
-        return !(*this == other);
-    }
-};
 
 class KeyframeManager {
 public:
@@ -42,8 +26,7 @@ public:
         double timestamp, const Eigen::Isometry3d& pose_in_session,
         const Eigen::Isometry3d& initial_pose_in_map,
         const Keyframe::PointCloudT::Ptr& cloud, MapSessionId session_id);
-    // Transaction rollback for the just-added keyframe only. The expected id
-    // prevents callers from deleting an unrelated or already-followed frame.
+
     bool removeLatestKeyframe(int64_t expected_id);
     Keyframe::Ptr getKeyframe(int64_t id) const;
     Keyframe::Ptr getLatestKeyframe() const;
@@ -73,8 +56,7 @@ public:
         int64_t center_id, int range, int64_t root_id,
         int64_t excluded_keyframe_id = -1) const;
     enum class PoseSource { Optimized, Odometry };
-    // Online descriptors use a consistent local odometry frame. Loaded-map
-    // descriptors use the optimized map; odometry never crosses sessions.
+
     Keyframe::PointCloudT::Ptr buildCausalSubmapInRootFrame(
         int64_t center_id, int range, int64_t root_id,
         PoseSource poses = PoseSource::Optimized) const;
@@ -92,4 +74,4 @@ private:
     static double computeRotationAngle(const Eigen::Isometry3d& pose1, const Eigen::Isometry3d& pose2);
 };
 
-} // namespace n3mapping
+}

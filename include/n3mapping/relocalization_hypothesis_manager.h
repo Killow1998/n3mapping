@@ -1,4 +1,3 @@
-// Temporal state and lifecycle for relocalization hypotheses.
 #pragma once
 
 #include <cstddef>
@@ -14,10 +13,9 @@
 namespace n3mapping {
 
 struct RelocalizationHypothesis {
-  // Pose proposal from a previous lock; all evidence belongs to this window.
+
   bool tracking_proposal = false;
-  // Observation within this window when this region first acquired geometry.
-  // Late arrivals must not inherit the older hypotheses' confirmation age.
+
   int first_observation = 1;
   Eigen::Isometry3d first_odom_pose = Eigen::Isometry3d::Identity();
   int64_t seed_match_id = -1;
@@ -36,8 +34,7 @@ struct RelocalizationHypothesis {
   double last_rot_info_min = 0.0;
   double last_trans_info_min = 0.0;
   int last_iterations = 0;
-  // Diagnostics only: which pose the recorded registration numbers describe,
-  // and whether that registration would have passed the production gate.
+
   bool last_pose_is_refined = false;
   bool last_production_quality = false;
   double last_rot_info_marginal_min = 0.0;
@@ -104,4 +101,4 @@ private:
   int persisted_frames_ = 0;
 };
 
-} // namespace n3mapping
+}

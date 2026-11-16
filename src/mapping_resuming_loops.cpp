@@ -21,9 +21,6 @@ int MappingResuming::detectCrossLoops(int64_t new_keyframe_id) {
     auto new_kf = keyframe_manager_.getKeyframe(new_keyframe_id);
     if (!new_kf || !new_kf->cloud) return 0;
 
-    // The first new keyframe is already tied to the loaded map by the explicit
-    // SESSION_ANCHOR. Re-registering that same frame immediately is redundant
-    // and, before this guard, allowed a raw ICP Hessian to overpower the anchor.
     if (new_keyframe_id == original_max_keyframe_id_ + 1) {
         return 0;
     }
@@ -127,10 +124,7 @@ int MappingResuming::detectCrossLoops(int64_t new_keyframe_id) {
     std::vector<LoopConstraintPipelineResult> accepted_constraints;
     accepted_constraints.reserve(valid_loops.size());
     const LoopConstraintContext constraint_context{true};
-    // A good single-frame score is not enough to choose the cross-session
-    // correspondence. Gate every bounded candidate with independent neighbor
-    // evidence first; otherwise one attractive alias can be selected, fail
-    // consensus, and suppress a valid candidate from the same query.
+
     for (auto& constraint : verification_pipeline.evaluateConstraints(
              valid_loops, LoopEdgeDirection::MatchToQuery, constraint_context)) {
         const auto& loop = constraint.loop;
@@ -184,11 +178,7 @@ int MappingResuming::detectCrossLoops(int64_t new_keyframe_id) {
         }
     }
     if (!edges.empty()) {
-        // A correct session-merge loop can be tens of metres from the raw
-        // odometry chain. With a redescending kernel it would enter as an
-        // outlier and barely move the graph. Seed the new-session component
-        // at the accepted measurement, preserving every raw odometry edge,
-        // then rebuild transactionally so the robust loop starts in-basin.
+
         if (edges.size() != 1) {
             LOG(ERROR) << "[MappingResuming] Expected one selected cross-session "
                           "edge, got " << edges.size();
@@ -228,11 +218,6 @@ int MappingResuming::detectCrossLoops(int64_t new_keyframe_id) {
         keyframe_manager_.updateOptimizedPoses(optimized_poses);
         refreshSubmapPosesNoLock("cross_session_loop");
 
-        // Map-to-odom is a live correction, not a once-per-session constant.
-        // Once a trusted old-map constraint moves the current query in the
-        // graph, carry that correction into every non-keyframe output and the
-        // initial value of the next keyframe while retaining raw odometry on
-        // the ODOMETRY edge itself.
         const auto optimized_it = optimized_poses.find(new_keyframe_id);
         if (optimized_it != optimized_poses.end() &&
             previous_new_keyframe_id_ == new_keyframe_id &&
@@ -255,4 +240,4 @@ int MappingResuming::detectCrossLoops(int64_t new_keyframe_id) {
     return static_cast<int>(edges.size());
 }
 
-}  // namespace n3mapping
+}

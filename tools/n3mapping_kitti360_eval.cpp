@@ -584,10 +584,7 @@ Eigen::Isometry3d applyCalibrationMode(const Eigen::Isometry3d& T_world_pose,
         return T_world_pose;
     }
     if (calibration.used_mode == "official") {
-        // KITTI-360 poses.txt stores pose/IMU -> world. calib_cam_to_pose
-        // stores camera -> pose, while calib_cam_to_velo stores camera ->
-        // Velodyne. Therefore Velodyne -> world is:
-        //   T_world_pose * T_pose_cam * inverse(T_velo_cam).
+
         return T_world_pose * calibration.T_pose_cam *
                calibration.T_cam_velo.inverse();
     }
@@ -1020,9 +1017,7 @@ Config makeEvalConfig(const Options& options)
     config.reloc_debug_path = (options.output_dir / "relocalization_debug.jsonl").string();
     config.reloc_atlas_enable = !options.atlas_path.empty();
     config.reloc_atlas_path = options.atlas_path.string();
-    // Dataset replay supplies oracle ground-truth poses. Keep it a backend
-    // diagnostic: real-LIO startup and divergence guards are validated by bag
-    // replay and would otherwise conflate frontend safety with backend quality.
+
     config.mapping_static_start_guard_enable = false;
     config.odom_sanity_enable = false;
     return config;
@@ -1603,8 +1598,8 @@ int runRegistrationProbe(const Options& options, const AlignedFrames& aligned)
     return 0;
 }
 
-}  // namespace
-}  // namespace n3mapping
+}
+}
 
 int main(int argc, char** argv)
 {

@@ -71,8 +71,6 @@ inline Json::Value status(const core::OdometryEmission& live) {
   return result;
 }
 
-// Optional observations, never a machine-dependent test threshold. Each process
-// chooses a fresh trace path so baseline/candidate runs remain independent.
 inline void trace(const char* stage, const Step& step, double elapsed_ms) {
   const char* filename = std::getenv("N3MAPPING_EPISODE_TRACE");
   if (!filename || !*filename) return;
@@ -237,4 +235,4 @@ class LocalizationEpisode : public ::testing::Test {
   int64_t tick_ = 20;
 };
 
-} // namespace n3mapping::test
+}

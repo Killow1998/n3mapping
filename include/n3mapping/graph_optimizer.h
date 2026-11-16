@@ -33,8 +33,6 @@ class GraphOptimizer : public LoopOptimizerInterface
 
     void addPriorFactor(int64_t id, const Eigen::Isometry3d& pose);
 
-    // Absolute roll/pitch for one node, from the floor normal measured in that
-    // keyframe's own sensor frame. Leaves yaw free.
     void addFloorAttitudeFactor(int64_t id, const Eigen::Vector3d& normal_body);
     int floorAttitudeFactorCount() const { return floor_attitude_factor_count_; }
     const std::vector<FloorAttitudeConstraint>& floorAttitudeConstraints() const {
@@ -42,26 +40,15 @@ class GraphOptimizer : public LoopOptimizerInterface
     }
 
     void addOdometryEdge(const EdgeInfo& edge);
-    // Adds an odometry edge inside an extension session. The raw measurement
-    // is preserved, but the factor is robust because an independently
-    // verified loaded-map pose may legitimately expose large session-LIO
-    // drift. The explicit target pose keeps that geometric observation in the
-    // optimizer's initial basin. Both the node and edge remain pending until
-    // incrementalOptimize() succeeds.
+
     bool addSessionOdometryEdge(const EdgeInfo& edge,
                                 const Eigen::Isometry3d& target_initial_pose);
 
     void addLoopEdge(const EdgeInfo& edge);
-    // A trusted cross-session loop can begin far outside a redescending
-    // robust kernel's basin. Reinitialize only the new session by the loop's
-    // rigid correction, then transactionally rebuild with every original edge
-    // unchanged and the loop appended. This changes estimates, not odometry
-    // measurements or serialized edge semantics.
+
     bool rebaseSessionAndAddLoopEdge(const EdgeInfo& edge,
                                      int64_t first_session_node_id);
-    // Adds a robust cross-session edge. If the target node is new, its
-    // initial pose is derived from the source pose and measurement.
-    // Returns false without staging anything when the source node is absent.
+
     bool addSessionAnchorEdge(const EdgeInfo& edge);
     static bool isRobustGlobalEdge(EdgeType type);
     bool hasGlobalConstraint() const;
@@ -83,32 +70,26 @@ class GraphOptimizer : public LoopOptimizerInterface
     bool hasLoopClosure() const;
 
     bool loadGraph(const std::vector<std::pair<int64_t, Eigen::Isometry3d>>& nodes, const std::vector<EdgeInfo>& edges);
-    // Loads nodes, edges and floor attitude constraints together. The old
-    // overload delegates here with an empty constraint list.
+
     bool loadGraph(const std::vector<std::pair<int64_t, Eigen::Isometry3d>>& nodes,
                    const std::vector<EdgeInfo>& edges,
                    const std::vector<FloorAttitudeConstraint>& floor_constraints,
                    const std::vector<SharedPlane>& planes = {},
                    bool restore_estimates = false,
                    const Eigen::Isometry3d* prior_pose = nullptr);
-    // Replace associations transactionally; retain every original graph factor.
+
     bool replaceSharedPlanes(const std::vector<SharedPlane>& planes,
                              bool optimize, GeometryOptimizationStats& stats);
     std::vector<SharedPlane> sharedPlanes() const;
-    // Stage observations for a pending new node against committed geometry.
-    // The append solve holds old poses/planes fixed; the worker later refines all.
+
     size_t appendPlaneObservations(int64_t id, const std::vector<PlaneMoment>& moments);
     Eigen::Isometry3d gaugePrior() const;
-    // Catch up an isolated solve only when the live graph has appended nodes
-    // without changing its snapshot's factors or poses. No registration repeats.
-    // Supply unassociated body moments: old-map admission is not valid for a
-    // newly solved reference. Missing geometry is represented by an empty map.
+
     bool appendCommittedTail(const GraphOptimizer& live,
                              const GraphOptimizer& snapshot,
                              const std::map<int64_t, std::vector<PlaneMoment>>& body_moments);
     void swapWith(GraphOptimizer& other);
-    // Owner-thread snapshot for an isolated loop solve. Factors are immutable;
-    // estimates and staging state belong exclusively to the returned optimizer.
+
     std::unique_ptr<GraphOptimizer> cloneCommitted() const;
 
     std::vector<EdgeInfo> getEdges() const;
@@ -177,6 +158,6 @@ class GraphOptimizer : public LoopOptimizerInterface
                                                                   bool use_robust = true) const;
 };
 
-} // namespace n3mapping
+}
 
-#endif // N3MAPPING_GRAPH_OPTIMIZER_H
+#endif

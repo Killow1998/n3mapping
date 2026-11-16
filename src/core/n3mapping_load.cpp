@@ -48,7 +48,7 @@ std::vector<core::AnchoredDenseTrajectorySample> anchorDenseTrajectory(
   return samples;
 }
 
-} // namespace
+}
 
 bool N3MappingCore::loadMap(const std::string &map_path) {
   LogOperation operation("map_load", map_path);
@@ -80,9 +80,6 @@ bool N3MappingCore::loadMap(const std::string &map_path) {
         loaded_dense_optimized,
         candidate->keyframes.getAllKeyframes());
 
-    // Every fallible map-specific step completed against the candidate. The
-    // session owns all cross-referenced components, so one pointer swap is the
-    // transaction commit and cannot leave mixed revisions behind.
     session_.swap(candidate);
     dense_trajectory_samples_.swap(loaded_dense_samples);
     dense_trajectory_metadata_ = std::move(loaded_dense_metadata);
@@ -107,5 +104,4 @@ bool N3MappingCore::loadMap(const std::string &map_path) {
   }
 }
 
-
-} // namespace n3mapping
+}

@@ -41,8 +41,7 @@ std::vector<SharedPlane> buildSharedPlanes(
     if (sources[i] != i) acquisitions[i].reset();
   }
   Json::Value audit;
-  // Replays cannot change association, plane fitting or the noise estimate.
-  // Normalize before fitting, then retain every graph node with shared weight.
+
   auto planes = planar_geometry::mergePlanes(
       planar_geometry::associate(acquisitions, poses, audit), poses, audit);
   std::vector<SharedPlane> result;
@@ -60,4 +59,4 @@ std::vector<SharedPlane> buildSharedPlanes(
       std::chrono::steady_clock::now() - start).count();
   return result;
 }
-}  // namespace n3mapping
+}

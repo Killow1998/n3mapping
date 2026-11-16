@@ -11,11 +11,6 @@
 namespace n3mapping {
 namespace test {
 
-// detectLoopCandidates bounds RHPD candidates by the path travelled between two
-// keyframes rather than by how many frames apart they are, so it needs their
-// poses. Laying them out a metre apart and setting loop_min_path_length_m to
-// the frame-count exclusion makes the two bounds coincide, which keeps these
-// cases testing what they were written to test.
 inline std::map<int64_t, Keyframe::Ptr> lineOfKeyframes(int count,
                                                         double spacing_m = 1.0) {
     std::map<int64_t, Keyframe::Ptr> keyframes;
@@ -28,11 +23,10 @@ inline std::map<int64_t, Keyframe::Ptr> lineOfKeyframes(int count,
     return keyframes;
 }
 
-
 class LoopDetectorTest : public ::testing::Test {
 protected:
     void SetUp() override {
-        // 创建默认配置
+
         config_.sc_dist_threshold = 0.3;
         config_.sc_num_exclude_recent = 10;
         config_.sc_num_candidates = 5;
@@ -44,7 +38,7 @@ protected:
         config_.rhpd_dist_threshold = 100.0;
         config_.rhpd_num_candidates = 5;
         config_.rhpd_preselect_candidates = 12;
-        
+
         detector_ = std::make_unique<LoopDetector>(config_);
     }
 
@@ -52,21 +46,20 @@ protected:
         detector_.reset();
     }
 
-    // 创建圆形点云 (模拟 LiDAR 扫描)
     Keyframe::PointCloudT::Ptr createCircularCloud(size_t num_points = 1000,
                                                     double radius = 20.0,
                                                     double height_variation = 2.0) {
         auto cloud = pcl::make_shared<Keyframe::PointCloudT>();
         cloud->points.reserve(num_points);
-        
-        std::mt19937 rng(42);  // 固定种子以保证可重复性
+
+        std::mt19937 rng(42);
         std::uniform_real_distribution<double> height_dist(-height_variation, height_variation);
         std::uniform_real_distribution<double> radius_noise(-1.0, 1.0);
-        
+
         for (size_t i = 0; i < num_points; ++i) {
             double angle = 2.0 * M_PI * static_cast<double>(i) / num_points;
             double r = radius + radius_noise(rng);
-            
+
             pcl::PointXYZI pt;
             pt.x = static_cast<float>(r * std::cos(angle));
             pt.y = static_cast<float>(r * std::sin(angle));
@@ -74,14 +67,13 @@ protected:
             pt.intensity = 1.0f;
             cloud->points.push_back(pt);
         }
-        
+
         cloud->width = num_points;
         cloud->height = 1;
         cloud->is_dense = true;
         return cloud;
     }
 
-    // 创建带偏移的点云 (模拟不同位置的扫描)
     Keyframe::PointCloudT::Ptr createOffsetCloud(double x_offset, double y_offset,
                                                   size_t num_points = 1000) {
         auto cloud = createCircularCloud(num_points);
@@ -92,13 +84,12 @@ protected:
         return cloud;
     }
 
-    // 创建旋转后的点云 (模拟相同位置不同朝向)
     Keyframe::PointCloudT::Ptr createRotatedCloud(double yaw_rad,
                                                    size_t num_points = 1000) {
         auto cloud = createCircularCloud(num_points);
         double cos_yaw = std::cos(yaw_rad);
         double sin_yaw = std::sin(yaw_rad);
-        
+
         for (auto& pt : cloud->points) {
             float x_new = static_cast<float>(pt.x * cos_yaw - pt.y * sin_yaw);
             float y_new = static_cast<float>(pt.x * sin_yaw + pt.y * cos_yaw);
@@ -289,12 +280,11 @@ protected:
     std::unique_ptr<LoopDetector> detector_;
 };
 
-// 测试初始状态
 TEST_F(LoopDetectorTest, InitialState) {
     EXPECT_EQ(detector_->size(), 0u);
-    
+
     auto dims = detector_->getDescriptorDimensions();
-    // Hybrid ScanContext in noetic-aligned pipeline expands rows to 140.
+
     EXPECT_EQ(dims.first, 140);
     EXPECT_EQ(dims.second, 60);
 }
@@ -333,8 +323,7 @@ TEST_F(LoopDetectorTest, UnifiedHeadingRetainsItsOwnRangeAndHeightSupport) {
     point.y = 1.0f;
     point.z = 8.0f;
     cloud->push_back(point);
-    // Too sparse and outside the place summary's support, but a valid heading
-    // return. Fusing the traversals must not apply the place filter to both.
+
     const auto sparse = descriptor.computeWithHeading(cloud);
     EXPECT_TRUE(sparse.place.isZero());
     ASSERT_TRUE(sparse.heading);
@@ -375,8 +364,7 @@ TEST_F(LoopDetectorTest, RelocalizationKeepsHeadingWinnerBeyondPlaceShortlist) {
     LoopDetector detector(config);
     const auto query = createAsymmetricCloud();
     const auto wrong_heading = createCircularCloud();
-    // Place and heading use different observation scales in a saved map.
-    // Many similar place summaries must not hide the only matching heading.
+
     for (int i = 0; i < 40; ++i) {
         const auto id = keyframes.addKeyframe(i, Eigen::Isometry3d::Identity(), query);
         detector.addRHPD(id, query);
@@ -393,7 +381,7 @@ TEST_F(LoopDetectorTest, RelocalizationKeepsHeadingWinnerBeyondPlaceShortlist) {
     ASSERT_EQ(candidates.size(), 1u);
     EXPECT_EQ(candidates.front().match_id, expected);
     EXPECT_TRUE(candidates.front().fromSC());
-    // The two place scales must share one heading comparison per keyframe.
+
     EXPECT_LE(performance.heading_comparisons, keyframes.size());
 }
 
@@ -489,8 +477,7 @@ TEST_F(LoopDetectorTest, HeadingSeedRotatesQueryCloudIntoReferenceFrame) {
         candidate.yaw_diff_rad = shift * detector.getHeadingSectorAngleDeg() * M_PI / 180.0;
         const auto seeds = buildDescriptorYawHypotheses(candidate, config);
         ASSERT_FALSE(seeds.empty());
-        // Rotating the points by +theta corresponds to a sensor pose of -theta.
-        // Check the leading descriptor seed, not the uniform fallback seeds.
+
         const auto restored = rotateCloud(query, seeds.front());
         double squared_error = 0.0;
         for (std::size_t i = 0; i < reference->size(); ++i)
@@ -571,8 +558,6 @@ TEST_F(LoopDetectorTest, RHPDCoarsePrefilterPreservesHalfTurnEquivalentPlace) {
     ASSERT_EQ(exhaustive.front().first, 42);
     EXPECT_DOUBLE_EQ(exhaustive.front().second, 0.0);
 
-    // A one-entry shortlist must retain the equivalent place even though the
-    // distractor is closer if the coarse key ignores the half-turn symmetry.
     const auto shortlisted = manager.search(query, 1, 1);
     ASSERT_EQ(shortlisted.size(), 1u);
     EXPECT_EQ(shortlisted.front().first, exhaustive.front().first);
@@ -652,124 +637,103 @@ TEST_F(LoopDetectorTest, RHPDSemanticsNegativeSpaceSeparatesOpenFromUnknown) {
     EXPECT_LT(descriptor.distance(q, a), descriptor.distance(q, b));
 }
 
-// 测试 ScanContext 描述子生成 - Requirements 4.1
 TEST_F(LoopDetectorTest, ComputeHeading) {
     auto cloud = createCircularCloud();
-    
+
     auto descriptor = detector_->computeHeading(cloud);
-    
-    // 验证描述子维度
+
     auto dims = detector_->getDescriptorDimensions();
     ASSERT_TRUE(descriptor);
     EXPECT_EQ(descriptor->rings * 7, dims.first);
     EXPECT_EQ(descriptor->sectors, dims.second);
-    
-    // 描述子应该有非零值
+
     EXPECT_GT(rhpdHeadingDenseValues(*descriptor).sum(), 0.0);
 }
 
-// 测试空点云处理
 TEST_F(LoopDetectorTest, EmptyCloudHandling) {
     auto empty_cloud = pcl::make_shared<Keyframe::PointCloudT>();
-    
+
     auto descriptor = detector_->computeHeading(empty_cloud);
     EXPECT_FALSE(descriptor);
-    
-    // 添加空点云描述子应该返回空矩阵
+
     auto desc = detector_->addDescriptor(0, empty_cloud);
     EXPECT_FALSE(desc);
     EXPECT_EQ(detector_->size(), 0u);
 }
 
-// 测试添加描述子
 TEST_F(LoopDetectorTest, AddDescriptor) {
     auto cloud = createCircularCloud();
-    
+
     auto desc = detector_->addDescriptor(0, cloud);
-    
+
     EXPECT_EQ(detector_->size(), 1u);
     ASSERT_TRUE(desc);
-    
-    // 验证可以获取描述子
+
     auto retrieved = detector_->getDescriptor(0);
     EXPECT_EQ(retrieved, desc);
 }
 
-// 测试添加多个描述子
 TEST_F(LoopDetectorTest, AddMultipleDescriptors) {
     for (int i = 0; i < 5; ++i) {
         auto cloud = createOffsetCloud(i * 10.0, 0);
         detector_->addDescriptor(i, cloud);
     }
-    
+
     EXPECT_EQ(detector_->size(), 5u);
-    
-    // 验证每个描述子都可以获取
+
     for (int i = 0; i < 5; ++i) {
         auto desc = detector_->getDescriptor(i);
         ASSERT_TRUE(desc);
     }
 }
 
-// 测试回环检测排除近邻帧 - Requirements 4.6
 TEST_F(LoopDetectorTest, ExcludeRecentFrames) {
-    // 添加 15 个关键帧 (排除最近 10 帧)
+
     for (int i = 0; i < 15; ++i) {
-        auto cloud = createCircularCloud();  // 相同的点云
-        detector_->addDescriptor(i, cloud);
+      auto cloud = createCircularCloud();
+      detector_->addDescriptor(i, cloud);
     }
-    
-    // 查询第 14 帧 (索引从 0 开始)
-    // 应该只在 [0, 4) 范围内搜索 (14 - 10 = 4)
+
     auto candidates = detector_->detectLoopCandidates(14, lineOfKeyframes(15));
-    
-    // 验证所有候选帧都在排除范围之外
+
     for (const auto& candidate : candidates) {
         EXPECT_LT(candidate.match_id, 14 - config_.sc_num_exclude_recent);
     }
 }
 
-// 测试历史帧不足时的处理
 TEST_F(LoopDetectorTest, InsufficientHistory) {
-    // 只添加 5 帧 (少于排除数量 10)
+
     for (int i = 0; i < 5; ++i) {
         auto cloud = createCircularCloud();
         detector_->addDescriptor(i, cloud);
     }
-    
-    // 查询最后一帧，应该返回空列表
+
     auto candidates = detector_->detectLoopCandidates(4, lineOfKeyframes(5));
     EXPECT_TRUE(candidates.empty());
 }
 
-// 测试相似场景的回环检测 - Requirements 4.2, 4.3
 TEST_F(LoopDetectorTest, DetectSimilarScenes) {
-    // 添加足够多的帧
+
     for (int i = 0; i < 20; ++i) {
         Keyframe::PointCloudT::Ptr cloud;
         if (i == 0 || i == 15) {
-            // 第 0 帧和第 15 帧使用相同的点云
+
             cloud = createCircularCloud(1000, 20.0, 2.0);
         } else {
-            // 其他帧使用不同的点云
+
             cloud = createOffsetCloud(i * 50.0, i * 50.0);
         }
         detector_->addDescriptor(i, cloud);
     }
-    
-    // 查询第 15 帧，应该能找到第 0 帧作为候选
+
     auto candidates = detector_->detectLoopCandidates(15, lineOfKeyframes(16));
-    
-    // 由于使用相同的点云，应该能检测到回环
-    // 注意：由于 ScanContext 的特性，相同点云应该有很小的距离
+
     for (const auto& candidate : candidates) {
         if (candidate.match_id == 0) {
             EXPECT_LT(candidate.sc_distance, config_.sc_dist_threshold);
         }
     }
-    
-    // 如果没有找到匹配，可能是因为阈值设置
-    // 这里我们只验证候选帧在正确的范围内
+
     for (const auto& candidate : candidates) {
         EXPECT_LT(candidate.match_id, 15 - config_.sc_num_exclude_recent);
         EXPECT_GE(candidate.match_id, 0);
@@ -884,11 +848,6 @@ TEST_F(LoopDetectorTest, DetectSimilarScenesCanFallbackToScanContextWhenRHPDDisa
     EXPECT_TRUE(found);
 }
 
-// Named for the index gap until 9c3a233 replaced it with a path-length gate.
-// The test kept passing throughout, because keyframe 90 is half a metre from the
-// query and so fails the path gate exactly as it used to fail the index gap --
-// green for a reason its name no longer described, while the line setting
-// loop_spatial_candidate_min_id_gap had stopped doing anything at all.
 TEST_F(LoopDetectorTest, DetectSpatialCandidatesUsesPoseRadiusAndPathLength) {
     Config cfg = config_;
     cfg.loop_spatial_candidates_enable = true;
@@ -916,10 +875,7 @@ TEST_F(LoopDetectorTest, DetectSpatialCandidatesUsesPoseRadiusAndPathLength) {
 
     EXPECT_EQ(candidates[0].match_id, 5);
     EXPECT_EQ(candidates[1].match_id, 10);
-    // Keyframe 90 sits 0.5 m from the query in space and 0.5 m from it along
-    // the path, so only the path gate can be what excludes it. Drop the gate
-    // and it has to come back, otherwise this test proves nothing about the
-    // gate it is named for.
+
     for (const auto& candidate : candidates) {
         EXPECT_NE(candidate.match_id, 90);
     }
@@ -962,70 +918,63 @@ TEST_F(LoopDetectorTest, RejectsInvalidHeadingShape) {
     EXPECT_FALSE(new_detector->getDescriptor(11));
 }
 
-// 测试清空功能
 TEST_F(LoopDetectorTest, Clear) {
     for (int i = 0; i < 5; ++i) {
         auto cloud = createCircularCloud();
         detector_->addDescriptor(i, cloud);
     }
-    
+
     EXPECT_EQ(detector_->size(), 5u);
-    
+
     detector_->clear();
-    
+
     EXPECT_EQ(detector_->size(), 0u);
-    
-    // 清空后获取描述子应该返回空矩阵
+
     auto desc = detector_->getDescriptor(0);
     EXPECT_FALSE(desc);
 }
 
-// 测试添加已有描述子 (用于地图加载)
 TEST_F(LoopDetectorTest, AddExistingDescriptor) {
     auto cloud = createCircularCloud();
     auto desc = detector_->computeHeading(cloud);
-    
-    // 使用已有描述子添加
+
     detector_->addDescriptor(100, desc);
-    
+
     EXPECT_EQ(detector_->size(), 1u);
-    
+
     auto retrieved = detector_->getDescriptor(100);
     EXPECT_EQ(retrieved, desc);
 }
 
-// 测试获取不存在的描述子
 TEST_F(LoopDetectorTest, GetNonExistentDescriptor) {
     auto desc = detector_->getDescriptor(999);
     EXPECT_FALSE(desc);
 }
 
-// 测试 LoopCandidate 有效性
 TEST_F(LoopDetectorTest, LoopCandidateValidity) {
     LoopCandidate valid_candidate;
     valid_candidate.query_id = 10;
     valid_candidate.match_id = 5;
     EXPECT_TRUE(valid_candidate.isValid());
-    
+
     LoopCandidate invalid_candidate1;
     invalid_candidate1.query_id = -1;
     invalid_candidate1.match_id = 5;
     EXPECT_FALSE(invalid_candidate1.isValid());
-    
+
     LoopCandidate invalid_candidate2;
     invalid_candidate2.query_id = 10;
     invalid_candidate2.match_id = -1;
     EXPECT_FALSE(invalid_candidate2.isValid());
 }
 
-// 测试 VerifiedLoop 有效性
 TEST_F(LoopDetectorTest, VerifiedLoopValidity) {
     VerifiedLoop valid_loop;
     valid_loop.query_id = 10;
     valid_loop.match_id = 5;
     valid_loop.verified = true;
     EXPECT_TRUE(valid_loop.isValid());
-    
+
     VerifiedLoop unverified_loop;
     unverified_loop.query_id = 10;
     unverified_loop.match_id = 5;
@@ -1050,10 +999,10 @@ TEST_F(LoopDetectorTest, SpatialCandidateRadiusIsHardBound) {
 
     std::map<int64_t, Keyframe::Ptr> keyframes;
     keyframes[100] = make_keyframe(100, Eigen::Vector3d::Zero());
-    keyframes[1] = make_keyframe(1, Eigen::Vector3d(4.9, 0.0, 0.0));  // < radius: kept
-    keyframes[2] = make_keyframe(2, Eigen::Vector3d(5.0, 0.0, 0.0));  // == radius: kept
-    keyframes[3] = make_keyframe(3, Eigen::Vector3d(5.1, 0.0, 0.0));  // > radius: rejected
-    keyframes[4] = make_keyframe(4, Eigen::Vector3d(50.0, 0.0, 0.0)); // far: rejected
+    keyframes[1] = make_keyframe(1, Eigen::Vector3d(4.9, 0.0, 0.0));
+    keyframes[2] = make_keyframe(2, Eigen::Vector3d(5.0, 0.0, 0.0));
+    keyframes[3] = make_keyframe(3, Eigen::Vector3d(5.1, 0.0, 0.0));
+    keyframes[4] = make_keyframe(4, Eigen::Vector3d(50.0, 0.0, 0.0));
 
     auto candidates = detector.detectSpatialCandidates(100, keyframes);
     ASSERT_EQ(candidates.size(), 2u);
@@ -1130,7 +1079,7 @@ TEST_F(LoopDetectorTest, SpatialBoundaryReservePreservesNearTiesWithinABoundedBu
     cfg.gicp_downsampling_resolution = 0.1;
     auto frames = lineOfKeyframes(101);
     frames[100]->pose_optimized.setIdentity();
-    // Filter out unrelated frames before both primary selection and reserve.
+
     for (int id = 1; id <= 5; ++id)
         frames[id]->pose_optimized.translation().x() =
             id == 1 ? 1.0 : 2.0 + (id - 2) * 0.01;
@@ -1139,14 +1088,14 @@ TEST_F(LoopDetectorTest, SpatialBoundaryReservePreservesNearTiesWithinABoundedBu
     auto candidates = detector.detectSpatialCandidates(100, frames, eligible, true);
     ASSERT_EQ(candidates.size(), 4u);
     for (int i = 0; i < 4; ++i) EXPECT_EQ(candidates[i].match_id, i + 1);
-    // A small graph update swaps the boundary pair; neither observation vanishes.
+
     frames[2]->pose_optimized.translation().x() += 0.015;
     candidates = detector.detectSpatialCandidates(100, frames, eligible, true);
     ASSERT_EQ(candidates.size(), 4u);
     std::set<int64_t> ids;
     for (const auto& c : candidates) ids.insert(c.match_id);
     EXPECT_EQ(ids, (std::set<int64_t>{1, 2, 3, 4}));
-    // A candidate outside the physical radius is excluded even with free slots.
+
     cfg.loop_spatial_candidate_max_candidates = 4;
     cfg.loop_spatial_candidate_radius = 2.019;
     LoopDetector smaller(cfg);
@@ -1188,9 +1137,6 @@ TEST_F(LoopDetectorTest, DescriptorCandidatesUnaffectedBySpatialRadius) {
         large_detector.addRHPD(i, cloud);
     }
 
-    // KF0 与 KF15 相距 15 m（lineOfKeyframes 位置 x = i），远超 radius=1.0。
-    // 描述子通道（detectLoopCandidates）不经过空间 radius 门：两个 detector
-    // 必须给出相同的 match 集合。
     const auto small_candidates =
         small_detector.detectLoopCandidates(15, lineOfKeyframes(16));
     const auto large_candidates =
@@ -1256,7 +1202,7 @@ TEST_F(LoopDetectorTest, WorkBoundReplenishesWithoutDiscardingOriginalCandidates
         cfg.loop_min_path_length_m = 0;
         LoopDetector detector(cfg);
         const auto query = createAsymmetricCloud();
-        // More nearer-looking but unusable entries than either coarse pool.
+
         for (int id = 0; id <= 45; ++id) {
             const auto cloud = id == 0 ? createDifferentStructureCloud() : query;
             detector.addDescriptor(id, cloud);
@@ -1274,7 +1220,7 @@ TEST_F(LoopDetectorTest, WorkBoundReplenishesWithoutDiscardingOriginalCandidates
             EXPECT_EQ(replenished[i].fused_score, original[i].fused_score);
         }
         EXPECT_EQ(replenished.back().match_id, 0);
-        // An already usable top-k does not spend an extra registration slot.
+
         const auto sufficient = detector.detectLoopCandidates(
             45, frames, {}, [&](int64_t id) { return id == original.front().match_id; });
         EXPECT_EQ(sufficient.size(), original.size());
@@ -1307,5 +1253,5 @@ TEST_F(LoopDetectorTest, SpatialMatchFilterAppliesBeforeCandidateLimit) {
     EXPECT_EQ(candidates.front().match_id, 0);
 }
 
-}  // namespace test
-}  // namespace n3mapping
+}
+}

@@ -86,4 +86,4 @@ private:
   KeyframeSpatialIndex spatial_index_;
 };
 
-} // namespace n3mapping
+}

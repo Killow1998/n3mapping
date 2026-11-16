@@ -19,8 +19,7 @@ void WorldLocalizing::rebuildFreeSpaceGridIfNeeded() {
   if (free_space_grid_failed_)
     return;
   const size_t current_size = keyframe_manager_.size();
-  // The first odometry frame resets search state. Keep map-derived preparation
-  // in the Atlas until it is needed, and consume it only at its loaded revision.
+
   if (!free_space_grid_.valid() && localization_atlas_ &&
       current_revision == loaded_atlas_revision_)
     free_space_grid_ = localization_atlas_->takeFreeSpaceGrid();
@@ -76,8 +75,6 @@ void WorldLocalizing::rebuildFreeSpaceGridIfNeeded() {
             << free_space_grid_.buildSeconds() << " s";
 }
 
-// Filter contradicted hypotheses without changing visibility ranking or its
-// acceptance margin; both must continue to measure the same evidence.
 const WorldLocalizing::RelocHypothesis *
 WorldLocalizing::freeSpaceBestHypothesis(const PointCloudT::Ptr &query_cloud,
                                          const Eigen::Isometry3d &odom_pose,
@@ -87,11 +84,7 @@ WorldLocalizing::freeSpaceBestHypothesis(const PointCloudT::Ptr &query_cloud,
   rebuildFreeSpaceGridIfNeeded();
   if (!free_space_grid_.valid())
     return nullptr;
-  // A grid with no free cells has nothing to say about which hypothesis sits in
-  // free space, so whichever it names would be an artefact of ranking noise.
-  // Vetoing on that refuses a lock over no evidence at all -- and this is
-  // reachable: a map with a single keyframe builds 28 occupied cells and zero
-  // free ones.
+
   if (free_space_grid_.freeCells() == 0)
     return nullptr;
   const RelocHypothesis *best = nullptr;
@@ -114,8 +107,7 @@ WorldLocalizing::freeSpaceBestHypothesis(const PointCloudT::Ptr &query_cloud,
       best_score = s;
     }
   }
-  // Veto and elimination require the same strength of counterevidence.
-  // A near tie in this coarse grid cannot overturn the geometric winner.
+
   if (best && best != &ranked_winner && ranked_score.valid &&
       !best_score.significantlyBetterThan(ranked_score, config_.reloc_free_space_kill_sigmas)) {
     VLOG(1) << "[Reloc/FreeSpace] inconclusive delta="
@@ -173,9 +165,6 @@ void WorldLocalizing::killFreeSpaceDominatedHypotheses(
             << "," << hp.translation().z();
   }
 
-  // The separation test is the sampling noise itself, not a tuned threshold:
-  // two hypotheses are only distinguishable when their scores differ by more
-  // than the categorical sampling deviation of the difference.
   const double sigmas = config_.reloc_free_space_kill_sigmas;
   const auto &top = scores[static_cast<size_t>(best)];
   size_t killed = 0;
@@ -320,4 +309,4 @@ int64_t WorldLocalizing::findNearestLoadedKeyframe(
   return nearest_id;
 }
 
-} // namespace n3mapping
+}

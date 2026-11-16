@@ -74,8 +74,7 @@ std::vector<WorldLocalizing::RelocHypothesis> WorldLocalizing::seedRelocalizatio
   RelocalizationDebugEvent unused_event;
   auto &debug_event = event ? *event : unused_event;
   const bool reloc_debug_enabled = event != nullptr;
-  // Workers share immutable requests. Rebuilding map revisions inside an
-  // asynchronous basin would race with the other basin workers.
+
   for (auto &basin : basins) {
     const auto count =
         std::min<std::size_t>(basin.members.size(), kRelocPerBasinVerifyCount);
@@ -184,17 +183,12 @@ std::vector<WorldLocalizing::RelocHypothesis> WorldLocalizing::seedRelocalizatio
     return basin_modes;
   };
 
-  // Atlas registration shares one immutable target across all independent
-  // spatial basins. Evaluate those basins concurrently, then merge in the
-  // original order so ranking and tie-breaking remain deterministic. The
-  // default path stays sequential.
   if (localization_atlas_ && localization_atlas_->loaded() &&
       basins.size() > 1) {
     std::vector<std::vector<BasinBest>> results(basins.size());
 #pragma omp parallel num_threads(config_.num_threads)
     {
-      // Basin and yaw tasks share this team. Point-level solvers cannot
-      // multiply the thread budget; the caller's OpenMP settings are intact.
+
       omp_set_max_active_levels(omp_get_active_level());
 #pragma omp single
       {
@@ -286,4 +280,4 @@ std::vector<WorldLocalizing::RelocHypothesis> WorldLocalizing::seedRelocalizatio
   }
   return seeded_hypotheses;
 }
-} // namespace n3mapping
+}

@@ -227,7 +227,7 @@ TEST(SubmapBuilderTest,
   ASSERT_EQ(submaps.size(), 1u);
   EXPECT_TRUE(submaps.front().T_map_submap.isApprox(
       anchor->pose_optimized, 1e-12));
-  // Origin refresh is pose state, not a logical content mutation.
+
   EXPECT_EQ(submaps.front().content_revision, content_revision);
 
   const auto evaluated = builder.evaluatePoseProjection(
@@ -913,5 +913,5 @@ TEST(SubmapGraphProjectionTest, InvalidInputsReturnNoPartialSnapshot) {
   EXPECT_TRUE(missing_floor_keyframe.floor_projections.empty());
 }
 
-}  // namespace
-}  // namespace n3mapping
+}
+}

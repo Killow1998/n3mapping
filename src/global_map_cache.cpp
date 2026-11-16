@@ -25,7 +25,7 @@ bool finitePoint(const pcl::PointXYZI& point)
            std::isfinite(static_cast<double>(point.z));
 }
 
-}  // namespace
+}
 
 std::size_t GlobalMapCache::VoxelKeyHash::operator()(const VoxelKey& key) const
 {
@@ -113,8 +113,7 @@ GlobalMapCache::PointCloudConstPtr GlobalMapCache::update(
                         return keyframe->id == cached_id;
                     });
         }
-        // Incremental append is safe only when every structure mutation was a
-        // net addition. A rollback/remove followed by id reuse must rebuild.
+
         rebuild = !monotonic_structure || !cached_ids_still_present ||
                   structure_delta != keyframe_delta;
     }
@@ -252,4 +251,4 @@ void GlobalMapCache::finalizeRawCloud()
     cloud_->is_dense = false;
 }
 
-}  // namespace n3mapping
+}

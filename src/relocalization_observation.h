@@ -13,8 +13,6 @@
 
 namespace n3mapping {
 
-// Registration and visibility share one immutable observation throughout a
-// search call. Preparing it lazily avoids work when retrieval has no support.
 struct RelocalizationObservation {
   PointCloudMatcher::PreparedSource registration;
   PreparedVisibilityObservation visibility;
@@ -27,8 +25,7 @@ struct RelocalizationObservation {
     registration = matcher.prepareSourceCloud(cloud);
     if (!registration.plane_levels.empty()) {
       auto& proposal = registration.plane_levels.front();
-      // Only the broad search proposal is sparse; final geometry is intact.
-      // Limit extra sampling displacement to half the correspondence radius.
+
       const double resolution = std::min(proposal.resolution * 2.0,
           config.gicp_max_correspondence_distance / (2.0 * std::sqrt(3.0)));
       if (resolution > proposal.resolution) {
@@ -37,8 +34,7 @@ struct RelocalizationObservation {
         if (points->size() >= 10) proposal.cloud = std::move(points);
       }
     }
-    // Spatial order is reused by every seed and verification of this query.
-    // Only reorder: every point and its existing covariance are retained.
+
     for (const auto& level : registration.plane_levels) {
       if (level.cloud->empty()) continue;
       const PointCloudMatcher::SmallGicpKdTree order(level.cloud,
@@ -67,4 +63,4 @@ struct RelocalizationObservation {
 private:
   bool prepared_ = false;
 };
-} // namespace n3mapping
+}

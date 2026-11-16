@@ -73,4 +73,4 @@ TEST(DenseTrajectoryExport, RejectsNonMonotonicAndNonFiniteData) {
     EXPECT_NE(error.find("non-finite pose"), std::string::npos);
 }
 
-}  // namespace
+}

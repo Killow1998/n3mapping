@@ -96,7 +96,7 @@ void N3MappingNode::processSynchronizedFrame(const sensor_msgs::msg::PointCloud2
             performance_event.core_frame_ms = elapsed_ms(core_started);
             populateFramePerformance(performance_event, output);
         }
-        // Retain the human-readable divergence context alongside shared events.
+
         if (const auto& sanity = n3mapping_core_->odometrySanity();
             sanity.diverged && !odometry_divergence_reported_) {
             odometry_divergence_reported_ = true;
@@ -116,8 +116,6 @@ void N3MappingNode::processSynchronizedFrame(const sensor_msgs::msg::PointCloud2
         if (performance_enabled) {
             performance_event.authority_publish_ms =
               elapsed_ms(authority_started);
-            // Live odometry/cloud publication is measured outside this
-            // serial backend callback; these publication counters stay false.
         }
         if (!output.success && !output.accepted_keyframe && run_mode_ != CoreRunMode::LOCALIZATION) {
             ++frame_count_;
@@ -262,4 +260,4 @@ void N3MappingNode::loopDetectionTimerCallback()
     }
 }
 
-}  // namespace n3mapping
+}

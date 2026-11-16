@@ -1,4 +1,3 @@
-// MappingResuming: map extension — load existing map, relocalize, add new keyframes, detect cross-loops.
 #pragma once
 
 #include <limits>
@@ -35,8 +34,7 @@ enum class MappingResumingState {
 
 struct MappingResumingTiming {
     double total_ms = std::numeric_limits<double>::quiet_NaN();
-    // Includes keyframe/edge staging, incremental optimization, optimized-pose
-    // propagation, and any enabled shadow-submap pose refresh.
+
     double graph_update_ms = std::numeric_limits<double>::quiet_NaN();
     double descriptor_update_ms = std::numeric_limits<double>::quiet_NaN();
 };
@@ -60,7 +58,7 @@ public:
     bool adoptCurrentLocalization(const std::string& source_frame_id);
     bool shouldAddKeyframe(
         const Eigen::Isometry3d& pose_in_session) const;
-    // Returns a new node ID, or -1; an exact replay reports its existing ID separately.
+
     int64_t processNewKeyframe(
         double timestamp, const Eigen::Isometry3d& odom_pose,
         const PointCloudT::Ptr& cloud, int64_t loaded_tracking_match_id = -1,
@@ -115,4 +113,4 @@ private:
     mutable std::mutex mutex_;
 };
 
-} // namespace n3mapping
+}

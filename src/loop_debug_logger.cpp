@@ -190,7 +190,7 @@ bool appendLine(const std::string& path, const std::string& line) {
   return appendLogLine(path, line);
 }
 
-}  // namespace
+}
 
 std::string LoopDebugLogger::resolvePath(const Config& config)
 {
@@ -404,4 +404,4 @@ bool LoopDebugLogger::appendOptimizationSummary(const std::string& path, const L
     return appendLine(path, os.str());
 }
 
-}  // namespace n3mapping
+}

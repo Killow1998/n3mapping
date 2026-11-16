@@ -1,4 +1,3 @@
-// Research-only geometry evaluation on immutable map snapshots.
 #include "n3mapping/graph_factor_noise.h"
 #include "../src/planar_geometry/association.h"
 #include "n3mapping/n3map_proto_utils.h"

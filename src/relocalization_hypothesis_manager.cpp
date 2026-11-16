@@ -131,4 +131,4 @@ void RelocalizationHypothesisManager::reset() {
   persisted_frames_ = 0;
 }
 
-} // namespace n3mapping
+}
