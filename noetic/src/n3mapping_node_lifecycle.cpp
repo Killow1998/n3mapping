@@ -9,15 +9,16 @@ N3MappingNoeticNode::N3MappingNoeticNode()
   : nh_()
   , private_nh_("~")
 {
+    private_nh_.param("input_cloud_timeout_sec", input_cloud_timeout_sec_, 0.5);
     std::string input_linear_velocity_frame = "child";
-    private_nh_.param("input_linear_velocity_frame", input_linear_velocity_frame,
-                      input_linear_velocity_frame);
+    private_nh_.param("input_linear_velocity_frame",
+                      input_linear_velocity_frame, input_linear_velocity_frame);
     input_linear_velocity_frame_ =
         parseInputLinearVelocityFrame(input_linear_velocity_frame);
     private_nh_.param("output_status_topic", output_status_topic_,
                       std::string("/localization/status"));
-    private_nh_.param(
-        "product_profile_v1", product_profile_v1_, product_profile_v1_);
+    private_nh_.param("product_profile_v1", product_profile_v1_,
+                      product_profile_v1_);
     if (product_profile_v1_) {
         std::string map_path;
         std::string atlas_path;
@@ -61,6 +62,11 @@ N3MappingNoeticNode::~N3MappingNoeticNode() { shutdown(); }
 bool N3MappingNoeticNode::handleStartMapExtension(
     std_srvs::Trigger::Request&, std_srvs::Trigger::Response& res)
 {
+    if (!realtime_output_->checkInputHealth().empty()) {
+        res.success = false;
+        res.message = "localization_input_unavailable";
+        return true;
+    }
     std::lock_guard<std::mutex> lock(data_mutex_);
     res.success = core_->startMapExtension(&res.message);
     if (!res.success) return true;

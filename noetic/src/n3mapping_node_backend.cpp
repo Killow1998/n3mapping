@@ -61,7 +61,7 @@ void N3MappingNoeticNode::processSynchronizedFrame(const sensor_msgs::PointCloud
             {static_cast<int64_t>(odom_msg->header.stamp.toNSec()),
              frame.source_frame_id, odom_msg->child_frame_id,
              frame.T_world_lidar, frame.pose_valid},
-            cloud_msg->header.stamp.toSec(), output);
+            toCoreTimeStamp(cloud_msg->header.stamp), output);
         const auto& publication = committed.plan;
         const bool backend_authorized = committed.live_authorized;
         const double backend_source_age_s =

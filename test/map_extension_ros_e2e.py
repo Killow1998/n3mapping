@@ -205,6 +205,22 @@ def run(args, root):
         assert late_maps[-1] == global_maps[-1]
         initial_global_map = global_maps[-1]
         session = latest['projection']['session_id']
+        input_stopped_at = time.monotonic()
+        while latest.get('reason') != 'input_cloud_timeout':
+            assert time.monotonic() - input_stopped_at < 2.0, latest
+            if args.ros == 'humble':
+                ros.spin_once(observer, timeout_sec=.01)
+            else:
+                time.sleep(.01)
+        assert latest.get('state') == 'error', latest
+        denied = call('/n3mapping/start_map_extension')
+        assert not denied.success and denied.message == 'localization_input_unavailable', denied
+        frame(-3.)
+        wait(lambda: latest.get('state') == 'tracking')
+        wait(lambda: latest.get('reason') == 'input_cloud_timeout')
+        assert latest.get('state') == 'error', latest
+        frame(-3.)
+        wait(lambda: latest.get('state') == 'tracking')
         started=time.monotonic(); switched=call('/n3mapping/start_map_extension')
         switch_ms=(time.monotonic()-started)*1000
         assert switched.success, switched
@@ -237,6 +253,9 @@ def run(args, root):
                     atlas_enabled_by_default=True,
                     missing_atlas_created_at_first_load=True,
                     late_global_map_received=True, extension_global_map_updated=True)
+        result.update(input_timeout_without_odometry_reported=True,
+                      input_timeout_with_odometry_reported=True,
+                      input_timeout_blocks_extension=True)
         (root/'summary.json').write_text(json.dumps(result,indent=2)+'\n')
         print(json.dumps(result))
     finally:

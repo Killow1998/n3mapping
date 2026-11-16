@@ -67,8 +67,7 @@ main(int argc, char** argv)
     node->startLiveOutput();
 
     while (rclcpp::ok() && !n3mapping::g_shutdown_requested) {
-        executor.spin_some();
-        node->processPendingLocalizationFrame();
+        node->spinOnce(executor);
         std::this_thread::sleep_for(std::chrono::milliseconds(1));
     }
 

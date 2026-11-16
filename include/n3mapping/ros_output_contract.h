@@ -99,6 +99,7 @@ struct RealtimeLocalizationStatus {
     bool estimate_attempted = false;
     bool estimate_available = false;
     std::string input_reason;
+    std::string input_failure_reason;
     std::optional<ProjectionMetadata> projection;
 };
 

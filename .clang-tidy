@@ -1,0 +1,4 @@
+Checks: '-*,clang-diagnostic-*,clang-analyzer-core.*'
+WarningsAsErrors: 'clang-diagnostic-*,clang-analyzer-core.*'
+HeaderFilterRegex: '(^|/)(include/n3mapping|src/core|humble/src|noetic/src)/'
+FormatStyle: file

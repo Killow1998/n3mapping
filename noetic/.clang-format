@@ -1,0 +1,5 @@
+BasedOnStyle: InheritParentConfig
+IndentWidth: 4
+BreakBeforeBraces: Custom
+BraceWrapping:
+  AfterFunction: true

@@ -5,8 +5,13 @@
 
 namespace n3mapping {
 
-void N3MappingNode::processPendingLocalizationFrame()
+void N3MappingNode::spinOnce(rclcpp::Executor &executor)
 {
+    if (run_mode_ == CoreRunMode::LOCALIZATION) {
+        executor.spin_all(std::chrono::milliseconds(5));
+    } else {
+        executor.spin_some();
+    }
     auto pending = pending_localization_frame_.take();
     if (pending && !shutdown_called_) {
         processSynchronizedFrame(pending->cloud, pending->odom);

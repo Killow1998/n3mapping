@@ -19,6 +19,16 @@ void N3MappingNoeticNode::initializeLiveSubscriptions()
         std_msgs::String message; message.data = AsyncLog::instance().statistics().json();
         logging_status_pub_.publish(message);
     });
+    input_health_timer_ = logging_nh.createWallTimer(
+        ros::WallDuration(0.1), [this](const ros::WallTimerEvent &) {
+            const auto status = realtime_output_->checkInputHealth();
+            if (status.empty())
+                return;
+            AsyncLog::instance().count("input_cloud_failure_status");
+            std_msgs::String message;
+            message.data = status;
+            localization_status_pub_.publish(message);
+        });
     auto live_options = ros::SubscribeOptions::create<nav_msgs::Odometry>(
         config_.odom_topic, 1,
         boost::bind(&N3MappingNoeticNode::liveOdomCallback, this, _1),
@@ -30,6 +40,12 @@ void N3MappingNoeticNode::initializeLiveSubscriptions()
     // Full cloud conversion/publication must not occupy the raw odom queue.
     live_nh.setCallbackQueue(&live_cloud_queue_);
     live_cloud_sub_.subscribe(live_nh, config_.cloud_topic, sync_queue_size);
+    live_cloud_sub_.registerCallback(
+        boost::function<void(const sensor_msgs::PointCloud2ConstPtr &)>(
+            [this](const sensor_msgs::PointCloud2ConstPtr &cloud) {
+                realtime_output_->observeCloudInput(
+                    cloud->header.stamp.toNSec());
+            }));
     live_paired_odom_sub_.subscribe(live_nh, config_.odom_topic, sync_queue_size,
                                   ros::TransportHints().tcpNoDelay());
     if (product_profile_v1_) {
@@ -51,15 +67,19 @@ void N3MappingNoeticNode::initializeLiveSubscriptions()
 
 void N3MappingNoeticNode::startLiveOutput()
 {
+    realtime_output_->startInputMonitoring(input_cloud_timeout_sec_);
     live_odom_spinner_->start();
     live_cloud_spinner_->start();
 }
 
 void N3MappingNoeticNode::stopLiveOutput()
 {
+    input_health_timer_.stop();
     logging_status_timer_.stop();
-    if (live_odom_spinner_) live_odom_spinner_->stop();
-    if (live_cloud_spinner_) live_cloud_spinner_->stop();
+    if (live_odom_spinner_)
+        live_odom_spinner_->stop();
+    if (live_cloud_spinner_)
+        live_cloud_spinner_->stop();
     live_odom_sub_.shutdown();
     live_cloud_sub_.unsubscribe();
     live_paired_odom_sub_.unsubscribe();

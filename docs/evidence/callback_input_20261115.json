@@ -1,0 +1,181 @@
+{
+  "date": "2026-11-15",
+  "base_commit": "6c925277fcc30f4e21c04746dac1bc7c56eaac8b",
+  "status": "qualified_source_change_not_deployed",
+  "scope": {
+    "new_thread": false,
+    "new_slot_mutex": false,
+    "cloud_timeout_sec_default": 0.5,
+    "health_timer_period_sec": 0.1,
+    "scheduling": "Humble localization only",
+    "input_health": "shared localization output for Humble and Noetic",
+    "navigation_deployed": false,
+    "full_14_and_route_matrix_rerun": false,
+    "algorithm_acceptance_thresholds_changed": false,
+    "physical_clock": "steady wall time",
+    "integer_observation_type": "core::TimeStamp"
+  },
+  "runtime_sha256": {
+    "libn3mapping_humble_wrapper.so": "c237a3a4fb93818589d49bff48af6a4ec7fa9ced88642533bc65a330fce33256",
+    "libn3mapping_humble_node_impl.a": "8f291d23f860a1fa365b73a80bed3852f01fa794b9d55a6db4a1d9437aa155a9",
+    "libn3mapping_core.so": "067bcda5f378c946f53b08011beec91b441b631afd6126529331775cc1e7b0a4",
+    "n3mapping_node": "124f1aebcac843c3462482b4680bbd5829eb7b9051c510a22fb5f31b0f88aa7a",
+    "probe.cpp": "d1d9897effa84de745acd190ad250bd01a7631bf34e408a7234e340f5a417726",
+    "probe": "5a01c3f3c517a94ac043e7f540c8c70ed70aa3926d30f6aa849c0d73523b5637"
+  },
+  "noetic_core_sha256": "08b1fefe7d32c4f208c25c3581e51c9f8bb5f6b3fb2aa303902792d0e1422ce6",
+  "tests": {
+    "humble": "69/69",
+    "noetic": "67/67",
+    "standalone_clang_tidy_contract": "5/5",
+    "ruff": "passed",
+    "clang_tidy_humble_wrappers": "passed",
+    "humble_native_e2e": {
+      "ros": "humble",
+      "switch_ms": 1.540668774396181,
+      "extension_max_position_error_m": 0.00044104164640445176,
+      "reload_max_position_error_m": 0.0002570661764783292,
+      "original_map_sha256": "42376b0e313e6482d16c4c9e0840845424702058032b8ce4f0c7d0aad484925b",
+      "restart_at_switch": false,
+      "additional_lock_events": 0,
+      "atlas_enabled_by_default": true,
+      "missing_atlas_created_at_first_load": true,
+      "late_global_map_received": true,
+      "extension_global_map_updated": true,
+      "input_timeout_without_odometry_reported": true,
+      "input_timeout_with_odometry_reported": true,
+      "input_timeout_blocks_extension": true
+    },
+    "noetic_native_e2e": {
+      "ros": "noetic",
+      "switch_ms": 1.23252859339118,
+      "extension_max_position_error_m": 0.0003062714323231623,
+      "reload_max_position_error_m": 7.333852543875675e-06,
+      "original_map_sha256": "95aefa3775f3aa0752b08e1ec0a5c8cf9c1de0e374d23900d49c71870a760f66",
+      "restart_at_switch": false,
+      "additional_lock_events": 0,
+      "atlas_enabled_by_default": true,
+      "missing_atlas_created_at_first_load": true,
+      "late_global_map_received": true,
+      "extension_global_map_updated": true,
+      "input_timeout_without_odometry_reported": true,
+      "input_timeout_with_odometry_reported": true,
+      "input_timeout_blocks_extension": true
+    }
+  },
+  "scheduler": {
+    "fast": {
+      "processed_pairs": 70,
+      "max_admission_age_s": 0.0012634589999998003,
+      "max_lag_frames": 0,
+      "paired_stamp_mismatches": 0,
+      "state_counts": {
+        "tracking": 70
+      },
+      "final_state": "tracking",
+      "mean_registration_ms": 7.687835057142857,
+      "resource": "wall=10.23 user=5.65 system=0.60 rss_kib=1313164"
+    },
+    "slow_exact": {
+      "processed_pairs": 28,
+      "max_admission_age_s": 0.13642810300000008,
+      "max_lag_frames": 0,
+      "paired_stamp_mismatches": 0,
+      "state_counts": {
+        "tracking": 70
+      },
+      "final_state": "tracking",
+      "mean_registration_ms": 9.562377642857143,
+      "resource": "wall=10.76 user=4.79 system=0.58 rss_kib=1321536"
+    },
+    "slow_approx": {
+      "processed_pairs": 28,
+      "max_admission_age_s": 0.08909003799999993,
+      "max_lag_frames": 0,
+      "paired_stamp_mismatches": 0,
+      "state_counts": {
+        "tracking": 70
+      },
+      "final_state": "tracking",
+      "mean_registration_ms": 6.760594964285715,
+      "resource": "wall=10.67 user=4.76 system=0.65 rss_kib=1320512"
+    },
+    "cold": {
+      "processed_pairs": 63,
+      "max_admission_age_s": 0.09750797899999974,
+      "max_lag_frames": 0,
+      "paired_stamp_mismatches": 0,
+      "state_counts": {
+        "localizing": 13,
+        "tracking": 57
+      },
+      "final_state": "tracking",
+      "mean_registration_ms": 25.96353868253968,
+      "resource": "wall=8.96 user=5.44 system=0.58 rss_kib=1286176"
+    }
+  },
+  "comparison": {
+    "fast": {
+      "before_max_admission_s": 0.001237004,
+      "after_max_admission_s": 0.0012634589999998003
+    },
+    "slow_exact": {
+      "before_max_admission_s": 10.863438837999999,
+      "after_max_admission_s": 0.13642810300000008
+    },
+    "slow_approx": {
+      "before_max_admission_s": 10.867723629999999,
+      "after_max_admission_s": 0.08909003799999993
+    },
+    "cold": {
+      "before_max_admission_s": 0.7234622079999999,
+      "after_max_admission_s": 0.09750797899999974
+    }
+  },
+  "input_health": {
+    "wire_stopped": {
+      "processed_pairs": 20,
+      "state_counts": {
+        "tracking": 22,
+        "error": 95
+      },
+      "final_state": "tracking",
+      "paired_stamp_mismatches": 0
+    },
+    "wire_all_stopped": {
+      "processed_pairs": 20,
+      "state_counts": {
+        "tracking": 19,
+        "error": 48
+      },
+      "final_state": "tracking",
+      "paired_stamp_mismatches": 0,
+      "failure_wall_gap_from_last_cloud_association_s": 0.5018263279999999
+    },
+    "wire_rejected": {
+      "processed_pairs": 36,
+      "state_counts": {
+        "tracking": 2,
+        "degraded": 19,
+        "localizing": 29,
+        "lost": 20
+      },
+      "final_state": "tracking",
+      "paired_stamp_mismatches": 0
+    },
+    "stationary": {
+      "processed_pairs": 50,
+      "state_counts": {
+        "tracking": 50
+      },
+      "final_state": "tracking",
+      "paired_stamp_mismatches": 0
+    }
+  },
+  "lint_regression": "One-pass localization admission is rejected by the existing wrapper check. Backend observation time uses core::TimeStamp; passing floating-point seconds is a compile error.",
+  "limits": [
+    "Recorded SpRobo segment and authored-room native E2E; no new hardware validation.",
+    "Existing full 14-point and route baselines are retained; this stage did not rerun that full matrix.",
+    "ETC status-gate and TGW association/inbox functions replayed offline; full navigation workflow not executed."
+  ]
+}

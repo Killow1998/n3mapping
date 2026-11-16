@@ -198,7 +198,8 @@ class LocalizationEpisode : public ::testing::Test {
     auto frame = makeFrame(step.source.stamp_nsec, step.source.pose, cloud);
     frame.source_frame_id = step.source.source_frame;
     step.backend = localizer_->processFrame(mode_, frame);
-    step.publication = live_->acceptBackend(step.source, static_cast<double>(tick_), step.backend);
+    step.publication =
+        live_->acceptBackend(step.source, {tick_ * 1000000000LL}, step.backend);
     step.live = live_->observeOdometry(step.source, step.source.stamp_nsec, true);
     const auto elapsed = std::chrono::duration<double, std::milli>(
         std::chrono::steady_clock::now() - started).count();

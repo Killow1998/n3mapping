@@ -5,6 +5,7 @@
 
 #include <gtest/gtest.h>
 #include <json/json.h>
+#include <thread>
 
 #include "n3mapping/core/realtime_output.h"
 
@@ -34,7 +35,8 @@ Json::Value json(const std::string& text) {
 TEST(RealtimeOutput, CloudFirstEstimateReportsAppliedAnchorNotNewBackendCorrection) {
   RealtimeOutput live(CoreRunMode::LOCALIZATION, "map", 4);
   auto backend = trusted();
-  ASSERT_TRUE(live.acceptBackend(source(90000000000), 90.0, backend).live_authorized);
+  ASSERT_TRUE(live.acceptBackend(source(90000000000), {90000000000}, backend)
+                  .live_authorized);
   const auto cloud = live.observeCloud(source(100000000000), 100000000000,
                                        100000000001, "body");
   ASSERT_TRUE(cloud);
@@ -42,7 +44,8 @@ TEST(RealtimeOutput, CloudFirstEstimateReportsAppliedAnchorNotNewBackendCorrecti
   EXPECT_DOUBLE_EQ(cloud_status["stamp"].asDouble(), 0.0);
   EXPECT_DOUBLE_EQ(cloud_status["correction_stamp"].asDouble(), 0.0);
   backend = trusted(10.0);
-  ASSERT_TRUE(live.acceptBackend(source(99000000000), 99.0, backend).live_authorized);
+  ASSERT_TRUE(live.acceptBackend(source(99000000000), {99000000000}, backend)
+                  .live_authorized);
   const auto estimate = live.observeOdometry(source(100000000000), 101000000000, true);
   ASSERT_TRUE(estimate.pose);
   const auto status = json(estimate.status_json);
@@ -53,6 +56,60 @@ TEST(RealtimeOutput, CloudFirstEstimateReportsAppliedAnchorNotNewBackendCorrecti
   EXPECT_DOUBLE_EQ(estimate.pose->pose.translation().x(), 0.0);
   EXPECT_EQ(status["projection"]["basis_revision"],
             cloud_status["projection"]["basis_revision"]);
+}
+
+TEST(RealtimeOutput, CloudTimeoutRequiresPostOutageGeometricEvidenceToRecover) {
+  RealtimeOutput live(CoreRunMode::LOCALIZATION, "map", 8);
+  live.startInputMonitoring(0.05);
+  auto backend = trusted();
+  live.observeCloudInput(100000000000);
+  live.acceptBackend(source(100000000000), {100000000000}, backend);
+  ASSERT_TRUE(
+      live.observeOdometry(source(100100000000), 100100000000, true).pose);
+  std::this_thread::sleep_for(std::chrono::milliseconds(60));
+  const auto failure = json(live.checkInputHealth());
+  EXPECT_EQ(failure["state"], "error");
+  EXPECT_EQ(failure["reason"], "input_cloud_timeout");
+  EXPECT_DOUBLE_EQ(failure["stamp"].asDouble(), 100.1);
+  EXPECT_DOUBLE_EQ(failure["observation_stamp"].asDouble(), 100.0);
+  const auto coasting =
+      live.observeOdometry(source(101000000000), 101000000000, true);
+  ASSERT_TRUE(coasting.pose);
+  EXPECT_EQ(json(coasting.status_json)["state"], "error");
+  live.observeCloudInput(102000000000);
+  live.acceptBackend(source(101500000000), {101500000000}, backend);
+  EXPECT_EQ(json(live.checkInputHealth())["reason"],
+            "awaiting_localization_after_input_timeout");
+  backend.relocalization_state = RelocalizationState::RECENTLY_LOST;
+  backend.pose_source = PoseSource::ODOM_PREDICTED;
+  live.acceptBackend(source(102000000000), {102000000000}, backend);
+  EXPECT_EQ(json(live.checkInputHealth())["state"], "error");
+  backend = trusted();
+  live.acceptBackend(source(102050000000), {102100000000}, backend);
+  EXPECT_TRUE(live.checkInputHealth().empty());
+  const auto recovered =
+      live.observeOdometry(source(102200000000), 102200000000, true);
+  ASSERT_TRUE(recovered.pose);
+  EXPECT_EQ(json(recovered.status_json)["state"], "tracking");
+}
+
+TEST(RealtimeOutput, OldFrozenCorrectionDoesNotExpireFreshInputAndMapEvidence) {
+  RealtimeOutput live(CoreRunMode::LOCALIZATION, "map", 8);
+  live.startInputMonitoring(0.5);
+  live.observeCloudInput(100000000000);
+  auto backend = trusted();
+  live.acceptBackend(source(100000000000), {100000000000}, backend);
+  ASSERT_TRUE(live.observeCloud(source(110000000000), 110000000000,
+                                110000000000, "body"));
+  live.observeCloudInput(109900000000);
+  live.acceptBackend(source(109900000000), {109900000000}, backend);
+  const auto fresh =
+      live.observeOdometry(source(110000000000), 110000000000, true);
+  ASSERT_TRUE(fresh.pose);
+  const auto status = json(fresh.status_json);
+  EXPECT_EQ(status["state"], "tracking");
+  EXPECT_DOUBLE_EQ(status["correction_stamp"].asDouble(), 100.0);
+  EXPECT_DOUBLE_EQ(status["observation_stamp"].asDouble(), 109.9);
 }
 
 TEST(RealtimeOutput, FrozenProjectionCarriesExactGeometryAndIntegerAssociation) {
@@ -67,14 +124,15 @@ TEST(RealtimeOutput, FrozenProjectionCarriesExactGeometryAndIntegerAssociation) 
   backend.T_world_lidar = correction * raw.pose;
   auto anchor = raw;
   anchor.stamp_nsec = stamp - 10;
-  ASSERT_TRUE(live.acceptBackend(anchor, 1.0, backend).live_authorized);
+  ASSERT_TRUE(
+      live.acceptBackend(anchor, {1000000000}, backend).live_authorized);
   const auto odom = live.observeOdometry(raw, stamp + 2, true);
   ASSERT_TRUE(odom.pose);
   EXPECT_TRUE(odom.pose->map_from_source.matrix().isApprox(correction.matrix(), 1e-12));
   EXPECT_TRUE(odom.pose->source_from_body.matrix().isApprox(raw.pose.matrix(), 1e-12));
   backend.T_world_lidar = raw.pose;
   anchor.stamp_nsec = stamp - 1;
-  live.acceptBackend(anchor, 2.0, backend);
+  live.acceptBackend(anchor, {2000000000}, backend);
   const auto cloud = live.observeCloud(raw, stamp + 2, stamp + 1, "body");
   ASSERT_TRUE(cloud);
   EXPECT_TRUE(cloud->projection.pose.matrix().isApprox(odom.pose->pose.matrix(), 1e-12));
@@ -97,10 +155,10 @@ TEST(RealtimeOutput, FrozenProjectionCarriesExactGeometryAndIntegerAssociation) 
 TEST(RealtimeOutput, OnlyTrustedCorrectionRestoresUnavailableGeneration) {
   RealtimeOutput live(CoreRunMode::LOCALIZATION, "map", 8);
   auto backend = trusted();
-  live.acceptBackend(source(90), 90e-9, backend);
+  live.acceptBackend(source(90), {90}, backend);
   backend.relocalization_state = RelocalizationState::RECENTLY_LOST;
   backend.pose_source = PoseSource::ODOM_PREDICTED;
-  EXPECT_FALSE(live.acceptBackend(source(99), 99e-9, backend).live_authorized);
+  EXPECT_FALSE(live.acceptBackend(source(99), {99}, backend).live_authorized);
   const auto ready = live.observeOdometry(source(100), 100, true);
   ASSERT_TRUE(ready.pose);
   EXPECT_EQ(ready.pose->generation, 0U);
@@ -119,11 +177,11 @@ TEST(RealtimeOutput, OnlyTrustedCorrectionRestoresUnavailableGeneration) {
   EXPECT_FALSE(live.isCurrent(*cloud));
   backend.relocalization_state = RelocalizationState::RECENTLY_LOST;
   backend.pose_source = PoseSource::ODOM_PREDICTED;
-  EXPECT_FALSE(live.acceptBackend(source(102), 102e-9, backend).live_authorized);
+  EXPECT_FALSE(live.acceptBackend(source(102), {102}, backend).live_authorized);
   EXPECT_FALSE(live.observeCloud(source(103), 103, 103, "body"));
   EXPECT_FALSE(live.observeOdometry(source(103), 103, true).pose);
   backend = trusted();
-  ASSERT_TRUE(live.acceptBackend(source(104), 104e-9, backend).live_authorized);
+  ASSERT_TRUE(live.acceptBackend(source(104), {104}, backend).live_authorized);
   const auto recovered = live.observeOdometry(source(105), 105, true);
   ASSERT_TRUE(recovered.pose);
   EXPECT_EQ(recovered.pose->generation, 1U);
@@ -139,25 +197,26 @@ TEST(RealtimeOutput, ModesRetainTheirExistingAuthorityAndDivergenceRules) {
     RealtimeOutput live(mode, "map", 8);
     BackendOutput backend;
     backend.success = true;
-    auto committed = live.acceptBackend(source(90), 90e-9, backend);
+    auto committed = live.acceptBackend(source(90), {90}, backend);
     EXPECT_EQ(committed.live_authorized, mode != CoreRunMode::LOCALIZATION);
     backend = trusted(10.0);
     backend.success = false;
     backend.accepted_keyframe = true;
-    ASSERT_TRUE(live.acceptBackend(source(95), 95e-9, backend).live_authorized);
+    ASSERT_TRUE(live.acceptBackend(source(95), {95}, backend).live_authorized);
     const auto first = live.observeOdometry(source(100), 100, true);
     ASSERT_TRUE(first.pose);
     backend = BackendOutput{};
-    EXPECT_FALSE(live.acceptBackend(source(101), 101e-9, backend).live_authorized);
+    EXPECT_FALSE(
+        live.acceptBackend(source(101), {101}, backend).live_authorized);
     const auto retained = live.observeOdometry(source(102), 102, true);
     ASSERT_TRUE(retained.pose);
     EXPECT_EQ(retained.pose->basis_revision, first.pose->basis_revision);
     EXPECT_DOUBLE_EQ(retained.pose->pose.translation().x(), 10.0);
     EXPECT_DOUBLE_EQ(json(retained.status_json)["observation_stamp"].asDouble(), 101e-9);
     backend.mapping_block_reason = MappingBlockReason::OdometryDiverged;
-    live.acceptBackend(source(103), 103e-9, backend);
+    live.acceptBackend(source(103), {103}, backend);
     backend = trusted();
-    live.acceptBackend(source(104), 104e-9, backend);
+    live.acceptBackend(source(104), {104}, backend);
     const auto diverged = live.observeOdometry(source(105), 105, false);
     EXPECT_FALSE(diverged.pose);
     EXPECT_EQ(json(diverged.status_json)["reason"], "odometry_diverged");
@@ -168,19 +227,21 @@ TEST(RealtimeOutput, ModesRetainTheirExistingAuthorityAndDivergenceRules) {
 TEST(RealtimeOutput, ExtensionPredictionDoesNotAdvertiseAnotherGlobalLock) {
   RealtimeOutput live(CoreRunMode::MAP_EXTENSION, "map", 8);
   BackendOutput backend;
-  live.acceptBackend(source(1000000000), 1.0, backend);
+  live.acceptBackend(source(1000000000), {1000000000}, backend);
   EXPECT_EQ(json(live.observeOdometry(source(1000000001), 1000000001, true).status_json)["state"],
             "initializing");
   backend = trusted();
   backend.relocalization_locked = true;
-  ASSERT_TRUE(live.acceptBackend(source(2000000000), 2.0, backend).plan.publish_legacy_lock);
+  ASSERT_TRUE(live.acceptBackend(source(2000000000), {2000000000}, backend)
+                  .plan.publish_legacy_lock);
   int64_t stamp = 3000000000LL;
   for (const auto state : {RelocalizationState::RECENTLY_LOST, RelocalizationState::LOST}) {
     backend.relocalization_locked = false;
     backend.accepted_keyframe = true;
     backend.relocalization_state = state;
     backend.pose_source = PoseSource::ODOM_PREDICTED;
-    const auto publication = live.acceptBackend(source(stamp), stamp*1e-9, backend);
+    const auto publication =
+        live.acceptBackend(source(stamp), {stamp}, backend);
     EXPECT_TRUE(publication.live_authorized);
     EXPECT_FALSE(publication.plan.publish_legacy_lock);
     EXPECT_FALSE(publication.plan.publish_authoritative_pose);
@@ -192,7 +253,7 @@ TEST(RealtimeOutput, ExtensionPredictionDoesNotAdvertiseAnotherGlobalLock) {
     stamp += 1000000000LL;
   }
   backend = trusted();
-  const auto recovered = live.acceptBackend(source(stamp), stamp*1e-9, backend);
+  const auto recovered = live.acceptBackend(source(stamp), {stamp}, backend);
   EXPECT_FALSE(recovered.plan.publish_legacy_lock);
   EXPECT_EQ(json(live.observeOdometry(source(stamp+1), stamp+1, true).status_json)["state"],
             "tracking");
@@ -202,7 +263,8 @@ TEST(RealtimeOutput, ExtensionSwitchRetainsCorrectionSessionAndLockEpoch) {
   RealtimeOutput live(CoreRunMode::LOCALIZATION, "map", 8);
   auto backend = trusted(12.0);
   backend.relocalization_locked = true;
-  const auto locked = live.acceptBackend(source(1000000000), 1.0, backend);
+  const auto locked =
+      live.acceptBackend(source(1000000000), {1000000000}, backend);
   ASSERT_TRUE(locked.plan.publish_legacy_lock);
   const auto before = live.observeOdometry(source(1100000000), 1100000000, true);
   ASSERT_TRUE(before.pose);
@@ -221,7 +283,8 @@ TEST(RealtimeOutput, ExtensionSwitchRetainsCorrectionSessionAndLockEpoch) {
 
   backend.relocalization_locked = false;
   backend.accepted_keyframe = true;
-  const auto extended = live.acceptBackend(source(1300000000), 1.3, backend);
+  const auto extended =
+      live.acceptBackend(source(1300000000), {1300000000}, backend);
   EXPECT_TRUE(extended.live_authorized);
   EXPECT_FALSE(extended.plan.publish_legacy_lock);
   EXPECT_EQ(extended.plan.lock_epoch, locked.plan.lock_epoch);
@@ -230,7 +293,7 @@ TEST(RealtimeOutput, ExtensionSwitchRetainsCorrectionSessionAndLockEpoch) {
 TEST(RealtimeOutput, DroppedDuplicatesAndExpiredReservationsDoNotRevokeValidInput) {
   RealtimeOutput live(CoreRunMode::LOCALIZATION, "map", 1);
   auto backend = trusted();
-  live.acceptBackend(source(90), 90e-9, backend);
+  live.acceptBackend(source(90), {90}, backend);
   ASSERT_TRUE(live.observeCloud(source(100), 100, 100, "body"));
   const auto retained = live.observeCloud(source(101), 101, 101, "body");
   ASSERT_TRUE(retained);
@@ -242,7 +305,7 @@ TEST(RealtimeOutput, DroppedDuplicatesAndExpiredReservationsDoNotRevokeValidInpu
   ASSERT_TRUE(live.observeOdometry(source(101), 102, true).pose);
   EXPECT_TRUE(live.observeOdometry(source(101), 102, true).status_json.empty());
   backend = trusted();
-  live.acceptBackend(source(110), 110e-9, backend);
+  live.acceptBackend(source(110), {110}, backend);
   EXPECT_TRUE(live.observeOdometry(source(105), 120, true).status_json.empty());
   EXPECT_TRUE(live.observeOdometry(source(120), 120, true).pose);
   const auto regressed = live.observeOdometry(source(119), 121, true);
@@ -258,7 +321,7 @@ TEST(RealtimeOutput, BackendCommitAndLiveSnapshotNeverMixObservations) {
     auto backend = trusted(static_cast<double>(stamp));
     backend.tracking_performance.available = true;
     backend.tracking_performance.tracking_total_ms = stamp;
-    live.acceptBackend(source(stamp), stamp * 1e-9, backend);
+    live.acceptBackend(source(stamp), {stamp}, backend);
   };
   commit(1);
   std::atomic<bool> start{false};

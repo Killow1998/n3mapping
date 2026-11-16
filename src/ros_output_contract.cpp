@@ -108,6 +108,10 @@ std::string localizationStatusJson(CoreRunMode mode,
             ? "odometry_not_published"
             : realtime->input_reason.c_str();
     }
+    if (realtime && !realtime->input_failure_reason.empty()) {
+      state = "error";
+      reason = realtime->input_failure_reason.c_str();
+    }
     Json::Value status(Json::objectValue);
     status["mode"] = coreRunModeName(mode);
     status["state"] = state;

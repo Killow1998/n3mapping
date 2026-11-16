@@ -65,7 +65,7 @@ class N3MappingNode : public rclcpp::Node
 
     void startLiveOutput();
 
-    void processPendingLocalizationFrame();
+    void spinOnce(rclcpp::Executor &executor);
 
   private:
     void initializeAuthorityProbe();
@@ -226,6 +226,8 @@ class N3MappingNode : public rclcpp::Node
     RuntimeEvents runtime_events_;
     rclcpp::Publisher<std_msgs::msg::String>::SharedPtr logging_status_pub_;
     rclcpp::TimerBase::SharedPtr logging_status_timer_;
+    rclcpp::TimerBase::SharedPtr input_health_timer_;
+    double input_cloud_timeout_sec_ = 0.5;
     std::string optimization_log_path_;
     nav_msgs::msg::Path localization_path_; // 定位模式累积轨迹
     std::vector<std::pair<int64_t, int64_t>> loop_marker_history_;

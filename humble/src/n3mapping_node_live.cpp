@@ -7,6 +7,7 @@ namespace n3mapping {
 
 void N3MappingNode::startLiveOutput()
 {
+    realtime_output_->startInputMonitoring(input_cloud_timeout_sec_);
     live_odom_worker_->start();
     live_cloud_worker_->start();
 }
@@ -21,6 +22,18 @@ void N3MappingNode::initializeLiveSubscriptions()
         std_msgs::msg::String message; message.data = AsyncLog::instance().statistics().json();
         logging_status_pub_->publish(message);
     }, live_odom_worker_->options().callback_group);
+    input_health_timer_ = create_wall_timer(
+        std::chrono::milliseconds(100),
+        [this] {
+            const auto status = realtime_output_->checkInputHealth();
+            if (status.empty())
+                return;
+            AsyncLog::instance().count("input_cloud_failure_status");
+            std_msgs::msg::String message;
+            message.data = status;
+            localization_status_pub_->publish(message);
+        },
+        live_odom_worker_->options().callback_group);
     live_odom_sub_ = this->create_subscription<nav_msgs::msg::Odometry>(
         // Fast DDS reliable depth-1 history can remain behind the writer after
         // discovery. Keep the same bounded history as the paired input; this
@@ -34,6 +47,11 @@ void N3MappingNode::initializeLiveSubscriptions()
     qos.depth = static_cast<std::size_t>(queue_size);
     const auto options = live_cloud_worker_->options();
     live_cloud_sub_.subscribe(this, config_.cloud_topic, qos, options);
+    live_cloud_sub_.registerCallback(
+        [this](sensor_msgs::msg::PointCloud2::ConstSharedPtr cloud) {
+            realtime_output_->observeCloudInput(
+                toCoreTimeStamp(cloud->header.stamp).nsec);
+        });
     live_paired_odom_sub_.subscribe(this, config_.odom_topic, qos, options);
     if (product_profile_v1_) {
         ExactSyncPolicy policy(static_cast<uint32_t>(queue_size));
@@ -53,9 +71,14 @@ void N3MappingNode::initializeLiveSubscriptions()
 
 void N3MappingNode::stopLiveOutput()
 {
-    if (logging_status_timer_) logging_status_timer_->cancel();
-    if (live_odom_worker_) live_odom_worker_->stop();
-    if (live_cloud_worker_) live_cloud_worker_->stop();
+    if (input_health_timer_)
+        input_health_timer_->cancel();
+    if (logging_status_timer_)
+        logging_status_timer_->cancel();
+    if (live_odom_worker_)
+        live_odom_worker_->stop();
+    if (live_cloud_worker_)
+        live_cloud_worker_->stop();
 }
 
 int64_t N3MappingNode::liveOutputNow()
@@ -155,7 +178,7 @@ RelocalizationPublicationPlan N3MappingNode::publishRelocalizationOutput(
   core::BackendOutput& output)
 {
     const auto committed = realtime_output_->acceptBackend(
-        toCoreOdometrySource(source), rclcpp::Time(header.stamp).seconds(), output);
+        toCoreOdometrySource(source), toCoreTimeStamp(header.stamp), output);
     const auto& publication = committed.plan;
 
     if (run_mode_ == CoreRunMode::MAP_EXTENSION &&

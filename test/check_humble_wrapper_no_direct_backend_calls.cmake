@@ -58,3 +58,9 @@ if(OFFENDING_FILES)
   message(FATAL_ERROR
     "Humble wrapper directly references backend internals:\n${OFFENDING_OUTPUT}")
 endif()
+
+file(READ "${ROOT_DIR}/humble/src/n3mapping_node_backend.cpp" BACKEND_CONTENTS)
+if(NOT BACKEND_CONTENTS MATCHES "executor\\.spin_all\\(std::chrono::milliseconds\\([1-9][0-9]*\\)\\)")
+  message(FATAL_ERROR
+    "Humble localization admission must drain ready callbacks before processing. Use executor.spin_all with a positive millisecond budget in N3MappingNode::spinOnce; spin_some alone leaves DDS input queued.")
+endif()

@@ -12,6 +12,8 @@ N3MappingNode::N3MappingNode(
 {
     input_linear_velocity_frame_ = parseInputLinearVelocityFrame(
         this->declare_parameter<std::string>("input_linear_velocity_frame", "child"));
+    input_cloud_timeout_sec_ =
+        this->declare_parameter<double>("input_cloud_timeout_sec", 0.5);
     localization_status_pub_ = this->create_publisher<std_msgs::msg::String>(
         this->declare_parameter<std::string>("output_status_topic", "/localization/status"), 1);
     if (authority_probe_scenario_) {
@@ -114,6 +116,11 @@ void N3MappingNode::handleStartMapExtension(
     const std::shared_ptr<std_srvs::srv::Trigger::Request>,
     std::shared_ptr<std_srvs::srv::Trigger::Response> response)
 {
+    if (!realtime_output_->checkInputHealth().empty()) {
+        response->success = false;
+        response->message = "localization_input_unavailable";
+        return;
+    }
     std::lock_guard<std::mutex> lock(data_mutex_);
     response->success = n3mapping_core_->startMapExtension(&response->message);
     if (!response->success) return;

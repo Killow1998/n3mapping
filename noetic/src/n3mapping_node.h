@@ -196,6 +196,8 @@ class N3MappingNoeticNode {
     std::uint64_t performance_frame_index_ = 0, performance_loop_index_ = 0;
     ros::Publisher logging_status_pub_;
     ros::WallTimer logging_status_timer_;
+    ros::WallTimer input_health_timer_;
+    double input_cloud_timeout_sec_ = 0.5;
     std::string optimization_log_path_;
 
     std::vector<geometry_msgs::PoseStamped> localization_path_;

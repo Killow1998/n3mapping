@@ -17,6 +17,7 @@ get_filename_component(N3MAPPING_ROOT ../.. ABSOLUTE BASE_DIR ${CMAKE_CURRENT_SO
 add_library(n3mapping_output_contract STATIC
   ${N3MAPPING_ROOT}/src/core/realtime_output.cpp
   ${N3MAPPING_ROOT}/src/core/run_mode.cpp
+  ${N3MAPPING_ROOT}/src/relocalization_performance.cpp
   ${N3MAPPING_ROOT}/src/ros_output_contract.cpp)
 target_include_directories(n3mapping_output_contract PUBLIC
   ${N3MAPPING_ROOT}/include ${PCL_INCLUDE_DIRS} ${JSONCPP_INCLUDE_DIRS})

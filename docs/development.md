@@ -348,6 +348,28 @@ their native middleware setup.
 Use the relevant behavioral tests during a module change and the integrated
 mapping/localization/extension checks at release boundaries.
 
+Localization callback admission in Humble stays on its serial backend owner.
+`N3MappingNode::spinOnce` uses bounded repeated collection before consuming the
+latest complete pair; the existing wrapper lint rejects a regression to
+one-pass admission. Noetic retains its callback-queue draining loop.
+Both adapters report raw cloud receipt to `core::RealtimeOutput` and run its
+input-health check on the existing live-odometry callback lane. Cloud arrival,
+processed observation and accepted map correction remain separate events.
+Backend observation times use `core::TimeStamp` throughout this boundary, so
+floating-point seconds cannot enter the outage-recovery comparison. JSON is
+the conversion boundary for seconds.
+
+C++ checks use `.clang-tidy` and `.clang-format`; adapter formatting retains four
+spaces. Enable `CMAKE_EXPORT_COMPILE_COMMANDS` for the native build and run
+`clang-tidy -p <build-directory> <source.cpp>`. The standalone
+`test/realtime_contract` CMake entry also accepts
+`-DCMAKE_CXX_CLANG_TIDY=clang-tidy` to analyze production output sources during
+the build. Install the matching Clang/OpenMP development headers when using a
+standalone LLVM installation. Use `clang-format-diff -p1` on changed C++ hunks
+to avoid reformatting unrelated code. Python checks use `ruff.toml` with
+`ruff check test/map_extension_ros_e2e.py`. The shared native ROS E2E covers
+both cloud-only and complete input outages, recovery and extension admission.
+
 Search, tracking, map evidence and offline probes have separate implementation
 files. Session reset preserves map-derived tracking targets; map replacement
 invalidates their generation and queued work. Loaded-map tracking prepares one

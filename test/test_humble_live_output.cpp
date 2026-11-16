@@ -72,6 +72,13 @@ class HumbleOutputTestAccess {
     node.processSynchronizedFrame(std::make_shared<sensor_msgs::msg::PointCloud2>(cloud),
                                  std::make_shared<nav_msgs::msg::Odometry>(odom));
   }
+  static void subscribeBackend(N3MappingNode &node) {
+    node.config_.sync_queue_size = 100;
+    node.initializeComponents();
+    node.initializeROS();
+    node.loop_timer_->cancel();
+    node.global_map_timer_->cancel();
+  }
 };
 
 namespace {
@@ -253,6 +260,58 @@ class HumbleLiveOutput : public ::testing::Test {
   std::vector<geometry_msgs::msg::TransformStamped> transforms;
 };
 
+TEST_F(HumbleLiveOutput, PausedBackendResumesWithNewestCompleteObservation) {
+  for (const bool exact : {true, false}) {
+    HumbleOutputTestAccess::configure(*node, CoreRunMode::LOCALIZATION, exact);
+    HumbleOutputTestAccess::subscribeBackend(*node);
+    seed();
+    node->startLiveOutput();
+    ASSERT_TRUE(until([&] {
+      return input_odom->get_subscription_count() >= 3 &&
+             input_cloud->get_subscription_count() >= 2;
+    }));
+    for (int i = 1; i <= 32; ++i) {
+      const auto stamp = epoch + i * 1000000;
+      HumbleOutputTestAccess::clock(*node, stamp);
+      input_odom->publish(raw(stamp));
+      input_cloud->publish(scan(stamp));
+      std::this_thread::sleep_for(2ms);
+    }
+    std::this_thread::sleep_for(30ms);
+    backend_executor.add_node(node);
+    node->spinOnce(backend_executor);
+    backend_executor.remove_node(node);
+    const auto next = epoch + 33000000;
+    HumbleOutputTestAccess::clock(*node, next);
+    input_odom->publish(raw(next));
+    ASSERT_TRUE(until([&] {
+      return std::any_of(
+          statuses.begin(), statuses.end(), [&](const auto &status) {
+            return status["projection"]["kind"] == "odom" &&
+                   status["projection"]["odom_stamp_nsec"].asInt64() == next &&
+                   std::abs(status["observation_stamp"].asDouble() -
+                            (epoch + 32000000) * 1e-9) < 1e-7;
+          });
+    }));
+    node->shutdown();
+    node = std::make_shared<ControlledNode>();
+  }
+}
+
+TEST_F(HumbleLiveOutput, MissingCloudIsReportedWithoutAnyFurtherOdometry) {
+  seed();
+  node->startLiveOutput();
+  ASSERT_TRUE(until(
+      [&] {
+        return std::any_of(statuses.begin(), statuses.end(),
+                           [](const auto &status) {
+                             return status["state"] == "error" &&
+                                    status["reason"] == "input_cloud_timeout";
+                           });
+      },
+      1500ms));
+}
+
 TEST_F(HumbleLiveOutput, SameProductionSequenceMatchesSharedCoreInAllModes) {
   worldSubscriber();
   for (auto mode : {CoreRunMode::MAPPING, CoreRunMode::LOCALIZATION, CoreRunMode::MAP_EXTENSION}) {
@@ -261,7 +320,7 @@ TEST_F(HumbleLiveOutput, SameProductionSequenceMatchesSharedCoreInAllModes) {
     core::RealtimeOutput reference(mode, "map", 8);
     auto output = trusted();
     auto anchor = raw(epoch - 10);
-    reference.acceptBackend(toCoreOdometrySource(anchor), (epoch - 9) * 1e-9, output);
+    reference.acceptBackend(toCoreOdometrySource(anchor), {epoch - 9}, output);
     seed();
     const auto path_count = paths.size();
     auto source = raw();
@@ -307,7 +366,7 @@ TEST_F(HumbleLiveOutput, SameProductionSequenceMatchesSharedCoreInAllModes) {
     auto update = [&](int64_t stamp, core::BackendOutput value) {
       auto input = raw(stamp);
       auto copy = value;
-      reference.acceptBackend(toCoreOdometrySource(input), (stamp + 1) * 1e-9, copy);
+      reference.acceptBackend(toCoreOdometrySource(input), {stamp + 1}, copy);
       HumbleOutputTestAccess::backend(*node, input, value, stamp + 1);
       drain();
     };

@@ -1,9 +1,11 @@
 #include "n3mapping/core/realtime_output.h"
 
 #include <algorithm>
+#include <cmath>
 #include <iomanip>
 #include <random>
 #include <sstream>
+#include <stdexcept>
 #include <utility>
 
 namespace n3mapping::core {
@@ -35,8 +37,52 @@ void RealtimeOutput::setMode(CoreRunMode mode) {
   scalar_status_json_.clear();
 }
 
-BackendPublication RealtimeOutput::acceptBackend(
-    const OdometrySource& source, double observation_stamp, BackendOutput& output) {
+void RealtimeOutput::startInputMonitoring(double cloud_timeout_sec) {
+  if (!std::isfinite(cloud_timeout_sec) || cloud_timeout_sec <= 0.0)
+    throw std::invalid_argument(
+        "input_cloud_timeout_sec must be finite and positive");
+  std::lock_guard<std::mutex> lock(snapshot_mutex_);
+  cloud_timeout_ = std::chrono::duration<double>(cloud_timeout_sec);
+  last_cloud_receive_ = std::chrono::steady_clock::now();
+}
+
+void RealtimeOutput::observeCloudInput(int64_t stamp_nsec) {
+  std::lock_guard<std::mutex> lock(snapshot_mutex_);
+  inputFailureReason();
+  last_cloud_receive_ = std::chrono::steady_clock::now();
+  if (input_failed_ && !recovery_cloud_stamp_nsec_)
+    recovery_cloud_stamp_nsec_ = stamp_nsec;
+}
+
+std::string RealtimeOutput::inputFailureReason() {
+  if (mode_ != CoreRunMode::LOCALIZATION || !last_cloud_receive_)
+    return {};
+  if (std::chrono::steady_clock::now() - *last_cloud_receive_ >
+      cloud_timeout_) {
+    input_failed_ = true;
+    recovery_cloud_stamp_nsec_.reset();
+    return "input_cloud_timeout";
+  }
+  return input_failed_ ? "awaiting_localization_after_input_timeout" : "";
+}
+
+std::string RealtimeOutput::checkInputHealth() {
+  std::lock_guard<std::mutex> lock(snapshot_mutex_);
+  RealtimeLocalizationStatus realtime;
+  realtime.input_failure_reason = inputFailureReason();
+  if (realtime.input_failure_reason.empty())
+    return {};
+  realtime.estimate_stamp = estimate_stamp_;
+  realtime.observation_stamp = observation_stamp_;
+  realtime.correction_stamp = applied_correction_stamp_;
+  scalar_status_json_ = localizationStatusJson(
+      mode_, backend_status_, estimate_stamp_, world_frame_, &realtime);
+  return scalar_status_json_;
+}
+
+BackendPublication RealtimeOutput::acceptBackend(const OdometrySource &source,
+                                                 TimeStamp observation_stamp,
+                                                 BackendOutput &output) {
   const bool localization = mode_ == CoreRunMode::LOCALIZATION;
   const auto output_mode = localization
       ? RelocalizationOutputMode::LOCALIZATION
@@ -50,6 +96,12 @@ BackendPublication RealtimeOutput::acceptBackend(
           output.relocalization_state, output.pose_source)
                     : (output.success || output.accepted_keyframe)) && source.pose_valid;
   std::lock_guard<std::mutex> lock(snapshot_mutex_);
+  inputFailureReason();
+  if (publication.live_authorized && input_failed_ &&
+      recovery_cloud_stamp_nsec_ &&
+      observation_stamp.nsec >= *recovery_cloud_stamp_nsec_ &&
+      std::chrono::steady_clock::now() - *last_cloud_receive_ <= cloud_timeout_)
+    input_failed_ = false;
   odometry_.updateCorrection(source.stamp_nsec, source.source_frame, source.body_frame,
                             source.pose, output.T_world_lidar, publication.live_authorized);
   if (output.mapping_block_reason == MappingBlockReason::OdometryDiverged) {
@@ -58,7 +110,7 @@ BackendPublication RealtimeOutput::acceptBackend(
   backend_status_ = output;
   backend_status_.cloud_body.reset();
   backend_status_.cloud_world.reset();
-  observation_stamp_ = observation_stamp;
+  observation_stamp_ = sourceSeconds(observation_stamp.nsec);
   return publication;
 }
 
@@ -76,6 +128,7 @@ OdometryEmission RealtimeOutput::observeOdometry(
     backend = backend_status_;
     mode = mode_;
     realtime.observation_stamp = observation_stamp_;
+    realtime.input_failure_reason = inputFailureReason();
   }
   auto& diagnostic = emission.diagnostic;
   emission.reason = realtimeOdometryReasonName(diagnostic.reason);
@@ -110,11 +163,15 @@ OdometryEmission RealtimeOutput::observeOdometry(
   realtime.correction_stamp = diagnostic.correction_stamp_nsec * 1e-9;
   realtime.estimate_available = emission.pose.has_value();
   realtime.input_reason = emission.reason;
+  if (!realtime.input_failure_reason.empty())
+    emission.reason = realtime.input_failure_reason;
   emission.status_json = localizationStatusJson(
       mode, backend, sourceSeconds(source.stamp_nsec), world_frame_, &realtime);
   {
     std::lock_guard<std::mutex> lock(snapshot_mutex_);
     if (mode == mode_) scalar_status_json_ = emission.status_json;
+    estimate_stamp_ = realtime.estimate_stamp;
+    applied_correction_stamp_ = realtime.correction_stamp;
   }
   return emission;
 }

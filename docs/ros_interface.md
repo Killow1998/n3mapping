@@ -41,7 +41,7 @@ still needs the normal localization lifecycle. See the
 External consumers do not need N3Mapping's private status message. The generic
 status contains `mode`, `state`, numeric `stamp` (current estimate source time),
 `observation_stamp` (last processed global scan source time), `correction_stamp`
-(last accepted map correction source time), `frame_id`, and `reason`. Times are
+(source time of the trusted correction applied to this estimate), `frame_id`, and `reason`. Times are
 seconds; zero observation/correction time means none is available. Forwarding a
 current estimate never refreshes an old observation or correction time. In
 localization mode, `tracking` requires an authoritative full localization pose.
@@ -53,6 +53,24 @@ correction still projects current frontend odometry; this does not report a new
 accepted map match. Consumers that allow odometry coasting must check projection
 freshness and their selected map/session separately from `state == tracking`.
 A displayed map or cloud alone does not establish projection freshness.
+
+Both ROS adapters monitor receipt of localization input clouds independently of
+backend registration. `input_cloud_timeout_sec` defaults to 0.5 seconds, allowing
+five missing scan periods at 10 Hz. A monotonic wall timer checks every 100 ms,
+including when odometry has also stopped. Missing clouds report `state=error`
+with `reason=input_cloud_timeout`; the timer keeps the last actual estimate,
+observation and correction stamps instead of inventing a new estimate time.
+Mapping and map extension retain their existing input policy.
+
+Cloud reception alone does not restore tracking. The status reports
+`awaiting_localization_after_input_timeout` until a post-outage cloud receives an
+authoritative map match. A delayed match from before the outage cannot recover
+the state. Both adapters reject the localization-to-extension service while
+this input failure is active. If valid odometry continues, its trusted-anchor
+projection can remain available alongside the error state; consumers must not
+treat that projection as successful global tracking. A healthy stationary scan,
+slow backend processing, or an old frozen correction alone does not trigger the
+cloud-receipt timeout.
 
 Mapping reports `initializing` with `waiting_for_static_start_guard` while the
 core's startup protection is holding output, then `tracking` when output is
@@ -168,8 +186,12 @@ This avoids the reproduced Fast DDS depth-1 startup stall while preserving the
 latest-input behavior; timestamp and authority guards still apply. Other
 subscriptions retain their configured queues and existing QoS. Product V1 uses exact
 synchronization; other profiles keep `sync_time_tolerance`. Localization drains
-received backend pairs into the existing `LatestFrameSlot`, replacing pending
-work with the newest complete pair before processing it. Mapping and extension
+received backend pairs into the existing `LatestFrameSlot`. The serial
+localization owner repeatedly collects ready callbacks with a 5 ms `spin_all`
+budget, then processes the newest complete pair. This replaces stale work still
+queued in DDS as well as work already admitted to the slot. The budget bounds
+callback draining, not the duration of an individual registration or callback.
+No additional input worker or slot mutex is used. Mapping and extension
 retain their serial paired backend processing. Shutdown stops and joins both
 live workers before saving maps. Path and authority events keep backend cadence;
 TF keeps odometry source time and suppresses zero/non-increasing timestamps.

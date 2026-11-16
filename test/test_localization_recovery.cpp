@@ -38,7 +38,7 @@ TEST_F(LocalizationEpisode, InvalidBackendOdometryCannotCarryConfirmationAcrossR
   frame.source_frame_id = source.source_frame;
   frame.pose_valid = false;
   auto invalid = localizer_->processFrame(mode_, frame);
-  live_->acceptBackend(source, static_cast<double>(tick_), invalid);
+  live_->acceptBackend(source, {tick_ * 1000000000LL}, invalid);
   EXPECT_FALSE(live_->observeOdometry(source, source.stamp_nsec, true).pose);
 
   map_from_odom_ = makePose(70, 40, -M_PI_2);
