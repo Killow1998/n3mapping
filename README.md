@@ -38,11 +38,20 @@ Choose the frontend for your sensor inputs:
 | [Killow1998/FAST-LIVO2](https://github.com/Killow1998/FAST-LIVO2) | LiDAR + IMU + calibrated RGB camera | `/n3m_input/cloud_body` | `/n3m_input/odometry` |
 
 For FAST-LIO, keep `publish.scan_publish_en` and
-`publish.scan_bodyframe_pub_en` enabled. For FAST-LIVO2, use the full body-cloud
-output paired with the final post-visual pose; `/cloud_registered` may contain
-only camera-visible points in the world frame. In both cases, configure the
-sensor extrinsics and timestamps, and keep the cloud's body frame consistent
-with odometry. The IMU body origin may differ from the robot base.
+`publish.scan_bodyframe_pub_en` enabled.
+
+The FAST-LIVO2 fork adds the two `/n3m_input/*` outputs listed above: a complete
+deskewed LiDAR cloud in the IMU body frame and the final fused pose after the
+visual update, with the same acquisition timestamp. The original
+`/cloud_registered` and `/aft_mapped_to_init` topics remain available.
+`/aft_mapped_to_init` publishes the same odometry as `/n3m_input/odometry`;
+`/cloud_registered` is a world-frame visualization cloud and, in visual mode,
+may contain only camera-visible colored points. Use the body-cloud output for
+N3M's geometric input.
+
+For either frontend, configure sensor extrinsics and timestamps, and keep the
+cloud's body frame consistent with odometry. The IMU body origin may differ
+from the robot base.
 
 See the [FAST-LIO shared-core validation](https://github.com/Killow1998/FAST_LIO/blob/main/docs/core_wrappers_20261027.md)
 and [FAST-LIVO2 integration validation](docs/evidence/fast_livo2_frontend_20261028.md)
