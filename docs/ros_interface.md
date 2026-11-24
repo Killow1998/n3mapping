@@ -23,6 +23,13 @@ keyframes and their map revision; an adjacent `global_map.pcd` is an export,
 not an unchecked replacement for the selected map. Extension and loop corrections
 invalidate the cache. Headless localization does not construct this display cloud.
 
+During tracking, `/localization/status` can include `weak_translation_axes`.
+Each entry is a unit vector `[x, y, z]` in the map frame. It describes a direction
+that the current scan-to-map match constrains poorly. An empty array means all
+three translation directions were constrained. An absent field means no axis
+assessment is available for this observation. A nonempty list sets the reason
+to `translation_partially_constrained` while the tracking state stays active.
+
 ## Switch from localization to map extension
 
 An already localized node can switch to map extension without restarting the

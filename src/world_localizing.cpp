@@ -46,6 +46,11 @@ Eigen::Isometry3d WorldLocalizing::getMapToOdomTransform() const {
 
 void WorldLocalizing::resetLocalizationState() {
   std::lock_guard<std::mutex> lock(mutex_);
+  resetTrackingStateLocked();
+  releaseSearchPreparation();
+}
+
+void WorldLocalizing::resetTrackingStateLocked() {
   is_relocalized_ = false;
   has_ever_relocalized_ = false;
   T_map_odom_ = Eigen::Isometry3d::Identity();
@@ -57,7 +62,6 @@ void WorldLocalizing::resetLocalizationState() {
   consecutive_track_failures_ = 0;
   query_builder_.reset();
   hypothesis_manager_.reset();
-  releaseSearchPreparation();
 }
 
 void WorldLocalizing::releaseSearchPreparation() {
@@ -75,24 +79,12 @@ void WorldLocalizing::releaseSearchPreparation() {
 
 void WorldLocalizing::notifyMapReplaced() {
   std::lock_guard<std::mutex> lock(mutex_);
-  is_relocalized_ = false;
-  has_ever_relocalized_ = false;
-  T_map_odom_ = Eigen::Isometry3d::Identity();
-  remaining_map_shift_.setZero();
-  directional_proposal_.reset();
-  last_matched_id_ = -1;
-  relocalization_seed_id_ = -1;
-  last_odom_pose_ = Eigen::Isometry3d::Identity();
-  consecutive_track_failures_ = 0;
-  query_builder_.reset();
-  hypothesis_manager_.reset();
+  resetTrackingStateLocked();
 
   place_index_.resetMapDerivedState();
   releaseSearchPreparation();
   tracking_targets_->clearMap();
-  if (localization_atlas_) {
-    localization_atlas_->clear();
-  }
+  localization_atlas_->clear();
 }
 
 void WorldLocalizing::reset() { resetLocalizationState(); }
@@ -101,19 +93,17 @@ WorldLocalizing::WorldLocalizingCacheDiagnostics
 WorldLocalizing::cacheDiagnostics() const {
   std::lock_guard<std::mutex> lock(mutex_);
   WorldLocalizingCacheDiagnostics d;
-  d.atlas_loaded = localization_atlas_ && localization_atlas_->loaded();
+  d.atlas_loaded = localization_atlas_->loaded();
   d.frame_rhpd_indexed_keyframes = place_index_.indexedKeyframes();
   d.reloc_map_cached_keyframes = reloc_map_cached_keyframes_;
   d.free_space_grid_keyframes = free_space_grid_keyframes_;
   d.free_space_grid_valid = free_space_grid_.valid();
   d.free_space_grid_failed = free_space_grid_failed_;
-  if (target_provider_) {
-    const auto target_diag = target_provider_->diagnostics();
-    d.reloc_target_cache_hits = target_diag.cache_hits;
-    d.reloc_target_cache_misses = target_diag.cache_misses;
-    d.reloc_target_cache_bytes = target_diag.cache_total_bytes;
-    d.reloc_target_cache_entries = target_diag.cache_entries;
-  }
+  const auto target_diag = target_provider_->diagnostics();
+  d.reloc_target_cache_hits = target_diag.cache_hits;
+  d.reloc_target_cache_misses = target_diag.cache_misses;
+  d.reloc_target_cache_bytes = target_diag.cache_total_bytes;
+  d.reloc_target_cache_entries = target_diag.cache_entries;
   const auto tracking = tracking_targets_->diagnostics();
   d.localization_target_cache_hits = tracking.local_hits;
   d.localization_target_cache_misses = tracking.local_misses;
@@ -162,15 +152,8 @@ void WorldLocalizing::installOptimizedReference(
 bool WorldLocalizing::loadLocalizationAtlas(const std::string &map_path,
                                             std::string *error,
                                             LoopDetector* restore_descriptors) {
-  if (!localization_atlas_) {
-    if (error)
-      *error = "localization atlas object is unavailable";
-    return false;
-  }
   localization_atlas_->clear();
-  if (target_provider_) {
-    target_provider_->clear();
-  }
+  target_provider_->clear();
   if (!config_.reloc_atlas_enable) {
     if (restore_descriptors) restore_descriptors->restoreMapDescriptors(keyframe_manager_);
     place_index_.prepare();
@@ -244,7 +227,7 @@ bool WorldLocalizing::loadLocalizationAtlas(const std::string &map_path,
 
 bool WorldLocalizing::localizationAtlasLoaded() const {
   std::lock_guard<std::mutex> lock(mutex_);
-  return localization_atlas_ && localization_atlas_->loaded();
+  return localization_atlas_->loaded();
 }
 
 void WorldLocalizing::warmLoadedMapTrackingTarget(int64_t anchor_id) {

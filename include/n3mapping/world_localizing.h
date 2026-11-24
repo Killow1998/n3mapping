@@ -161,6 +161,11 @@ private:
   RelocResult trackLocalizationImpl(const PointCloudT::Ptr &cloud,
                                     const Eigen::Isometry3d &odom_pose,
                                     bool strict_loaded_map);
+  void resetTrackingStateLocked();
+  void recoverWeakTranslation(
+      const PointCloudMatcher::PreparedTarget& target, const PointCloudMatcher::PreparedSource& prepared_source,
+      const Eigen::Isometry3d& predicted_pose, const std::optional<Eigen::Vector3d>& previous_proposal,
+      MatchResult& match_result, WeakTranslationAxes& weak_axes, Eigen::Vector3d& confirmed_shift);
   MatchResult registerTracking(
       const PointCloudMatcher::PreparedTarget* target,
       const PointCloudMatcher::PreparedSource& source,

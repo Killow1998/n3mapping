@@ -183,7 +183,7 @@ std::vector<WorldLocalizing::RelocHypothesis> WorldLocalizing::seedRelocalizatio
     return basin_modes;
   };
 
-  if (localization_atlas_ && localization_atlas_->loaded() &&
+  if (localization_atlas_->loaded() &&
       basins.size() > 1) {
     std::vector<std::vector<BasinBest>> results(basins.size());
 #pragma omp parallel num_threads(config_.num_threads)

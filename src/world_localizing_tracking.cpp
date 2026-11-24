@@ -143,7 +143,7 @@ WorldLocalizing::trackLocalizationImpl(const PointCloudT::Ptr &cloud,
   PointCloudT::Ptr submap;
   TrackingTargetCache::TargetResult tracking_target;
   const bool shared_reference = strict_loaded_map ||
-      (localization_atlas_ && localization_atlas_->loaded());
+      (localization_atlas_->loaded());
   if (shared_reference) {
 
     tracking_target = tracking_targets_->acquireLoaded(nearest_kf_id);

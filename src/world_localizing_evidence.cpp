@@ -20,7 +20,7 @@ void WorldLocalizing::rebuildFreeSpaceGridIfNeeded() {
     return;
   const size_t current_size = keyframe_manager_.size();
 
-  if (!free_space_grid_.valid() && localization_atlas_ &&
+  if (!free_space_grid_.valid() &&
       current_revision == loaded_atlas_revision_)
     free_space_grid_ = localization_atlas_->takeFreeSpaceGrid();
   if (free_space_grid_.valid())
@@ -187,7 +187,7 @@ void WorldLocalizing::killFreeSpaceDominatedHypotheses(
 
 void WorldLocalizing::rebuildRelocMapCacheIfNeeded() {
   const KeyframeMapRevision current_revision = keyframe_manager_.revision();
-  if (localization_atlas_ && localization_atlas_->loaded()) {
+  if (localization_atlas_->loaded()) {
     const auto &atlas_map = localization_atlas_->globalMap();
     if (reloc_map_cache_ != atlas_map) {
       reloc_map_cache_ = atlas_map;
@@ -226,7 +226,7 @@ RelocTargetRequest WorldLocalizing::makeRelocTargetRequest(int64_t center_id) {
   request.anchor_id = center_id;
   request.map_revision = keyframe_manager_.revision();
   if (const auto center_keyframe = keyframe_manager_.getKeyframe(center_id)) {
-    request.visibility_from_atlas = localization_atlas_ && localization_atlas_->loaded() &&
+    request.visibility_from_atlas = localization_atlas_->loaded() &&
         reloc_map_cache_ == localization_atlas_->globalMap();
     request.crop_center = center_keyframe->pose_optimized.translation();
     request.build_local_target = [this, map = reloc_map_cache_, center = request.crop_center]() {

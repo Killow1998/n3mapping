@@ -121,11 +121,12 @@ std::string localizationStatusJson(CoreRunMode mode,
             ? realtime->estimate_stamp : 0.0)
         : (std::isfinite(stamp) ? stamp : 0.0);
     status["observation_stamp"] = realtime ? realtime->observation_stamp : status["stamp"].asDouble();
+    const bool is_tracking = std::string_view(state) == "tracking";
     status["correction_stamp"] = realtime ? realtime->correction_stamp :
-        (std::string(state) == "tracking" ? status["stamp"].asDouble() : 0.0);
+        (is_tracking ? status["stamp"].asDouble() : 0.0);
     status["frame_id"] = frame_id;
     status["reason"] = reason;
-    if (std::string_view(state) == "tracking" && output.weak_translation_axes) {
+    if (is_tracking && output.weak_translation_axes) {
         auto& axes = status["weak_translation_axes"] = Json::Value(Json::arrayValue);
         for (const auto& axis : *output.weak_translation_axes) {
             Json::Value direction(Json::arrayValue);

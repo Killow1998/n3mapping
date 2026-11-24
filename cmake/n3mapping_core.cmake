@@ -99,6 +99,7 @@ set(N3MAPPING_CORE_SOURCES
   ${N3MAPPING_ROOT}/src/world_localizing_confirmation.cpp
   ${N3MAPPING_ROOT}/src/world_localizing_recovery.cpp
   ${N3MAPPING_ROOT}/src/world_localizing_tracking.cpp
+  ${N3MAPPING_ROOT}/src/world_localizing_directional_recovery.cpp
   ${N3MAPPING_ROOT}/src/world_localizing_tracking_registration.cpp
   ${N3MAPPING_ROOT}/src/world_localizing_evidence.cpp
   ${N3MAPPING_ROOT}/src/world_localizing_probe.cpp

@@ -24,7 +24,7 @@ WorldLocalizing::probeRegistrationSeeds(const PointCloudT::Ptr &cloud,
     result.error = "missing_keyframes";
     return result;
   }
-  if (!localization_atlas_ || !localization_atlas_->loaded()) {
+  if (!localization_atlas_->loaded()) {
     result.error = "atlas_required";
     return result;
   }

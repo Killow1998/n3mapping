@@ -9,8 +9,7 @@ void WorldLocalizing::appendTrackingRecovery(
     const Eigen::Isometry3d& odom_pose, RelocalizationObservation& observation,
     RelocalizationPerformance& cost, std::vector<RelocHypothesis>& hypotheses) {
   if (!has_ever_relocalized_ || is_relocalized_ || last_matched_id_ < 0 ||
-      !config_.icp_refine_use_gicp || !localization_atlas_ ||
-      !localization_atlas_->loaded()) return;
+      !config_.icp_refine_use_gicp || !localization_atlas_->loaded()) return;
   for (const auto& hyp : hypothesis_manager_.hypotheses())
     if (hyp.alive && hyp.tracking_proposal) return;
   const Eigen::Isometry3d predicted = T_map_odom_ * odom_pose;
