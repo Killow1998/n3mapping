@@ -2,6 +2,7 @@
 #include "n3mapping/core/run_mode.h"
 
 #include <json/json.h>
+#include <string_view>
 
 namespace n3mapping {
 
@@ -124,6 +125,15 @@ std::string localizationStatusJson(CoreRunMode mode,
         (std::string(state) == "tracking" ? status["stamp"].asDouble() : 0.0);
     status["frame_id"] = frame_id;
     status["reason"] = reason;
+    if (std::string_view(state) == "tracking" && output.weak_translation_axes) {
+        auto& axes = status["weak_translation_axes"] = Json::Value(Json::arrayValue);
+        for (const auto& axis : *output.weak_translation_axes) {
+            Json::Value direction(Json::arrayValue);
+            for (int i = 0; i < 3; ++i) direction.append(axis[i]);
+            axes.append(direction);
+        }
+        if (!axes.empty()) status["reason"] = "translation_partially_constrained";
+    }
     const auto &tracking = output.tracking_performance;
     if (tracking.available) {
         auto &performance = status["tracking_performance"];

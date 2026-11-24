@@ -50,6 +50,7 @@ N3MappingCore::processMapExtensionFrame(const core::LioFrame &frame) {
       output.tracking_performance = tracking.tracking_performance;
       output.relocalization_state = tracking.state;
       output.pose_source = tracking.pose_source;
+      output.weak_translation_axes = tracking.weak_translation_axes;
       output.relocalization_decision = tracking.decision;
       output.relocalization_seed_keyframe_id = tracking.seed_keyframe_id;
       output.relocalization_support_keyframe_id = tracking.support_keyframe_id;

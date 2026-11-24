@@ -2,11 +2,15 @@
 
 #include <cmath>
 #include <cstdint>
+#include <optional>
+#include <vector>
 
 #include <Eigen/Core>
 #include <Eigen/Geometry>
 
 namespace n3mapping {
+
+using WeakTranslationAxes = std::optional<std::vector<Eigen::Vector3d>>;
 
 enum class RelocalizationState : std::uint8_t {
   SEARCHING = 0,

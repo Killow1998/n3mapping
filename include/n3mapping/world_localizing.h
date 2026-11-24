@@ -44,6 +44,7 @@ struct RelocResult {
   bool success = false;
   RelocalizationState state = RelocalizationState::SEARCHING;
   PoseSource pose_source = PoseSource::NONE;
+  WeakTranslationAxes weak_translation_axes;
 
   std::string decision = "not_attempted";
   int64_t seed_keyframe_id = -1;
@@ -166,7 +167,8 @@ private:
       const PointCloudT& query_cloud,
       const Eigen::Isometry3d& prediction, const Eigen::Isometry3d& odom_pose,
       bool strict_loaded_map,
-      RelocTrackingDebugEvent& diagnostics);
+      RelocTrackingDebugEvent& diagnostics, WeakTranslationAxes& weak_axes,
+      const std::optional<Eigen::Vector3d>& previous_proposal, Eigen::Vector3d& confirmed_shift);
   int64_t findNearestKeyframe(const Eigen::Isometry3d &pose) const;
   int64_t findNearestLoadedKeyframe(const Eigen::Isometry3d &pose) const;
 
@@ -198,6 +200,8 @@ private:
 
   bool has_ever_relocalized_;
   Eigen::Isometry3d T_map_odom_;
+  Eigen::Vector3d remaining_map_shift_ = Eigen::Vector3d::Zero();
+  std::optional<Eigen::Vector3d> directional_proposal_;
   int64_t last_matched_id_;
   int64_t relocalization_seed_id_;
   Eigen::Isometry3d last_odom_pose_;

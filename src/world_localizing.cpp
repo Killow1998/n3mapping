@@ -49,6 +49,8 @@ void WorldLocalizing::resetLocalizationState() {
   is_relocalized_ = false;
   has_ever_relocalized_ = false;
   T_map_odom_ = Eigen::Isometry3d::Identity();
+  remaining_map_shift_.setZero();
+  directional_proposal_.reset();
   last_matched_id_ = -1;
   relocalization_seed_id_ = -1;
   last_odom_pose_ = Eigen::Isometry3d::Identity();
@@ -76,6 +78,8 @@ void WorldLocalizing::notifyMapReplaced() {
   is_relocalized_ = false;
   has_ever_relocalized_ = false;
   T_map_odom_ = Eigen::Isometry3d::Identity();
+  remaining_map_shift_.setZero();
+  directional_proposal_.reset();
   last_matched_id_ = -1;
   relocalization_seed_id_ = -1;
   last_odom_pose_ = Eigen::Isometry3d::Identity();
@@ -125,6 +129,8 @@ void WorldLocalizing::setMapToOdomTransform(
     const Eigen::Isometry3d &T_map_odom) {
   std::lock_guard<std::mutex> lock(mutex_);
   T_map_odom_ = T_map_odom;
+  remaining_map_shift_.setZero();
+  directional_proposal_.reset();
   is_relocalized_ = true;
   has_ever_relocalized_ = true;
   relocalization_seed_id_ = -1;
@@ -146,6 +152,8 @@ void WorldLocalizing::installOptimizedReference(
       localization_atlas_->globalMap(), localization_atlas_->preparedTarget(),
       localization_atlas_->visibilityBlocks());
   T_map_odom_ = correction * T_map_odom_;
+  remaining_map_shift_.setZero();
+  directional_proposal_.reset();
   query_builder_.reset();
   hypothesis_manager_.reset();
   releaseSearchPreparation();

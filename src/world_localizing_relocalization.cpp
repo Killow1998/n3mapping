@@ -424,6 +424,8 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
   if (decision.accepted) {
     const RelocHypothesis &best = *top1;
     T_map_odom_ = best.T_map_odom;
+    remaining_map_shift_.setZero();
+    directional_proposal_.reset();
     is_relocalized_ = true;
     has_ever_relocalized_ = true;
     last_matched_id_ = best.last_match_id;

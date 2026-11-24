@@ -59,6 +59,7 @@ struct BackendOutput {
   bool relocalization_locked = false;
   RelocalizationState relocalization_state = RelocalizationState::SEARCHING;
   PoseSource pose_source = PoseSource::NONE;
+  WeakTranslationAxes weak_translation_axes;
 
   std::string relocalization_decision = "not_attempted";
   int64_t keyframe_id = -1;

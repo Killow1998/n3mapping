@@ -8,9 +8,11 @@
 #include <glog/logging.h>
 #include <iterator>
 #include <set>
+#include <utility>
 #include "n3mapping/tracking_target_cache.h"
 #include "n3mapping/n3map_proto_utils.h"
 #include "tracking_pose_correction.h"
+#include "tracking_geometry.h"
 
 namespace n3mapping {
 RelocResult
@@ -61,6 +63,7 @@ WorldLocalizing::trackLocalizationImpl(const PointCloudT::Ptr &cloud,
 
   if (!cloud || cloud->empty()) {
     std::lock_guard<std::mutex> lock(mutex_);
+    directional_proposal_.reset();
     result.state = is_relocalized_ ? RelocalizationState::RECENTLY_LOST
                                    : (has_ever_relocalized_
                                           ? RelocalizationState::LOST
@@ -82,8 +85,11 @@ WorldLocalizing::trackLocalizationImpl(const PointCloudT::Ptr &cloud,
   debug_event.lock_wait_ms = elapsed_ms(lock_started);
   result.seed_keyframe_id = relocalization_seed_id_;
 
-  Eigen::Isometry3d predicted_pose = T_map_odom_ * odom_pose;
-  result.pose_in_map = predicted_pose;
+  const auto previous_proposal = std::exchange(directional_proposal_, std::nullopt);
+  const Eigen::Isometry3d published_prediction = T_map_odom_ * odom_pose;
+  Eigen::Isometry3d predicted_pose = published_prediction;
+  if (!strict_loaded_map) predicted_pose.translation() += remaining_map_shift_;
+  result.pose_in_map = published_prediction;
   debug_event.predicted_pose = predicted_pose;
 
   if (strict_loaded_map && !has_ever_relocalized_) {
@@ -122,7 +128,7 @@ WorldLocalizing::trackLocalizationImpl(const PointCloudT::Ptr &cloud,
     }
     result.matched_keyframe_id = last_matched_id_;
     result.support_keyframe_id = last_matched_id_;
-    result.pose_in_map = predicted_pose;
+    result.pose_in_map = published_prediction;
     result.confidence = 0.5;
     last_odom_pose_ = odom_pose;
     finish_tracking_debug("nearest_keyframe_missing");
@@ -218,7 +224,7 @@ WorldLocalizing::trackLocalizationImpl(const PointCloudT::Ptr &cloud,
     }
     result.matched_keyframe_id = last_matched_id_;
     result.support_keyframe_id = last_matched_id_;
-    result.pose_in_map = predicted_pose;
+    result.pose_in_map = published_prediction;
     result.confidence = 0.5;
     last_odom_pose_ = odom_pose;
     finish_tracking_debug("empty_submap");
@@ -242,8 +248,11 @@ WorldLocalizing::trackLocalizationImpl(const PointCloudT::Ptr &cloud,
   const auto prepared_source = matcher_.prepareSourceCloud(cloud);
   debug_event.source_prepare_ms = elapsed_ms(source_prepare_started);
   localization_atlas_->prefetchTarget(prepared_source, {predicted_pose});
+  WeakTranslationAxes weak_axes;
+  Eigen::Vector3d confirmed_shift = Eigen::Vector3d::Zero();
   auto match_result = registerTracking(prepared_target, prepared_source, *cloud,
-                                       predicted_pose, odom_pose, strict_loaded_map, debug_event);
+                                       predicted_pose, odom_pose, strict_loaded_map,
+                                       debug_event, weak_axes, previous_proposal, confirmed_shift);
   const bool retry_used = debug_event.retry_used;
   if (reloc_debug_enabled && hasValidRegistrationResult(match_result)) {
     debug_event.registration_pose_valid = true;
@@ -341,6 +350,10 @@ WorldLocalizing::trackLocalizationImpl(const PointCloudT::Ptr &cloud,
             predicted_match.fitness_score < config_.gicp_fitness_threshold &&
             predicted_match.inlier_ratio >= config_.reloc_min_inlier_ratio) {
           match_result = std::move(predicted_match);
+          if (prepared_source.has_refine_cloud) {
+            supportedTrackingPose(*prepared_source.refine_cloud, config_.gicp_num_neighbors,
+                                  predicted_pose, match_result, weak_axes);
+          }
           visibility = predicted_visibility;
           debug_event.visibility_selected_pose_source = "motion_prediction";
         }
@@ -389,9 +402,13 @@ WorldLocalizing::trackLocalizationImpl(const PointCloudT::Ptr &cloud,
   const bool accepted_icp = icp_ok && selected_quality_ok && strict_geometry_ok;
 
   if (accepted_icp) {
+    result.weak_translation_axes = std::move(weak_axes);
+    remaining_map_shift_ += confirmed_shift;
+    const Eigen::Vector3d odom_step = T_map_odom_.linear() *
+        (odom_pose.translation() - last_odom_pose_.translation());
     T_map_odom_ = trackingPoseCorrection(
         T_map_odom_, odom_pose, match_result.T_target_source,
-        current_confidence, strict_loaded_map);
+        current_confidence, strict_loaded_map, &remaining_map_shift_, odom_step);
 
     result.success = true;
     result.state = RelocalizationState::FULL_6DOF_LOCKED;
@@ -416,6 +433,7 @@ WorldLocalizing::trackLocalizationImpl(const PointCloudT::Ptr &cloud,
             << " visibility_logodds=" << visibility.evidence_log_odds;
     finish_tracking_debug("");
   } else {
+    directional_proposal_.reset();
     consecutive_track_failures_++;
     if (consecutive_track_failures_ <= 3 ||
         consecutive_track_failures_ % 5 == 0) {
@@ -449,7 +467,7 @@ WorldLocalizing::trackLocalizationImpl(const PointCloudT::Ptr &cloud,
 
     result.matched_keyframe_id = last_matched_id_;
     result.support_keyframe_id = last_matched_id_;
-    result.pose_in_map = predicted_pose;
+    result.pose_in_map = published_prediction;
     result.confidence = 0.2;
     last_odom_pose_ = odom_pose;
     finish_tracking_debug(

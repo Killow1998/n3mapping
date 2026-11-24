@@ -33,6 +33,7 @@ N3MappingCore::processLocalizationFrame(const core::LioFrame &frame) {
   std::string relocalization_decision = "not_attempted";
   RelocalizationPerformance relocalization_performance;
   TrackingPerformance tracking_performance;
+  WeakTranslationAxes weak_translation_axes;
   int64_t seed_keyframe_id = -1;
   int64_t support_keyframe_id = -1;
   int64_t matched_keyframe_id = -1;
@@ -43,6 +44,7 @@ N3MappingCore::processLocalizationFrame(const core::LioFrame &frame) {
     auto result = localizer.trackLocalization(frame.undistorted_cloud,
                                               frame.T_world_lidar);
     tracking_performance = result.tracking_performance;
+    weak_translation_axes = std::move(result.weak_translation_axes);
     relocalization_state = result.state;
     pose_source = result.pose_source;
     relocalization_decision = result.decision;
@@ -85,6 +87,7 @@ N3MappingCore::processLocalizationFrame(const core::LioFrame &frame) {
   output.relocalization_decision = relocalization_decision;
   output.relocalization_performance = relocalization_performance;
   output.tracking_performance = tracking_performance;
+  output.weak_translation_axes = std::move(weak_translation_axes);
   if (relocalization_performance.available)
     output.performance.initial_relocalization_ms = relocalization_performance.total_ms;
   if (tracking_performance.available)
