@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Separate loop candidate diagnostics from graph decisions and submap topology
+  checks from snapshot construction. Reuse the rigid-pose validation and
+  compute loop residuals once per graph snapshot.
+
 - During mapping, reject a full 3D loop when its height in the map frame still
   disagrees with the graph after trial optimization by more than the configured
   registration translation limit. This uses the existing trial and reports

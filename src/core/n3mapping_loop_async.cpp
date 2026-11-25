@@ -71,8 +71,8 @@ void AsyncLoopJob::optimizeGeometry() {
   const auto residual = loop_diagnostics::meanLoopResidual(
       manager.buildLoopEdges(outcome.summary.accepted_loops, LoopEdgeDirection::MatchToQuery),
       graph->getOptimizedPoses());
-  outcome.summary.loop_residual_translation_after = residual.first;
-  outcome.summary.loop_residual_rotation_after = residual.second;
+  outcome.summary.loop_residual_translation_after = residual.translation_norm;
+  outcome.summary.loop_residual_rotation_after = residual.rotation_angle;
   std::vector<Keyframe::Ptr> loaded;
   for (const auto& frame : keyframes.getAllKeyframes())
     if (frame->is_from_loaded_map) loaded.push_back(frame);

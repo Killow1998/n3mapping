@@ -34,7 +34,11 @@ N3MappingCore::N3MappingCore(const Config &config,
                              WorldCloudOutput world_cloud_output)
     : config_(validateOrThrow(config)),
       world_cloud_output_(world_cloud_output),
-      session_(std::make_unique<core::N3MappingSession>(config_)) {}
+      session_(std::make_unique<core::N3MappingSession>(config_)),
+      odometry_sanity_({config_.odom_sanity_max_speed_mps,
+                        config_.odom_sanity_max_angular_rate_dps,
+                        config_.odom_sanity_max_consecutive}),
+      static_start_guard_(staticStartGuardOptionsFromConfig(config_)) {}
 
 N3MappingCore::~N3MappingCore() = default;
 

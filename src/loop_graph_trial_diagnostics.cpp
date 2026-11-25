@@ -16,11 +16,6 @@ double rotationAngle(const Eigen::Isometry3d& transform)
     return std::abs(Eigen::AngleAxisd(transform.rotation()).angle());
 }
 
-Eigen::Vector3d rollPitchYawAbs(const Eigen::Isometry3d& transform)
-{
-    return canonicalRollPitchYaw(transform).cwiseAbs();
-}
-
 double safeFinite(double value, double fallback = 0.0)
 {
     return std::isfinite(value) ? value : fallback;
@@ -55,11 +50,8 @@ double meanResidualScore(const std::vector<EdgeInfo>& edges,
 void fillCandidateResiduals(const std::vector<EdgeInfo>& candidate_edges,
                             const std::map<int64_t, Eigen::Isometry3d>& poses,
                             double max_height_residual,
-                            LoopGraphTrialDiagnostics* diagnostics)
+                            LoopGraphTrialDiagnostics& diagnostics)
 {
-    if (!diagnostics || candidate_edges.empty()) {
-        return;
-    }
     Eigen::Vector3d translation = Eigen::Vector3d::Zero();
     Eigen::Vector3d rpy = Eigen::Vector3d::Zero();
     double translation_norm = 0.0;
@@ -78,10 +70,10 @@ void fillCandidateResiduals(const std::vector<EdgeInfo>& candidate_edges,
             const double measured_height =
                 (from_it->second * edge.measurement.translation()).z();
             if (std::abs(to_it->second.translation().z() - measured_height) > max_height_residual)
-                diagnostics->conflicts_with_map_height = true;
+                diagnostics.conflicts_with_map_height = true;
         }
         translation += residual.translation().cwiseAbs();
-        rpy += rollPitchYawAbs(residual);
+        rpy += canonicalRollPitchYaw(residual).cwiseAbs();
         translation_norm += residual.translation().norm();
         rotation_norm += rotationAngle(residual);
         ++count;
@@ -94,23 +86,20 @@ void fillCandidateResiduals(const std::vector<EdgeInfo>& candidate_edges,
     const double inv_count = 1.0 / static_cast<double>(count);
     translation *= inv_count;
     rpy *= inv_count;
-    diagnostics->residual_x_after = translation.x();
-    diagnostics->residual_y_after = translation.y();
-    diagnostics->residual_z_after = translation.z();
-    diagnostics->residual_roll_after = rpy.x();
-    diagnostics->residual_pitch_after = rpy.y();
-    diagnostics->residual_yaw_after = rpy.z();
-    diagnostics->residual_translation_norm_after = translation_norm * inv_count;
-    diagnostics->residual_rotation_norm_after = rotation_norm * inv_count;
+    diagnostics.residual_x_after = translation.x();
+    diagnostics.residual_y_after = translation.y();
+    diagnostics.residual_z_after = translation.z();
+    diagnostics.residual_roll_after = rpy.x();
+    diagnostics.residual_pitch_after = rpy.y();
+    diagnostics.residual_yaw_after = rpy.z();
+    diagnostics.residual_translation_norm_after = translation_norm * inv_count;
+    diagnostics.residual_rotation_norm_after = rotation_norm * inv_count;
 }
 
 void fillPoseUpdateStats(const std::map<int64_t, Eigen::Isometry3d>& before,
                          const std::map<int64_t, Eigen::Isometry3d>& after,
-                         LoopGraphTrialDiagnostics* diagnostics)
+                         LoopGraphTrialDiagnostics& diagnostics)
 {
-    if (!diagnostics) {
-        return;
-    }
     double translation_sum = 0.0;
     double rotation_sum = 0.0;
     double max_translation = 0.0;
@@ -136,10 +125,10 @@ void fillPoseUpdateStats(const std::map<int64_t, Eigen::Isometry3d>& before,
         return;
     }
     const double inv_count = 1.0 / static_cast<double>(count);
-    diagnostics->mean_pose_update_translation = translation_sum * inv_count;
-    diagnostics->max_pose_update_translation = max_translation;
-    diagnostics->mean_pose_update_rotation = rotation_sum * inv_count;
-    diagnostics->max_pose_update_rotation = max_rotation;
+    diagnostics.mean_pose_update_translation = translation_sum * inv_count;
+    diagnostics.max_pose_update_translation = max_translation;
+    diagnostics.mean_pose_update_rotation = rotation_sum * inv_count;
+    diagnostics.max_pose_update_rotation = max_rotation;
 }
 
 double consistencyScore(const LoopGraphTrialDiagnostics& diagnostics)
@@ -193,8 +182,8 @@ LoopGraphTrialDiagnostics computeLoopGraphTrialDiagnostics(
         }
         const auto poses_after = trial_optimizer.getOptimizedPoses();
         diagnostics.success = true;
-        fillCandidateResiduals(candidate_edges, poses_after, config.loop_max_icp_translation, &diagnostics);
-        fillPoseUpdateStats(poses_before, poses_after, &diagnostics);
+        fillCandidateResiduals(candidate_edges, poses_after, config.loop_max_icp_translation, diagnostics);
+        fillPoseUpdateStats(poses_before, poses_after, diagnostics);
 
         const double existing_loop_before = meanResidualScore(committed_edges, poses_before, EdgeType::LOOP);
         const double existing_loop_after = meanResidualScore(committed_edges, poses_after, EdgeType::LOOP);

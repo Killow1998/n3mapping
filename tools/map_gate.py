@@ -10,12 +10,8 @@ so the geometry must survive as well.
 
     python3 map_gate.py <candidate.pbstream> [<baseline.pbstream>] [<pb_dir>]
 """
-import bisect
-import csv
 import math
-import subprocess
 import sys
-import tempfile
 from pathlib import Path
 
 import numpy as np
@@ -25,17 +21,9 @@ sys.path.insert(0, PB_DIR)
 sys.setrecursionlimit(10000)
 import n3map_pb2  # noqa: E402
 
-# Two poses at the same horizontal position on different floors are not a
-# revisit, and pairing them reports the storey height as drift: b22, which is
-# genuinely two levels about 11 m apart, came out at 14.28 m of revisit error
-# purely from that. Pairs are therefore also required to see the floor at a
-# similar height, which keeps the test to one level without needing to know how
-# many levels there are.
-SAME_LEVEL_TOL = 1.5   # metres of floor-height difference still one level
-XY_TOL = 1.0      # metres: close enough to be the same place
-T_GAP = 30.0      # seconds: far enough apart to be a revisit
-# Distance bands the floor residual is summarised over. Coarse enough that each
-# holds tens of keyframes, fine enough that a section sinking on its own shows up.
+REVISIT_DISTANCE_M = 1.0
+REVISIT_GAP_S = 30.0
+FLOOR_DIFFERENCE_REPORT_M = 1.5
 RESIDUAL_BANDS = [(0, 10), (10, 25), (25, 50), (50, 75), (75, 100),
                   (100, 150), (150, 200), (200, 300), (300, 10 ** 9)]
 
@@ -44,17 +32,6 @@ GATE = {
     "dz_p90_max": 0.10,
     "dz_max_max": 0.30,
     "geometry_drift_max": 0.05,   # fraction, vs baseline
-    # How far apart two bands of the session may place the same floor. Read on
-    # the optimised poses with the map's fixed tilt taken out, and excluding the
-    # opening ten metres, which hold a front-end startup transient no pose graph
-    # can undo. Unlike the revisit figure this cannot be improved by leaning
-    # harder on the loop edges, because it is not what they constrain.
-    #
-    # Single-storey only, the same precondition the revisit test has: one plane
-    # cannot describe a session that changes level, so on b22 -- two levels
-    # 5.05 m apart -- this reads 3.838 m and calls the storey drift. For a
-    # multi-storey recording the structural check is whether the floor-height
-    # histogram keeps its modes and their separation.
     "residual_band_span_max": 0.50,
 }
 
@@ -69,9 +46,7 @@ def load(path):
                       for k in kfs])
     t = np.array([k.timestamp for k in kfs])
     loop = sum(1 for e in m.edges if e.type == n3map_pb2.EdgeProto.LOOP)
-    # Floor height under each keyframe, fitted from that keyframe's own returns.
-    # Used only to keep the revisit test on one level; deriving it from the scans
-    # means the test needs no prior knowledge of how many levels exist.
+    # Report revisit pairs with large floor offsets, including them in the score.
     floor_z = np.full(len(kfs), np.nan)
     for i, k in enumerate(kfs):
         if k.cloud.num_points < 400:
@@ -103,25 +78,18 @@ def load(path):
 def revisit(d):
     from scipy.spatial import cKDTree
     P, t = d["P"], d["t"]
-    pairs = cKDTree(P[:, :2]).query_pairs(XY_TOL, output_type="ndarray")
+    pairs = cKDTree(P[:, :2]).query_pairs(REVISIT_DISTANCE_M, output_type="ndarray")
     if len(pairs) == 0:
         return None
     gap = np.abs(t[pairs[:, 0]] - t[pairs[:, 1]])
-    pairs = pairs[gap > T_GAP]
+    pairs = pairs[gap > REVISIT_GAP_S]
     if len(pairs) == 0:
         return None
-    # Deliberately not filtered. Dropping pairs whose observed floors sit far
-    # apart looks like it separates storeys from drift, and on 0723 -- a single
-    # floor -- it took the worst revisit error from 2.33 m to 0.68 m by removing
-    # exactly the pairs that prove the map has drifted. On a drifted single floor
-    # the same place does report two floor heights, so the filter hides the
-    # defect it is meant to measure. The count is reported instead, and the
-    # caller has to know whether the recording is single-storey.
     fz = d.get("floor_z")
     far = 0
     if fz is not None:
         dz_floor = np.abs(fz[pairs[:, 0]] - fz[pairs[:, 1]])
-        far = int((dz_floor >= SAME_LEVEL_TOL).sum())
+        far = int((dz_floor >= FLOOR_DIFFERENCE_REPORT_M).sum())
     dz = np.abs(P[pairs[:, 0], 2] - P[pairs[:, 1], 2])
     return {"n": len(dz), "median": float(np.median(dz)),
             "p90": float(np.percentile(dz, 90)), "max": float(dz.max()),
@@ -210,7 +178,7 @@ print("关键帧 %d   边 %d (闭环 %d)" % (cand["n"], cand["edges"], cand["loo
 print("前提：重访判据只对单层录制成立。多层建筑里同一 xy 的不同楼层会被当成重访。")
 if rc and rc.get("far_floor"):
     print("注意：%d / %d 对配对的观测地板高度相差 >%.1f m。单层录制下这是漂移的证据；"
-          % (rc["far_floor"], rc["n"], SAME_LEVEL_TOL))
+          % (rc["far_floor"], rc["n"], FLOOR_DIFFERENCE_REPORT_M))
     print("      多层录制下这些配对不是重访，本表的 |dz| 不可解读。")
 print("后端对前端的位移修正: 中位 %.3e m  最大 %.4f m"
       % (float(np.median(back_end)), float(back_end.max())))
@@ -264,11 +232,6 @@ checks = [
     ("|dz| max < %.2f m" % GATE["dz_max_max"], rc["max"] < GATE["dz_max_max"]),
 ]
 if span_c is not None:
-    # The revisit figure alone can be driven down by leaning harder on the loop
-    # edges, because it scores very nearly the pairs those edges constrain:
-    # loop_noise_position 0.5 -> 0.05 took it from 0.4605 to 0.3283 while the
-    # floor under the last stretch of the session sank 0.33 m. This is the check
-    # that notices.
     checks.append(("地板残差段间跨度 < %.2f m" % GATE["residual_band_span_max"],
                    span_c < GATE["residual_band_span_max"]))
 if gb:

@@ -1,6 +1,8 @@
 #include "n3mapping/rotation_utils.h"
 #include "loop_closure_diagnostics.h"
-#include "n3mapping/cloud_utils.h"
+#include <algorithm>
+#include <chrono>
+#include <cmath>
 
 namespace n3mapping::loop_diagnostics {
 
@@ -8,61 +10,31 @@ double rotationAngle(const Eigen::Isometry3d &transform) {
   return std::abs(Eigen::AngleAxisd(transform.rotation()).angle());
 }
 
-std::pair<double, double>
-meanLoopResidual(const std::vector<EdgeInfo> &edges,
-                 const std::map<int64_t, Eigen::Isometry3d> &poses) {
-  if (edges.empty()) {
-    return {0.0, 0.0};
-  }
-
-  double translation_sum = 0.0;
-  double rotation_sum = 0.0;
+LoopResidualStats meanLoopResidual(const std::vector<EdgeInfo>& edges,
+    const std::map<int64_t, Eigen::Isometry3d>& poses, bool include_axes) {
+  LoopResidualStats stats;
   std::size_t count = 0;
-  for (const auto &edge : edges) {
-    auto from_it = poses.find(edge.from_id);
-    auto to_it = poses.find(edge.to_id);
-    if (from_it == poses.end() || to_it == poses.end()) {
-      continue;
-    }
-    const Eigen::Isometry3d predicted =
-        from_it->second.inverse() * to_it->second;
+  for (const auto& edge : edges) {
+    const auto from = poses.find(edge.from_id);
+    const auto to = poses.find(edge.to_id);
+    if (from == poses.end() || to == poses.end()) continue;
+    const Eigen::Isometry3d predicted = from->second.inverse() * to->second;
     const Eigen::Isometry3d residual = edge.measurement.inverse() * predicted;
-    translation_sum += residual.translation().norm();
-    rotation_sum += rotationAngle(residual);
+    stats.translation_norm += residual.translation().norm();
+    stats.rotation_angle += rotationAngle(residual);
+    if (include_axes) {
+      stats.translation += residual.translation().cwiseAbs();
+      stats.rpy += canonicalRollPitchYaw(residual).cwiseAbs();
+    }
     ++count;
   }
-
-  if (count == 0) {
-    return {0.0, 0.0};
+  if (count) {
+    stats.translation_norm /= static_cast<double>(count);
+    stats.rotation_angle /= static_cast<double>(count);
+    const double inv_count = 1.0 / static_cast<double>(count);
+    stats.translation *= inv_count;
+    stats.rpy *= inv_count;
   }
-  return {translation_sum / static_cast<double>(count),
-          rotation_sum / static_cast<double>(count)};
-}
-
-LoopResidualAxisStats
-meanLoopResidualAxes(const std::vector<EdgeInfo> &edges,
-                     const std::map<int64_t, Eigen::Isometry3d> &poses) {
-  LoopResidualAxisStats stats;
-  std::size_t count = 0;
-  for (const auto &edge : edges) {
-    auto from_it = poses.find(edge.from_id);
-    auto to_it = poses.find(edge.to_id);
-    if (from_it == poses.end() || to_it == poses.end()) {
-      continue;
-    }
-    const Eigen::Isometry3d predicted =
-        from_it->second.inverse() * to_it->second;
-    const Eigen::Isometry3d residual = edge.measurement.inverse() * predicted;
-    stats.translation += residual.translation().cwiseAbs();
-    stats.rpy += canonicalRollPitchYaw(residual).cwiseAbs();
-    ++count;
-  }
-  if (count == 0) {
-    return stats;
-  }
-  const double inv_count = 1.0 / static_cast<double>(count);
-  stats.translation *= inv_count;
-  stats.rpy *= inv_count;
   return stats;
 }
 
@@ -249,185 +221,6 @@ void assignConsensusDiagnostics(LoopDebugCandidateEvent& event,
 double processingTimeSeconds() {
   using Clock = std::chrono::system_clock;
   return std::chrono::duration<double>(Clock::now().time_since_epoch()).count();
-}
-
-ZDistributionStats computeZStats(const core::LioFrame::PointCloud::Ptr &cloud) {
-  ZDistributionStats stats;
-  if (!cloud) {
-    return stats;
-  }
-  for (const auto &point : cloud->points) {
-    if (!isFinitePoint(point)) {
-      continue;
-    }
-    const double z = static_cast<double>(point.z);
-    stats.min_z = std::min(stats.min_z, z);
-    stats.max_z = std::max(stats.max_z, z);
-    stats.sum_z += z;
-    stats.samples.push_back(z);
-    ++stats.count;
-  }
-  return stats;
-}
-
-ZDistributionStats
-computeTransformedZStats(const core::LioFrame::PointCloud::Ptr &cloud,
-                         const Eigen::Isometry3d &transform) {
-  ZDistributionStats stats;
-  if (!cloud) {
-    return stats;
-  }
-  for (const auto &point : cloud->points) {
-    if (!isFinitePoint(point)) {
-      continue;
-    }
-    const Eigen::Vector3d transformed =
-        transform * Eigen::Vector3d(point.x, point.y, point.z);
-    if (!std::isfinite(transformed.z())) {
-      continue;
-    }
-    stats.min_z = std::min(stats.min_z, transformed.z());
-    stats.max_z = std::max(stats.max_z, transformed.z());
-    stats.sum_z += transformed.z();
-    stats.samples.push_back(transformed.z());
-    ++stats.count;
-  }
-  return stats;
-}
-
-double zOverlapRatio(const ZDistributionStats &a, const ZDistributionStats &b) {
-  if (a.count == 0 || b.count == 0) {
-    return std::numeric_limits<double>::quiet_NaN();
-  }
-  const double denominator = std::min(a.span(), b.span());
-  if (!std::isfinite(denominator) || denominator <= 1e-9) {
-    return 0.0;
-  }
-  const double overlap =
-      std::min(a.max_z, b.max_z) - std::max(a.min_z, b.min_z);
-  return std::max(0.0, std::min(1.0, overlap / denominator));
-}
-
-double robustZOverlapRatio(const ZDistributionStats &a,
-                           const ZDistributionStats &b) {
-  if (a.count == 0 || b.count == 0) {
-    return std::numeric_limits<double>::quiet_NaN();
-  }
-  const double a_min = a.robustMin();
-  const double a_max = a.robustMax();
-  const double b_min = b.robustMin();
-  const double b_max = b.robustMax();
-  if (!std::isfinite(a_min) || !std::isfinite(a_max) || !std::isfinite(b_min) ||
-      !std::isfinite(b_max)) {
-    return std::numeric_limits<double>::quiet_NaN();
-  }
-  const double denominator = std::min(a_max - a_min, b_max - b_min);
-  if (denominator <= 1e-9) {
-    return 0.0;
-  }
-  const double overlap = std::min(a_max, b_max) - std::max(a_min, b_min);
-  return std::max(0.0, std::min(1.0, overlap / denominator));
-}
-
-double zCentroidDelta(const ZDistributionStats &source,
-                      const ZDistributionStats &target) {
-  const double source_mean = source.mean();
-  const double target_mean = target.mean();
-  if (!std::isfinite(source_mean) || !std::isfinite(target_mean)) {
-    return std::numeric_limits<double>::quiet_NaN();
-  }
-  return source_mean - target_mean;
-}
-
-bool hasUsableHypothesisFitness(const MatchResult &result) {
-  return result.converged && std::isfinite(result.fitness_score);
-}
-
-VerticalHypothesisDiagnostics computeVerticalHypothesisDiagnostics(
-    PointCloudMatcher &matcher, const core::LioFrame::PointCloud::Ptr &target,
-    const core::LioFrame::PointCloud::Ptr &source,
-    const MatchResult &zero_result) {
-  VerticalHypothesisDiagnostics diagnostics;
-  constexpr std::array<double, 7> kZOffsets = {-2.0, -1.0, -0.5, 0.0,
-                                               0.5,  1.0,  2.0};
-  struct Candidate {
-    double z_offset = 0.0;
-    double fitness = std::numeric_limits<double>::quiet_NaN();
-  };
-  std::vector<Candidate> usable;
-  usable.reserve(kZOffsets.size());
-
-  auto add_result = [&](double z_offset, const MatchResult &result) {
-    if (!hasUsableHypothesisFitness(result)) {
-      return;
-    }
-    ++diagnostics.count;
-    usable.push_back({z_offset, result.fitness_score});
-    if (!std::isfinite(diagnostics.best_z_offset_fitness) ||
-        result.fitness_score < diagnostics.best_z_offset_fitness) {
-      diagnostics.best_z_offset_m = z_offset;
-      diagnostics.best_z_offset_fitness = result.fitness_score;
-    }
-  };
-
-  diagnostics.zero_z_fitness = std::isfinite(zero_result.fitness_score)
-                                   ? zero_result.fitness_score
-                                   : std::numeric_limits<double>::quiet_NaN();
-  add_result(0.0, zero_result);
-  for (double z_offset : kZOffsets) {
-    if (z_offset == 0.0) {
-      continue;
-    }
-    Eigen::Isometry3d init = Eigen::Isometry3d::Identity();
-    init.translation().z() = z_offset;
-    try {
-      add_result(z_offset, matcher.alignCloud(target, source, init));
-    } catch (const std::exception &) {
-    }
-  }
-
-  if (diagnostics.count == 0 ||
-      !std::isfinite(diagnostics.best_z_offset_fitness)) {
-    diagnostics.edge_recommendation = "reject";
-    return diagnostics;
-  }
-  if (std::isfinite(diagnostics.zero_z_fitness)) {
-    diagnostics.fitness_gap_zero_vs_best =
-        diagnostics.zero_z_fitness - diagnostics.best_z_offset_fitness;
-  }
-
-  const double near_best_band =
-      std::max(0.02, 0.10 * std::max(1e-6, diagnostics.best_z_offset_fitness));
-  double near_min = std::numeric_limits<double>::infinity();
-  double near_max = -std::numeric_limits<double>::infinity();
-  for (const auto &candidate : usable) {
-    if (candidate.fitness <=
-        diagnostics.best_z_offset_fitness + near_best_band) {
-      near_min = std::min(near_min, candidate.z_offset);
-      near_max = std::max(near_max, candidate.z_offset);
-    }
-  }
-  if (std::isfinite(near_min) && std::isfinite(near_max)) {
-    diagnostics.z_hypothesis_spread_m = near_max - near_min;
-    diagnostics.vertical_ambiguity_score =
-        std::clamp(diagnostics.z_hypothesis_spread_m / 4.0, 0.0, 1.0);
-  } else {
-    diagnostics.z_hypothesis_spread_m = 0.0;
-    diagnostics.vertical_ambiguity_score = 0.0;
-  }
-
-  const double zero_best_gap =
-      std::isfinite(diagnostics.fitness_gap_zero_vs_best)
-          ? diagnostics.fitness_gap_zero_vs_best
-          : 0.0;
-  if (diagnostics.vertical_ambiguity_score >= 0.25 &&
-      zero_best_gap <=
-          std::max(0.02, 0.10 * std::max(1e-6, diagnostics.zero_z_fitness))) {
-    diagnostics.edge_recommendation = "planar_xy_yaw";
-  } else {
-    diagnostics.edge_recommendation = "full6dof";
-  }
-  return diagnostics;
 }
 
 }

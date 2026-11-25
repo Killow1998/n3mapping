@@ -1,4 +1,5 @@
 #include "n3mapping/submap_graph_factor.h"
+#include "n3mapping/rotation_utils.h"
 
 #include <algorithm>
 #include <cmath>
@@ -15,17 +16,6 @@ namespace n3mapping {
 namespace {
 
 using Matrix6d = Eigen::Matrix<double, 6, 6>;
-
-bool finiteRigidPose(const Eigen::Isometry3d& pose,
-                     double tolerance = 1e-6) {
-    if (!pose.matrix().allFinite()) return false;
-    const Eigen::Matrix3d rotation = pose.linear();
-    return (rotation.transpose() * rotation)
-               .isApprox(Eigen::Matrix3d::Identity(), tolerance) &&
-           std::abs(rotation.determinant() - 1.0) <= tolerance &&
-           pose.matrix().row(3).isApprox(
-               Eigen::RowVector4d(0.0, 0.0, 0.0, 1.0), tolerance);
-}
 
 gtsam::Pose3 toGtsam(const Eigen::Isometry3d& pose) {
     return gtsam::Pose3(gtsam::Rot3(pose.rotation()),
@@ -109,13 +99,13 @@ SubmapGraphEdgeFactorEvaluation evaluateSubmapGraphEdgeFactor(
         projection.source_edge.from_id == projection.source_edge.to_id ||
         !projection.source_edge.information.allFinite() ||
         !projection.has_projected_measurement ||
-        !finiteRigidPose(projection.source_edge.measurement) ||
-        !finiteRigidPose(projection.T_from_submap_from_keyframe) ||
-        !finiteRigidPose(projection.T_to_submap_to_keyframe) ||
-        !finiteRigidPose(
+        !isFiniteRigidPose(projection.source_edge.measurement) ||
+        !isFiniteRigidPose(projection.T_from_submap_from_keyframe) ||
+        !isFiniteRigidPose(projection.T_to_submap_to_keyframe) ||
+        !isFiniteRigidPose(
             projection.T_from_submap_to_submap_measurement) ||
-        !finiteRigidPose(T_map_from_submap) ||
-        !finiteRigidPose(T_map_to_submap)) {
+        !isFiniteRigidPose(T_map_from_submap) ||
+        !isFiniteRigidPose(T_map_to_submap)) {
         return invalidEdgeEvaluation("invalid_cross_edge_factor_input",
                                      edge_projection_index);
     }
@@ -283,8 +273,8 @@ SubmapGraphFloorFactorEvaluation evaluateSubmapGraphFloorFactor(
         constraint.normal_body.norm() < 1e-6 ||
         !std::isfinite(constraint.sigma_rad) ||
         constraint.sigma_rad <= 0.0 ||
-        !finiteRigidPose(projection.T_submap_keyframe) ||
-        !finiteRigidPose(T_map_submap)) {
+        !isFiniteRigidPose(projection.T_submap_keyframe) ||
+        !isFiniteRigidPose(T_map_submap)) {
         return invalidFloorEvaluation("invalid_floor_factor_input",
                                       floor_projection_index);
     }
@@ -346,7 +336,7 @@ SubmapGraphFactorDiagnostics evaluateSubmapGraphFactors(
     std::map<SubmapId, Eigen::Isometry3d> pose_by_submap;
     for (const auto& node : snapshot.nodes) {
         if (node.submap_id == kInvalidSubmapId ||
-            !finiteRigidPose(node.T_map_submap) ||
+            !isFiniteRigidPose(node.T_map_submap) ||
             !pose_by_submap.emplace(node.submap_id,
                                     node.T_map_submap).second) {
             return invalidDiagnostics("invalid_factor_node");

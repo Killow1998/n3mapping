@@ -29,6 +29,7 @@ import tempfile
 from typing import Any, Iterable
 
 from n3mapping_product_identity import (
+    command_for_executable,
     ProductIdentityError,
     read_product_build_identity,
 )
@@ -233,8 +234,6 @@ def load_json(path: Path) -> Any:
                 parse_constant=reject_nonfinite_json,
                 object_pairs_hook=reject_duplicate_keys,
             )
-    except GateError:
-        raise
     except (OSError, UnicodeError, json.JSONDecodeError) as error:
         raise GateError(f"cannot parse JSON {path}: {error}") from error
 
@@ -537,6 +536,10 @@ def parse_pose(value: Any, label: str) -> dict[str, float]:
         raise GateError(f"{label} must be an object")
     exact_keys(value, set(POSE_KEYS), label, set(POSE_KEYS))
     pose = {key: finite_number(value[key], f"{label}.{key}") for key in POSE_KEYS}
+    return normalize_pose_quaternion(pose, label)
+
+
+def normalize_pose_quaternion(pose: dict[str, float], label: str) -> dict[str, float]:
     norm = math.sqrt(sum(pose[key] ** 2 for key in ("qx", "qy", "qz", "qw")))
     if norm < 1e-12 or abs(norm - 1.0) > 1e-3:
         raise GateError(f"{label} quaternion must be unit length")
@@ -676,7 +679,7 @@ def read_reference_trajectory(path: Path) -> list[tuple[int, dict[str, float]]]:
                     "reference trajectory stamps must be positive and strictly "
                     f"increasing (row {row_number})"
                 )
-            pose = parse_pose(
+            pose = normalize_pose_quaternion(
                 {
                     key: finite_csv_number(
                         row[column],
@@ -1288,7 +1291,7 @@ def parse_frame_history(
                 raise GateError(
                     f"{label}.strict_ms is not preprocessing_ms + backend_ms"
                 )
-            pose = parse_pose(
+            pose = normalize_pose_quaternion(
                 {
                     key: finite_csv_number(
                         raw.get(f"map_{key}"), f"{label}.map_{key}"
@@ -2083,14 +2086,8 @@ def parse_gate_inputs(
     return identity, parsed_cases
 
 
-def command_for_python_or_binary(path: Path) -> list[str]:
-    if path.suffix == ".py":
-        return [sys.executable, "-B", str(path)]
-    return [str(path)]
-
-
 def run_bundle_verifier(bundle_tool: Path, bundle: Path) -> dict[str, Any]:
-    command = command_for_python_or_binary(bundle_tool)
+    command = command_for_executable(bundle_tool)
     command.extend(["verify", "--bundle", str(bundle)])
     try:
         completed = subprocess.run(
@@ -2456,7 +2453,7 @@ def run_case(
     case_output = output_root / "cases" / case["id"]
     if case_output.exists():
         raise GateError(f"case output unexpectedly exists: {case_output}")
-    command = command_for_python_or_binary(evaluator)
+    command = command_for_executable(evaluator)
     command.extend(
         [
             "--map",
@@ -2898,7 +2895,7 @@ def run_preflight_verifier(
     preflight_tool: Path, action: str, artifact: Path
 ) -> dict[str, Any]:
     require_regular_file(artifact, f"{action} preflight artifact")
-    command = command_for_python_or_binary(preflight_tool)
+    command = command_for_executable(preflight_tool)
     command.extend([action, "--artifact", str(artifact)])
     try:
         completed = subprocess.run(

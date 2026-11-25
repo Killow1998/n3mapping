@@ -31,6 +31,8 @@ public:
   const OdometrySanityVerdict &check(double timestamp,
                                      const Eigen::Isometry3d &pose);
 
+  void reset() { *this = OdometrySanity(limits_); }
+
   const OdometrySanityVerdict &verdict() const { return verdict_; }
   bool diverged() const { return verdict_.diverged; }
 
@@ -40,7 +42,6 @@ private:
   bool has_previous_ = false;
   double previous_timestamp_ = 0.0;
   Eigen::Isometry3d previous_pose_ = Eigen::Isometry3d::Identity();
-  int consecutive_ = 0;
 };
 
 }

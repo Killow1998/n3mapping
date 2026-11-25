@@ -1,6 +1,6 @@
 #pragma once
 
-#include <cmath>
+#include "n3mapping/rotation_utils.h"
 #include <cstdint>
 #include <optional>
 #include <vector>
@@ -71,19 +71,6 @@ inline bool hasAuthoritativeRelocalizationInitializationPose(
     RelocalizationState state, PoseSource source) {
   return state == RelocalizationState::FULL_6DOF_LOCKED &&
          source == PoseSource::GEOMETRICALLY_CORRECTED;
-}
-
-inline bool isFiniteRigidPose(const Eigen::Isometry3d &pose,
-                              double tolerance = 1e-6) {
-  if (!pose.matrix().allFinite()) {
-    return false;
-  }
-  const Eigen::Matrix3d rotation = pose.linear();
-  return (rotation.transpose() * rotation)
-             .isApprox(Eigen::Matrix3d::Identity(), tolerance) &&
-         std::abs(rotation.determinant() - 1.0) <= tolerance &&
-         pose.matrix().row(3).isApprox(
-             Eigen::RowVector4d(0.0, 0.0, 0.0, 1.0), tolerance);
 }
 
 }

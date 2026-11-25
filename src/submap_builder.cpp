@@ -1,4 +1,5 @@
 #include "n3mapping/submap_builder.h"
+#include "n3mapping/rotation_utils.h"
 
 #include <algorithm>
 #include <cmath>
@@ -41,17 +42,6 @@ struct KeyframePoseSnapshot {
     Eigen::Isometry3d pose_optimized = Eigen::Isometry3d::Identity();
 };
 
-bool finiteRigidPose(const Eigen::Isometry3d& pose,
-                     double tolerance = 1e-6) {
-    if (!pose.matrix().allFinite()) return false;
-    const Eigen::Matrix3d rotation = pose.linear();
-    return (rotation.transpose() * rotation)
-               .isApprox(Eigen::Matrix3d::Identity(), tolerance) &&
-           std::abs(rotation.determinant() - 1.0) <= tolerance &&
-           pose.matrix().row(3).isApprox(
-               Eigen::RowVector4d(0.0, 0.0, 0.0, 1.0), tolerance);
-}
-
 bool snapshotKeyframePoses(
     const std::vector<Keyframe::Ptr>& keyframes,
     std::map<int64_t, KeyframePoseSnapshot>* snapshots,
@@ -61,8 +51,8 @@ bool snapshotKeyframePoses(
     for (const auto& keyframe : keyframes) {
         if (!keyframe || keyframe->id < 0 ||
             keyframe->session_id == kInvalidMapSessionId ||
-            !finiteRigidPose(keyframe->pose_odom) ||
-            !finiteRigidPose(keyframe->pose_optimized)) {
+            !isFiniteRigidPose(keyframe->pose_odom) ||
+            !isFiniteRigidPose(keyframe->pose_optimized)) {
             *failure_reason = "invalid_keyframe_pose";
             return false;
         }
@@ -101,8 +91,8 @@ SubmapPoseProjectionDiagnostics computePoseProjection(
         if (submap.id == kInvalidSubmapId ||
             submap.session_id == kInvalidMapSessionId ||
             submap.keyframe_ids.empty() ||
-            !finiteRigidPose(submap.T_session_submap) ||
-            !finiteRigidPose(submap.T_map_submap)) {
+            !isFiniteRigidPose(submap.T_session_submap) ||
+            !isFiniteRigidPose(submap.T_map_submap)) {
             diagnostics.failure_reason = "invalid_submap_pose";
             return diagnostics;
         }
@@ -128,7 +118,7 @@ SubmapPoseProjectionDiagnostics computePoseProjection(
                 anchor->second.pose_odom;
             T_map_submap = anchor->second.pose_optimized *
                            T_submap_anchor.inverse();
-            if (!finiteRigidPose(T_map_submap)) {
+            if (!isFiniteRigidPose(T_map_submap)) {
                 diagnostics.failure_reason = "invalid_refreshed_origin";
                 return diagnostics;
             }
@@ -158,9 +148,9 @@ SubmapPoseProjectionDiagnostics computePoseProjection(
                 T_map_submap * T_submap_keyframe;
             const Eigen::Isometry3d residual =
                 keyframe->second.pose_optimized.inverse() * projected_pose;
-            if (!finiteRigidPose(T_submap_keyframe) ||
-                !finiteRigidPose(projected_pose) ||
-                !finiteRigidPose(residual)) {
+            if (!isFiniteRigidPose(T_submap_keyframe) ||
+                !isFiniteRigidPose(projected_pose) ||
+                !isFiniteRigidPose(residual)) {
                 diagnostics.failure_reason = "invalid_projected_pose";
                 return diagnostics;
             }

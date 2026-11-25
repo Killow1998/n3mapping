@@ -1,4 +1,5 @@
 #include "n3mapping/submap_graph_trial.h"
+#include "n3mapping/rotation_utils.h"
 #include "n3mapping/graph_optimizer.h"
 
 #include <algorithm>
@@ -23,17 +24,6 @@
 
 namespace n3mapping {
 namespace {
-
-bool finiteRigidPose(const Eigen::Isometry3d& pose,
-                     double tolerance = 1e-6) {
-    if (!pose.matrix().allFinite()) return false;
-    const Eigen::Matrix3d rotation = pose.rotation();
-    return (rotation.transpose() * rotation)
-               .isApprox(Eigen::Matrix3d::Identity(), tolerance) &&
-           std::abs(rotation.determinant() - 1.0) <= tolerance &&
-           pose.matrix().row(3).isApprox(
-               Eigen::RowVector4d(0.0, 0.0, 0.0, 1.0), tolerance);
-}
 
 gtsam::Pose3 toGtsam(const Eigen::Isometry3d& pose) {
     return gtsam::Pose3(gtsam::Rot3(pose.rotation()),
@@ -227,7 +217,7 @@ SubmapGraphTrialDiagnostics evaluateSubmapGraphOptimizationTrial(
     std::map<SubmapId, gtsam::Key> key_by_submap;
     for (std::size_t index = 0; index < snapshot.nodes.size(); ++index) {
         const auto& node = snapshot.nodes[index];
-        if (!finiteRigidPose(node.T_map_submap)) {
+        if (!isFiniteRigidPose(node.T_map_submap)) {
             return invalidTrial("invalid_trial_node_pose", true);
         }
         const gtsam::Key key = gtsam::Symbol('s', index);
@@ -395,7 +385,7 @@ SubmapGraphTrialDiagnostics evaluateSubmapGraphOptimizationTrial(
             result.initial_pose = node.T_map_submap;
             result.optimized_pose = toEigen(
                 optimized.at<gtsam::Pose3>(key));
-            if (!finiteRigidPose(result.optimized_pose)) {
+            if (!isFiniteRigidPose(result.optimized_pose)) {
                 return invalidTrial("nonrigid_trial_solution", true);
             }
             const Eigen::Isometry3d delta =
@@ -446,9 +436,9 @@ SubmapGraphTrialDiagnostics evaluateSubmapGraphOptimizationTrial(
                 projection.T_submap_keyframe;
             result.optimized_shadow_pose = submap->second.second *
                 projection.T_submap_keyframe;
-            if (!finiteRigidPose(result.reference_pose) ||
-                !finiteRigidPose(result.initial_shadow_pose) ||
-                !finiteRigidPose(result.optimized_shadow_pose)) {
+            if (!isFiniteRigidPose(result.reference_pose) ||
+                !isFiniteRigidPose(result.initial_shadow_pose) ||
+                !isFiniteRigidPose(result.optimized_shadow_pose)) {
                 return invalidTrial("invalid_keyframe_comparison_pose", true);
             }
             const Eigen::Isometry3d initial_error =

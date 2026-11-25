@@ -22,7 +22,6 @@ OdometrySanity::check(double timestamp, const Eigen::Isometry3d &pose) {
 
   const double dt = timestamp - previous_timestamp_;
   if (dt < limits_.min_dt_s) {
-
     return verdict_;
   }
 
@@ -38,17 +37,16 @@ OdometrySanity::check(double timestamp, const Eigen::Isometry3d &pose) {
   const bool violated = !pose_finite || speed > limits_.max_speed_mps ||
                         rate > limits_.max_angular_rate_dps;
   if (violated) {
-    ++consecutive_;
-    if (consecutive_ >= limits_.max_consecutive_violations) {
+    ++verdict_.consecutive;
+    if (verdict_.consecutive >= limits_.max_consecutive_violations) {
       verdict_.diverged = true;
       verdict_.speed_mps = speed;
       verdict_.angular_rate_dps = rate;
       verdict_.timestamp = timestamp;
     }
   } else {
-    consecutive_ = 0;
+    verdict_.consecutive = 0;
   }
-  verdict_.consecutive = consecutive_;
 
   if (pose_finite) {
     previous_timestamp_ = timestamp;

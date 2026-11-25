@@ -360,18 +360,13 @@ TEST(RelocalizationHypothesisManagerTest,
   EXPECT_EQ(decision.reject_reason, "moving_visibility_disagreement");
 }
 
-TEST_F(WorldLocalizingTest, BasicConstruction) {
+TEST_F(WorldLocalizingTest, RelocalizationEmptyMap) {
   WorldLocalizing reloc(config_, *keyframe_manager_, *loop_detector_,
                         *matcher_);
   EXPECT_FALSE(reloc.isRelocalized());
   EXPECT_EQ(reloc.getLastMatchedKeyframeId(), -1);
   EXPECT_TRUE(
       reloc.getMapToOdomTransform().isApprox(Eigen::Isometry3d::Identity()));
-}
-
-TEST_F(WorldLocalizingTest, RelocalizationEmptyMap) {
-  WorldLocalizing reloc(config_, *keyframe_manager_, *loop_detector_,
-                        *matcher_);
   Eigen::Isometry3d pose = Eigen::Isometry3d::Identity();
   auto cloud = generateCorridorCloud(pose);
 

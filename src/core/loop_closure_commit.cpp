@@ -16,17 +16,15 @@ void recordLoopOptimization(const Config& config, const std::vector<EdgeInfo>& e
     LoopClosureOutcome& outcome) {
   auto& result = outcome.summary;
   const bool loop_debug_enabled = config.loop_debug_enable;
-  const auto residual_before = meanLoopResidual(edges, poses_before);
-  const auto residual_axes_before = meanLoopResidualAxes(edges, poses_before);
-  const auto residual_after = meanLoopResidual(edges, poses_after);
-  const auto residual_axes_after = meanLoopResidualAxes(edges, poses_after);
+  const auto residual_before = meanLoopResidual(edges, poses_before, loop_debug_enabled);
+  const auto residual_after = meanLoopResidual(edges, poses_after, loop_debug_enabled);
   result.optimized = true;
   result.edge_count += edges.size();
   result.graph_edge_count += edges.size();
-  result.loop_residual_translation_before = residual_before.first;
-  result.loop_residual_rotation_before = residual_before.second;
-  result.loop_residual_translation_after = residual_after.first;
-  result.loop_residual_rotation_after = residual_after.second;
+  result.loop_residual_translation_before = residual_before.translation_norm;
+  result.loop_residual_rotation_before = residual_before.rotation_angle;
+  result.loop_residual_translation_after = residual_after.translation_norm;
+  result.loop_residual_rotation_after = residual_after.rotation_angle;
   accumulatePoseUpdateStats(poses_before, poses_after, result);
   result.accepted_loops.insert(result.accepted_loops.end(),
                                best_loops.begin(), best_loops.end());
@@ -39,16 +37,16 @@ void recordLoopOptimization(const Config& config, const std::vector<EdgeInfo>& e
     for (const auto &edge : edges) {
       event.accepted_edges.emplace_back(edge.from_id, edge.to_id);
     }
-    event.loop_residual_translation_before = residual_before.first;
-    event.loop_residual_rotation_before = residual_before.second;
-    event.loop_residual_translation_after = residual_after.first;
-    event.loop_residual_rotation_after = residual_after.second;
+    event.loop_residual_translation_before = residual_before.translation_norm;
+    event.loop_residual_rotation_before = residual_before.rotation_angle;
+    event.loop_residual_translation_after = residual_after.translation_norm;
+    event.loop_residual_rotation_after = residual_after.rotation_angle;
     event.loop_residual_translation_axes_before =
-        residual_axes_before.translation;
+        residual_before.translation;
     event.loop_residual_translation_axes_after =
-        residual_axes_after.translation;
-    event.loop_residual_rpy_axes_before = residual_axes_before.rpy;
-    event.loop_residual_rpy_axes_after = residual_axes_after.rpy;
+        residual_after.translation;
+    event.loop_residual_rpy_axes_before = residual_before.rpy;
+    event.loop_residual_rpy_axes_after = residual_after.rpy;
     event.mean_pose_update_translation = result.mean_pose_update_translation;
     event.max_pose_update_translation = result.max_pose_update_translation;
     event.mean_pose_update_rotation = result.mean_pose_update_rotation;

@@ -15,18 +15,11 @@ N3MappingCore::mappingInputBlockReason(const core::LioFrame &frame) {
   const double timestamp = static_cast<double>(frame.stamp.nsec) * 1e-9;
 
   if (config_.odom_sanity_enable) {
-    if (!odometry_sanity_configured_) {
-      OdometrySanityLimits limits;
-      limits.max_speed_mps = config_.odom_sanity_max_speed_mps;
-      limits.max_angular_rate_dps = config_.odom_sanity_max_angular_rate_dps;
-      limits.max_consecutive_violations = config_.odom_sanity_max_consecutive;
-      odometry_sanity_ = OdometrySanity(limits);
-      odometry_sanity_configured_ = true;
-    }
-    if (odometry_sanity_.check(timestamp, frame.T_world_lidar).diverged) {
+    const auto& verdict = odometry_sanity_.check(timestamp, frame.T_world_lidar);
+    if (verdict.diverged) {
       return core::MappingBlockReason::OdometryDiverged;
     }
-    if (odometry_sanity_.verdict().consecutive > 0) {
+    if (verdict.consecutive > 0) {
       return core::MappingBlockReason::InvalidInput;
     }
   }
@@ -45,11 +38,6 @@ N3MappingCore::processMappingFrame(const core::LioFrame &frame) {
   const double timestamp = static_cast<double>(frame.stamp.nsec) * 1e-9;
 
   if (config_.mapping_static_start_guard_enable) {
-    if (!static_start_guard_configured_) {
-      static_start_guard_ =
-          StaticStartGuard(staticStartGuardOptionsFromConfig(config_));
-      static_start_guard_configured_ = true;
-    }
     if (!static_start_guard_.update(timestamp, *frame.undistorted_cloud,
                                    frame.T_world_lidar)) {
       auto output = makeOutput(false, frame.T_world_lidar, frame.undistorted_cloud);

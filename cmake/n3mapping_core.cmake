@@ -22,6 +22,7 @@ set(N3MAPPING_CORE_SOURCES
   ${N3MAPPING_ROOT}/src/core/n3mapping_loop_async.cpp
   ${N3MAPPING_ROOT}/src/core/loop_closure_processing.cpp
   ${N3MAPPING_ROOT}/src/core/loop_closure_commit.cpp
+  ${N3MAPPING_ROOT}/src/core/loop_candidate_debug.cpp
   ${N3MAPPING_ROOT}/src/core/loop_closure_diagnostics.cpp
   ${N3MAPPING_ROOT}/src/core/run_mode.cpp
   ${N3MAPPING_ROOT}/src/core/map_artifacts.cpp
@@ -31,6 +32,7 @@ set(N3MAPPING_CORE_SOURCES
   ${N3MAPPING_ROOT}/src/keyframe_manager.cpp
   ${N3MAPPING_ROOT}/src/local_map_selector.cpp
   ${N3MAPPING_ROOT}/src/submap_builder.cpp
+  ${N3MAPPING_ROOT}/src/submap_graph_topology.cpp
   ${N3MAPPING_ROOT}/src/submap_graph_projection.cpp
   ${N3MAPPING_ROOT}/src/submap_graph_factor.cpp
   ${N3MAPPING_ROOT}/src/submap_graph_trial.cpp
