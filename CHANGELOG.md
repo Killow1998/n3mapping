@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- During mapping, reject a full 3D loop when its height in the map frame still
+  disagrees with the graph after trial optimization by more than the configured
+  registration translation limit. This uses the existing trial and reports
+  `graph_inconsistent_height`. Horizontal-only edges, cross-session merging
+  and localization against a saved map keep their existing behavior.
 - Share the parameter field table between canonical configuration records and
   both ROS adapters. Preserve names, defaults and namespace precedence. Remove
   duplicate matcher state and repeated internal pointer checks without changing

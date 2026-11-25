@@ -54,6 +54,7 @@ double meanResidualScore(const std::vector<EdgeInfo>& edges,
 
 void fillCandidateResiduals(const std::vector<EdgeInfo>& candidate_edges,
                             const std::map<int64_t, Eigen::Isometry3d>& poses,
+                            double max_height_residual,
                             LoopGraphTrialDiagnostics* diagnostics)
 {
     if (!diagnostics || candidate_edges.empty()) {
@@ -73,6 +74,12 @@ void fillCandidateResiduals(const std::vector<EdgeInfo>& candidate_edges,
         }
         const Eigen::Isometry3d predicted = from_it->second.inverse() * to_it->second;
         const Eigen::Isometry3d residual = edge.measurement.inverse() * predicted;
+        if (edge.constraint_mode == EdgeConstraintMode::FULL_6DOF) {
+            const double measured_height =
+                (from_it->second * edge.measurement.translation()).z();
+            if (std::abs(to_it->second.translation().z() - measured_height) > max_height_residual)
+                diagnostics->conflicts_with_map_height = true;
+        }
         translation += residual.translation().cwiseAbs();
         rpy += rollPitchYawAbs(residual);
         translation_norm += residual.translation().norm();
@@ -186,7 +193,7 @@ LoopGraphTrialDiagnostics computeLoopGraphTrialDiagnostics(
         }
         const auto poses_after = trial_optimizer.getOptimizedPoses();
         diagnostics.success = true;
-        fillCandidateResiduals(candidate_edges, poses_after, &diagnostics);
+        fillCandidateResiduals(candidate_edges, poses_after, config.loop_max_icp_translation, &diagnostics);
         fillPoseUpdateStats(poses_before, poses_after, &diagnostics);
 
         const double existing_loop_before = meanResidualScore(committed_edges, poses_before, EdgeType::LOOP);
@@ -209,9 +216,11 @@ LoopGraphTrialDiagnostics computeLoopGraphTrialDiagnostics(
 }
 
 std::string loopGraphTrialRejectReason(
-    const LoopGraphTrialDiagnostics& diagnostics, bool require_success) {
+    const LoopGraphTrialDiagnostics& diagnostics, bool cross_session) {
     if (!diagnostics.success)
-        return require_success ? "graph_trial_unavailable" : "";
+        return cross_session ? "graph_trial_unavailable" : "";
+    if (!cross_session && diagnostics.conflicts_with_map_height)
+        return "graph_inconsistent_height";
     constexpr double kExistingConstraintDegradation = 0.05;
     if (std::isfinite(diagnostics.existing_loop_residual_delta) &&
         diagnostics.existing_loop_residual_delta > kExistingConstraintDegradation)

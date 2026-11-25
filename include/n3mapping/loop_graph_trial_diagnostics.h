@@ -15,6 +15,7 @@ namespace n3mapping {
 
 struct LoopGraphTrialDiagnostics {
     bool success = false;
+    bool conflicts_with_map_height = false;
     double residual_x_after = std::numeric_limits<double>::quiet_NaN();
     double residual_y_after = std::numeric_limits<double>::quiet_NaN();
     double residual_z_after = std::numeric_limits<double>::quiet_NaN();
@@ -44,6 +45,6 @@ void assignLoopGraphTrialDiagnostics(
     VerifiedLoop* loop, const LoopGraphTrialDiagnostics& diagnostics);
 
 std::string loopGraphTrialRejectReason(
-    const LoopGraphTrialDiagnostics& diagnostics, bool require_success = false);
+    const LoopGraphTrialDiagnostics& diagnostics, bool cross_session = false);
 
 }
