@@ -5,7 +5,6 @@
 #include <list>
 #include <limits>
 #include <mutex>
-#include <stdexcept>
 
 #include <Eigen/Geometry>
 #include <glog/logging.h>
@@ -16,27 +15,10 @@ namespace {
 using Clock = std::chrono::steady_clock;
 
 constexpr std::size_t kSearchCacheBytes = 128 * 1024 * 1024;
-constexpr std::size_t kSearchCacheEntries = 8;
 
 double elapsedMs(const Clock::time_point &start) {
   return std::chrono::duration<double, std::milli>(Clock::now() - start)
       .count();
-}
-
-RelocTargetMode parseMode(const std::string &mode) {
-  if (mode == "legacy_global_atlas") {
-    return RelocTargetMode::LEGACY_GLOBAL_ATLAS;
-  }
-  if (mode == "local_no_cache") {
-    return RelocTargetMode::LOCAL_NO_CACHE;
-  }
-  if (mode == "local_lru") {
-    return RelocTargetMode::LOCAL_LRU;
-  }
-  if (mode == "shadow_local_lru") {
-    return RelocTargetMode::SHADOW_LOCAL_LRU;
-  }
-  throw std::invalid_argument("Unknown relocalization target mode: " + mode);
 }
 
 struct CacheKey {
@@ -64,68 +46,18 @@ public:
   ConfiguredRelocTargetProvider(const Config &config,
                                 PointCloudMatcher &matcher,
                                 LocalizationAtlas &localization_atlas)
-      : config_(config), mode_(parseMode(config.reloc_target_mode)),
-        matcher_(matcher), localization_atlas_(localization_atlas) {}
+      : config_(config), matcher_(matcher), localization_atlas_(localization_atlas) {}
 
   PreparedRelocTarget getTarget(const RelocTargetRequest &input) override {
-    RelocTargetRequest request = input;
+    const auto &request = input;
     PreparedRelocTarget result;
     result.visibility_target = request.local_target;
-    result.metrics.mode = relocTargetModeName(mode_);
     result.metrics.anchor_id = request.anchor_id;
     result.metrics.target_build_ms = request.target_build_ms;
     result.metrics.crop_center = request.crop_center;
     result.metrics.map_revision = request.map_revision;
 
-    const bool legacy = mode_ == RelocTargetMode::LEGACY_GLOBAL_ATLAS;
-    if (legacy || mode_ == RelocTargetMode::LOCAL_LRU) {
-      getCachedTarget(request, &result);
-      result.metrics.registration_source = legacy
-          ? (localization_atlas_.loaded() ? "legacy_global_atlas" : "legacy_local_lru")
-          : "local_lru";
-      if (legacy && localization_atlas_.loaded())
-        result.metrics.target_points = localization_atlas_.globalMap()->size();
-      logMetrics(result.metrics);
-      return result;
-    }
-    const bool primary_target = buildLocalTarget(&request, &result.metrics);
-    result.visibility_target = request.local_target;
-    if (!request.local_target || request.local_target->empty()) {
-      logMetrics(result.metrics);
-      return result;
-    }
-
-    switch (mode_) {
-    case RelocTargetMode::LOCAL_NO_CACHE:
-      setUncachedLocalTarget(request, &result);
-      break;
-    case RelocTargetMode::LEGACY_GLOBAL_ATLAS:
-    case RelocTargetMode::LOCAL_LRU:
-      break;
-    case RelocTargetMode::SHADOW_LOCAL_LRU: {
-      PreparedRelocTarget shadow;
-      shadow.metrics = result.metrics;
-      if (primary_target) {
-        getCachedTarget(request, &shadow);
-      } else {
-        setUncachedLocalTarget(request, &shadow);
-      }
-      const auto &shadow_metrics = shadow.metrics;
-      setLegacyTarget(request, &result);
-      result.metrics.target_prepare_ms = shadow_metrics.target_prepare_ms;
-      result.metrics.target_points = shadow_metrics.target_points;
-      result.metrics.cache_hit = shadow_metrics.cache_hit;
-      result.metrics.cache_miss = shadow_metrics.cache_miss;
-      result.metrics.cache_entry_bytes = shadow_metrics.cache_entry_bytes;
-      result.metrics.cache_total_bytes = shadow_metrics.cache_total_bytes;
-      result.metrics.cache_entries = shadow_metrics.cache_entries;
-      result.metrics.registration_source = localization_atlas_.loaded()
-                                               ? "legacy_global_atlas_shadow"
-                                               : "legacy_local_no_cache_shadow";
-      break;
-    }
-    }
-
+    getCachedTarget(request, &result);
     logMetrics(result.metrics);
     return result;
   }
@@ -145,34 +77,6 @@ public:
   }
 
 private:
-  void setLegacyTarget(const RelocTargetRequest &request,
-                       PreparedRelocTarget *result) {
-    if (localization_atlas_.loaded()) {
-      result->registration_target =
-          std::make_shared<const PointCloudMatcher::PreparedTarget>(
-              localization_atlas_.preparedTarget());
-      result->metrics.registration_source = "legacy_global_atlas";
-      const auto &global_map = localization_atlas_.globalMap();
-      result->metrics.target_points = global_map ? global_map->size() : 0;
-      return;
-    }
-    setUncachedLocalTarget(request, result);
-    result->metrics.registration_source = "legacy_local_no_cache";
-  }
-
-  void setUncachedLocalTarget(const RelocTargetRequest &request,
-                              PreparedRelocTarget *result) {
-    const auto start = Clock::now();
-    auto prepared = matcher_.prepareTargetCloud(request.local_target);
-    ++result->metrics.target_preparations;
-    result->metrics.target_prepare_ms = elapsedMs(start);
-    result->metrics.target_points = request.local_target->size();
-    result->registration_target =
-        std::make_shared<const PointCloudMatcher::PreparedTarget>(
-            std::move(prepared));
-    result->metrics.registration_source = "local_no_cache";
-  }
-
   bool buildLocalTarget(RelocTargetRequest *request, RelocTargetMetrics *metrics) {
     if (!request->local_target && request->build_local_target) {
       const auto start = Clock::now();
@@ -194,14 +98,12 @@ private:
   void getCachedTarget(RelocTargetRequest request,
                        PreparedRelocTarget *result) {
     auto *metrics = &result->metrics;
-    const bool legacy = mode_ == RelocTargetMode::LEGACY_GLOBAL_ATLAS;
-    const bool use_atlas = legacy && localization_atlas_.loaded();
-    const std::size_t max_bytes = legacy ? kSearchCacheBytes :
-        static_cast<std::size_t>(std::max(0, config_.reloc_target_cache_max_bytes));
-
-    const std::size_t max_entries = legacy ?
-        (use_atlas ? std::numeric_limits<std::size_t>::max() : kSearchCacheEntries) :
-        static_cast<std::size_t>(std::max(0, config_.reloc_target_cache_max_entries));
+    const bool use_atlas = localization_atlas_.loaded();
+    metrics->registration_source = use_atlas ? "global_atlas" : "local_lru";
+    const std::size_t max_bytes = use_atlas ? kSearchCacheBytes :
+        static_cast<std::size_t>(config_.reloc_target_cache_max_bytes);
+    const std::size_t max_entries = use_atlas ? std::numeric_limits<std::size_t>::max() :
+        static_cast<std::size_t>(config_.reloc_target_cache_max_entries);
     metrics->effective_max_bytes = max_bytes;
     metrics->effective_max_entries = max_entries;
 
@@ -218,7 +120,8 @@ private:
         metrics->cache_hit = true;
         metrics->cache_entry_bytes = entries_.front().bytes;
         fillCacheMetricsLocked(metrics);
-        metrics->target_points = entries_.front().local_target->size();
+        metrics->target_points = use_atlas ? localization_atlas_.globalMap()->size() :
+                                           entries_.front().local_target->size();
         result->visibility_target = entries_.front().local_target;
         result->visibility_indices = entries_.front().indices;
         result->registration_target = entries_.front().target;
@@ -248,10 +151,18 @@ private:
     result->visibility_target = request.local_target;
     if (!request.local_target || request.local_target->empty()) return;
     if (use_atlas) {
-
-      setLegacyTarget(request, result);
+      result->registration_target =
+          std::make_shared<const PointCloudMatcher::PreparedTarget>(
+              localization_atlas_.preparedTarget());
+      metrics->target_points = localization_atlas_.globalMap()->size();
     } else {
-      setUncachedLocalTarget(request, result);
+      const auto started = Clock::now();
+      result->registration_target =
+          std::make_shared<const PointCloudMatcher::PreparedTarget>(
+              matcher_.prepareTargetCloud(request.local_target));
+      ++metrics->target_preparations;
+      metrics->target_prepare_ms = elapsedMs(started);
+      metrics->target_points = request.local_target->size();
     }
     const auto &prepared = result->registration_target;
     const auto &indices = result->visibility_indices;
@@ -329,8 +240,7 @@ private:
   }
 
   void logMetrics(const RelocTargetMetrics &metrics) const {
-    VLOG(1) << "[RelocTarget] mode=" << metrics.mode
-            << " registration_source=" << metrics.registration_source
+    VLOG(1) << "[RelocTarget] registration_source=" << metrics.registration_source
             << " anchor_id=" << metrics.anchor_id
             << " target_build_ms=" << metrics.target_build_ms
             << " target_prepare_ms=" << metrics.target_prepare_ms
@@ -351,7 +261,6 @@ private:
   }
 
   const Config config_;
-  RelocTargetMode mode_;
   PointCloudMatcher &matcher_;
   LocalizationAtlas &localization_atlas_;
   mutable std::mutex mutex_;
@@ -364,20 +273,6 @@ private:
   KeyframeMapRevision cache_revision_;
 };
 
-}
-
-const char *relocTargetModeName(RelocTargetMode mode) {
-  switch (mode) {
-  case RelocTargetMode::LEGACY_GLOBAL_ATLAS:
-    return "legacy_global_atlas";
-  case RelocTargetMode::LOCAL_NO_CACHE:
-    return "local_no_cache";
-  case RelocTargetMode::LOCAL_LRU:
-    return "local_lru";
-  case RelocTargetMode::SHADOW_LOCAL_LRU:
-    return "shadow_local_lru";
-  }
-  return "unknown";
 }
 
 std::unique_ptr<RelocTargetProvider>

@@ -14,8 +14,8 @@ inline constexpr double kRelocBasinAssignRadius = 4.0;
 inline std::vector<double> buildRelocalizationYawHypotheses(
     const LoopCandidate& candidate, const Config& config) {
   auto yaws = buildDescriptorYawHypotheses(candidate, config);
-  if (!candidate.fromRHPD() || !candidate.fromSC() ||
-      !config.rhpd_use_sc_yaw || !std::isfinite(candidate.sc_distance) ||
+  if (!candidate.fromRHPD() || !candidate.fromHeading() ||
+      !config.rhpd_use_heading_yaw || !std::isfinite(candidate.heading_distance) ||
       config.rhpd_yaw_hypotheses < 4) return yaws;
 
   const double phase = -static_cast<double>(candidate.yaw_diff_rad);

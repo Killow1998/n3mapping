@@ -321,7 +321,7 @@ TEST_F(LocalizationEpisode, OppositeHeadingsInSymmetricGeometryRemainAmbiguous) 
 
 TEST_F(LocalizationEpisode, UnchangedSeedsCannotStrandSearchInOldPoseModes) {
 
-  config_.rhpd_use_sc_yaw = false;
+  config_.rhpd_use_heading_yaw = false;
   const auto repeated = synthesizeBodyCloud(scene_, makePose(6, 0, 0), 12, 0, 0, 1442);
   auto distinct = pcl::make_shared<Cloud>(*repeated);
   for (auto& point : *distinct) point.z += 5.5F;
@@ -353,7 +353,7 @@ TEST_F(LocalizationEpisode, UnchangedSeedsCannotStrandSearchInOldPoseModes) {
 TEST_F(LocalizationEpisode, NoPlaceCandidateLeavesPoseUnavailable) {
   config_.rhpd_dist_threshold = 1e-9;
 
-  config_.rhpd_use_sc_yaw = false;
+  config_.rhpd_use_heading_yaw = false;
   localizer_ = std::make_unique<N3MappingCore>(
       config_, N3MappingCore::WorldCloudOutput::Disabled);
   ASSERT_TRUE(localizer_->loadMap(map_path_.string()));

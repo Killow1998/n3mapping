@@ -27,8 +27,8 @@ class LoopDetectorTest : public ::testing::Test {
 protected:
     void SetUp() override {
 
-        config_.sc_dist_threshold = 0.3;
-        config_.sc_num_candidates = 5;
+        config_.heading_dist_threshold = 0.3;
+        config_.heading_num_candidates = 5;
         config_.num_threads = 2;
         config_.gicp_fitness_threshold = 0.5;
         config_.rhpd_enabled = true;
@@ -289,18 +289,18 @@ TEST_F(LoopDetectorTest, InitialState) {
 
 TEST_F(LoopDetectorTest, ConfigInjectionAffectsDescriptorManagers) {
     Config cfg = config_;
-    cfg.sc_num_rings = 16;
-    cfg.sc_num_sectors = 72;
-    cfg.sc_max_radius = 45.0;
+    cfg.heading_num_rings = 16;
+    cfg.heading_num_sectors = 72;
+    cfg.heading_max_radius = 45.0;
     cfg.rhpd_max_range = 12.5;
     cfg.rhpd_z_min = -1.5;
     cfg.rhpd_z_max = 4.5;
     LoopDetector detector(cfg);
 
     auto dims = detector.getDescriptorDimensions();
-    EXPECT_EQ(dims.first, RHPDHeadingParams::channels * cfg.sc_num_rings);
-    EXPECT_EQ(dims.second, cfg.sc_num_sectors);
-    EXPECT_NEAR(detector.getHeadingSectorAngleDeg(), 360.0 / cfg.sc_num_sectors, 1e-9);
+    EXPECT_EQ(dims.first, RHPDHeadingParams::channels * cfg.heading_num_rings);
+    EXPECT_EQ(dims.second, cfg.heading_num_sectors);
+    EXPECT_NEAR(detector.getHeadingSectorAngleDeg(), 360.0 / cfg.heading_num_sectors, 1e-9);
     EXPECT_DOUBLE_EQ(detector.getRHPDParams().max_range, cfg.rhpd_max_range);
     EXPECT_DOUBLE_EQ(detector.getRHPDParams().z_min, cfg.rhpd_z_min);
     EXPECT_DOUBLE_EQ(detector.getRHPDParams().z_max, cfg.rhpd_z_max);
@@ -339,7 +339,7 @@ TEST_F(LoopDetectorTest, UnifiedHeadingRetainsItsOwnRangeAndHeightSupport) {
 
 TEST_F(LoopDetectorTest, RhpdOnlyRelocalizationHasFiniteCandidateScores) {
     Config config;
-    config.rhpd_use_sc_yaw = false;
+    config.rhpd_use_heading_yaw = false;
     KeyframeManager keyframes(config);
     LoopDetector detector(config);
     const auto cloud = createAsymmetricCloud();
@@ -349,7 +349,7 @@ TEST_F(LoopDetectorTest, RhpdOnlyRelocalizationHasFiniteCandidateScores) {
     const auto candidates = index.search(cloud);
     ASSERT_FALSE(candidates.empty());
     EXPECT_EQ(candidates.front().match_id, id);
-    EXPECT_FALSE(candidates.front().fromSC());
+    EXPECT_FALSE(candidates.front().fromHeading());
     EXPECT_TRUE(std::isfinite(candidates.front().fused_score));
 }
 
@@ -378,7 +378,7 @@ TEST_F(LoopDetectorTest, RelocalizationKeepsHeadingWinnerBeyondPlaceShortlist) {
     const auto candidates = index.search(query, &performance);
     ASSERT_EQ(candidates.size(), 1u);
     EXPECT_EQ(candidates.front().match_id, expected);
-    EXPECT_TRUE(candidates.front().fromSC());
+    EXPECT_TRUE(candidates.front().fromHeading());
 
     EXPECT_LE(performance.heading_comparisons, keyframes.size());
 }
@@ -420,7 +420,7 @@ TEST_F(LoopDetectorTest, RepeatedViewDoesNotHideAnotherFloorOrOppositeHeading) {
 
 TEST_F(LoopDetectorTest, PlaceSearchMatchesExhaustiveFusedRanking) {
     Config config;
-    config.sc_aux_veto_enabled = false;
+    config.heading_aux_veto_enabled = false;
     config.rhpd_dist_threshold = 100.0;
     config.reloc_num_candidates = 5;
     KeyframeManager keyframes(config);
@@ -445,7 +445,7 @@ TEST_F(LoopDetectorTest, PlaceSearchMatchesExhaustiveFusedRanking) {
         for (const auto &[id, distance] : ranked) {
             const auto heading = detector.computeDistance(features.heading, detector.getDescriptor(id));
             const double score = config.rhpd_primary_weight * distance / config.rhpd_dist_threshold +
-                config.sc_aux_weight * heading.first / config.sc_aux_veto_threshold;
+                config.heading_aux_weight * heading.first / config.heading_aux_veto_threshold;
             expected.emplace_back(score, distance, id);
         }
         std::sort(expected.begin(), expected.end());
@@ -470,8 +470,8 @@ TEST_F(LoopDetectorTest, HeadingSeedRotatesQueryCloudIntoReferenceFrame) {
         const auto [distance, shift] = detector.computeDistance(
             detector.computeHeading(query), reference_heading);
         LoopCandidate candidate;
-        candidate.source_flags = LoopCandidate::SOURCE_SC | LoopCandidate::SOURCE_RHPD;
-        candidate.sc_distance = distance;
+        candidate.source_flags = LoopCandidate::SOURCE_HEADING | LoopCandidate::SOURCE_RHPD;
+        candidate.heading_distance = distance;
         candidate.yaw_diff_rad = shift * detector.getHeadingSectorAngleDeg() * M_PI / 180.0;
         const auto seeds = buildDescriptorYawHypotheses(candidate, config);
         ASSERT_FALSE(seeds.empty());
@@ -688,7 +688,6 @@ TEST_F(LoopDetectorTest, AddMultipleDescriptors) {
 TEST_F(LoopDetectorTest, HeadingFallbackUsesArcLengthAtAShortFrameGap) {
     Config cfg = config_;
     cfg.rhpd_enabled = false;
-    cfg.sc_num_exclude_recent = 50;
     cfg.loop_min_path_length_m = 5.0;
     LoopDetector detector(cfg);
     const auto cloud = createCircularCloud();
@@ -710,7 +709,7 @@ TEST_F(LoopDetectorTest, HeadingFallbackUsesArcLengthAtAShortFrameGap) {
 
 TEST_F(LoopDetectorTest, CrossSessionCandidatesDoNotDependOnOdometryOrigins) {
     Config cfg = config_;
-    cfg.sc_aux_veto_enabled = false;
+    cfg.heading_aux_veto_enabled = false;
     cfg.loop_min_path_length_m = 5.0;
     cfg.loop_spatial_candidates_enable = true;
     auto frames = lineOfKeyframes(5);
@@ -766,7 +765,7 @@ TEST_F(LoopDetectorTest, DetectSimilarScenes) {
 
     for (const auto& candidate : candidates) {
         if (candidate.match_id == 0) {
-            EXPECT_LT(candidate.sc_distance, config_.sc_dist_threshold);
+            EXPECT_LT(candidate.heading_distance, config_.heading_dist_threshold);
         }
     }
 
@@ -779,7 +778,7 @@ TEST_F(LoopDetectorTest, DetectSimilarScenes) {
 TEST_F(LoopDetectorTest, DetectSimilarScenesUsesRHPDPrimary) {
     Config cfg = config_;
     cfg.rhpd_enabled = true;
-    cfg.sc_aux_veto_enabled = false;
+    cfg.heading_aux_veto_enabled = false;
     cfg.rhpd_dist_threshold = 100.0;
     LoopDetector detector(cfg);
 
@@ -816,10 +815,10 @@ TEST_F(LoopDetectorTest, DetectSimilarScenesUsesRHPDPrimary) {
 TEST_F(LoopDetectorTest, RHPDPrimarySearchFiltersShortPathsBeforePrefilter) {
     Config cfg = config_;
     cfg.rhpd_enabled = true;
-    cfg.sc_aux_veto_enabled = false;
+    cfg.heading_aux_veto_enabled = false;
     cfg.loop_min_path_length_m = 50.0;
     cfg.rhpd_num_candidates = 5;
-    cfg.sc_num_candidates = 3;
+    cfg.heading_num_candidates = 3;
     cfg.rhpd_preselect_candidates = 8;
     cfg.rhpd_dist_threshold = 100.0;
     LoopDetector detector(cfg);
@@ -853,10 +852,10 @@ TEST_F(LoopDetectorTest, RHPDPrimarySearchFiltersShortPathsBeforePrefilter) {
     EXPECT_TRUE(found_old_loop);
 }
 
-TEST_F(LoopDetectorTest, DetectSimilarScenesCanFallbackToScanContextWhenRHPDDisabled) {
+TEST_F(LoopDetectorTest, DetectSimilarScenesCanFallbackToHeadingWhenRHPDDisabled) {
     Config cfg = config_;
     cfg.rhpd_enabled = false;
-    cfg.sc_dist_threshold = 1.0;
+    cfg.heading_dist_threshold = 1.0;
     LoopDetector detector(cfg);
 
     for (int i = 0; i < 20; ++i) {
@@ -872,8 +871,8 @@ TEST_F(LoopDetectorTest, DetectSimilarScenesCanFallbackToScanContextWhenRHPDDisa
     for (const auto& candidate : candidates) {
         if (candidate.match_id == 0) {
             found = true;
-            EXPECT_TRUE(candidate.fromSC());
-            EXPECT_EQ(candidate.candidate_source, LoopCandidate::Source::ScanContextFallback);
+            EXPECT_TRUE(candidate.fromHeading());
+            EXPECT_EQ(candidate.candidate_source, LoopCandidate::Source::HeadingFallback);
         }
     }
     EXPECT_TRUE(found);
@@ -921,7 +920,7 @@ TEST_F(LoopDetectorTest, DetectSpatialCandidatesUsesPoseRadiusAndPathLength) {
         EXPECT_EQ(candidate.query_id, 100);
         EXPECT_TRUE(candidate.fromSpatial());
         EXPECT_FALSE(candidate.fromRHPD());
-        EXPECT_FALSE(candidate.fromSC());
+        EXPECT_FALSE(candidate.fromHeading());
         EXPECT_EQ(candidate.candidate_source, LoopCandidate::Source::SpatialRadius);
         EXPECT_TRUE(std::isfinite(candidate.fused_score));
         EXPECT_GE(candidate.fused_score, 0.0);
@@ -1138,7 +1137,7 @@ TEST_F(LoopDetectorTest, SpatialBoundaryReservePreservesNearTiesWithinABoundedBu
 TEST_F(LoopDetectorTest, DescriptorCandidatesUnaffectedBySpatialRadius) {
     Config base = config_;
     base.rhpd_enabled = true;
-    base.sc_aux_veto_enabled = false;
+    base.heading_aux_veto_enabled = false;
     base.rhpd_dist_threshold = 100.0;
     base.loop_min_path_length_m = 0.0;
     base.loop_spatial_candidates_enable = true;
@@ -1183,7 +1182,7 @@ TEST_F(LoopDetectorTest, RhpdMatchFilterAppliesBeforeTopK) {
     cfg.rhpd_enabled = true;
     cfg.rhpd_num_candidates = 2;
     cfg.rhpd_preselect_candidates = 20;
-    cfg.sc_aux_veto_enabled = false;
+    cfg.heading_aux_veto_enabled = false;
     cfg.loop_min_path_length_m = 0.0;
     LoopDetector detector(cfg);
 
@@ -1201,7 +1200,7 @@ TEST_F(LoopDetectorTest, RhpdMatchFilterAppliesBeforeTopK) {
     EXPECT_EQ(candidates.front().match_id, 0);
 }
 
-TEST_F(LoopDetectorTest, ScanContextMatchFilterAppliesBeforeKnn) {
+TEST_F(LoopDetectorTest, HeadingMatchFilterAppliesBeforeKnn) {
     Config cfg = config_;
     cfg.rhpd_enabled = false;
     cfg.loop_min_path_length_m = 0.0;
@@ -1223,9 +1222,9 @@ TEST_F(LoopDetectorTest, WorkBoundReplenishesWithoutDiscardingOriginalCandidates
     for (bool rhpd : {false, true}) {
         Config cfg = config_;
         cfg.rhpd_enabled = rhpd;
-        cfg.rhpd_num_candidates = cfg.sc_num_candidates = 2;
+        cfg.rhpd_num_candidates = cfg.heading_num_candidates = 2;
         cfg.rhpd_preselect_candidates = 20;
-        cfg.sc_aux_veto_enabled = false;
+        cfg.heading_aux_veto_enabled = false;
         cfg.loop_min_path_length_m = 0;
         LoopDetector detector(cfg);
         const auto query = createAsymmetricCloud();

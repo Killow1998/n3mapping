@@ -18,15 +18,6 @@
 
 namespace n3mapping {
 
-enum class RelocTargetMode {
-  LEGACY_GLOBAL_ATLAS,
-  LOCAL_NO_CACHE,
-  LOCAL_LRU,
-  SHADOW_LOCAL_LRU,
-};
-
-const char *relocTargetModeName(RelocTargetMode mode);
-
 struct RelocTargetRequest {
   int64_t anchor_id = -1;
   KeyframeMapRevision map_revision;
@@ -42,7 +33,6 @@ struct RelocTargetRequest {
 };
 
 struct RelocTargetMetrics {
-  std::string mode;
   std::string registration_source;
   int64_t anchor_id = -1;
   double target_build_ms = 0.0;

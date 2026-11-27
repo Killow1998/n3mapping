@@ -86,11 +86,10 @@ protected:
     config_.gicp_max_correspondence_distance = 2.0;
     config_.gicp_max_iterations = 30;
     config_.gicp_fitness_threshold = 0.5;
-    config_.sc_dist_threshold = 0.3;
-    config_.sc_num_exclude_recent = 5;
-    config_.sc_num_candidates = 3;
+    config_.heading_dist_threshold = 0.3;
+    config_.heading_num_candidates = 3;
     config_.reloc_num_candidates = 5;
-    config_.reloc_sc_dist_threshold = 0.4;
+    config_.reloc_heading_dist_threshold = 0.4;
     config_.reloc_search_radius = 15.0;
     config_.reloc_max_track_failures = 5;
     config_.reloc_temporal_window_size = 3;
@@ -555,7 +554,7 @@ TEST_F(WorldLocalizingTest, GlobalRelocalizationSuccess) {
   WorldLocalizing reloc(config_, *keyframe_manager_, *loop_detector_,
                         *matcher_);
   Config no_reuse = config_;
-  no_reuse.reloc_target_mode = "local_no_cache";
+  no_reuse.reloc_target_cache_max_entries = 0;
   WorldLocalizing reference(no_reuse, *keyframe_manager_, *loop_detector_, *matcher_);
 
   Eigen::Isometry3d query_pose = Eigen::Isometry3d::Identity();
@@ -637,7 +636,7 @@ TEST_F(WorldLocalizingTest, DuplicatedGeometryDoesNotClaimAUniquePlace) {
   WorldLocalizing reloc(config_, *keyframe_manager_, *loop_detector_,
                         *matcher_);
   Config no_reuse = config_;
-  no_reuse.reloc_target_mode = "local_no_cache";
+  no_reuse.reloc_target_cache_max_entries = 0;
   WorldLocalizing reference(no_reuse, *keyframe_manager_, *loop_detector_, *matcher_);
 
   const Eigen::Isometry3d odom_pose = Eigen::Isometry3d::Identity();

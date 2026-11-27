@@ -54,7 +54,6 @@ add_custom_target(n3mapping_proto_headers ALL
 
 include_directories(
   ${N3MAPPING_ROOT}/include
-  ${N3MAPPING_ROOT}/include/Scancontext
   ${CMAKE_CURRENT_SOURCE_DIR}/include
   ${PCL_INCLUDE_DIRS}
   ${EIGEN3_INCLUDE_DIR}

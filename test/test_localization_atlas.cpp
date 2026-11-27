@@ -8,10 +8,8 @@
 #include <vector>
 
 #include <gtest/gtest.h>
-#include <pcl/common/transforms.h>
 
 #include "n3mapping/localization_atlas.h"
-#include "n3mapping/cloud_utils.h"
 #include "n3mapping/RHPDescriptor.h"
 #include "n3mapping/loop_detector.h"
 #include "n3mapping/keyframe_manager.h"
@@ -195,37 +193,6 @@ TEST(FreeSpaceGridTest, SurfaceBoundaryIsContinuousAndObservedFreeSpaceStillCont
   EXPECT_FALSE(contradicted.significantlyBetterThan(above, 5.0));
   pose.translation().z() = 4.0;
   EXPECT_FALSE(grid.score(query, pose).valid);
-}
-
-TEST(LocalizationAtlasTest, PackedAssemblyRetainsVoxelCentroidsAndUnsafeGridFallback) {
-  auto frames = makeKeyframes();
-  frames[1]->pose_optimized.linear() =
-      Eigen::AngleAxisd(.37, Eigen::Vector3d::UnitZ()).toRotationMatrix();
-  frames[0]->cloud->is_dense = false;
-  frames[0]->cloud->at(0).x = std::numeric_limits<float>::quiet_NaN();
-  auto raw = pcl::make_shared<Keyframe::PointCloudT>();
-  for (const auto& frame : frames) {
-    Keyframe::PointCloudT transformed;
-    pcl::transformPointCloud(*frame->cloud, transformed,
-                             frame->pose_optimized.matrix().cast<float>());
-    *raw += transformed;
-  }
-  for (const double leaf : {.08, .2, 1e-3, std::numeric_limits<double>::infinity()}) {
-    auto config = makeConfig();
-    config.global_map_voxel_size = leaf;
-    Keyframe::PointCloudT::Ptr expected;
-    if (!safeVoxelGridFilter<pcl::PointXYZI>(raw, leaf, &expected)) expected = raw;
-    const auto actual = LocalizationAtlas::buildGlobalMap(config, frames);
-    ASSERT_EQ(actual->size(), expected->size());
-    for (size_t i = 0; i < actual->size(); ++i) {
-      const auto& a = actual->at(i);
-      const auto& b = expected->at(i);
-      const float lhs[] = {a.x, a.y, a.z, a.intensity};
-      const float rhs[] = {b.x, b.y, b.z, b.intensity};
-      EXPECT_EQ(std::memcmp(lhs, rhs, sizeof(lhs)), 0) << i << " leaf=" << leaf;
-    }
-  }
-  EXPECT_TRUE(LocalizationAtlas::buildGlobalMap(makeConfig(), {})->empty());
 }
 
 TEST(LocalizationAtlasTest, RoundTripsPreparedTargetExactly) {

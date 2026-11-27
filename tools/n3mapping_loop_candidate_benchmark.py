@@ -39,10 +39,10 @@ def parse_args():
         help="Optional frame-id separation for LIO-SAM-style spatial candidates.",
     )
     parser.add_argument(
-        "--sc_top_k",
+        "--heading_top_k",
         type=int,
         default=5,
-        help="Top K by sc_distance within logged candidates. This is not pure SC retrieval.",
+        help="Top K by heading_distance within logged candidates.",
     )
     return parser.parse_args()
 
@@ -216,7 +216,7 @@ def make_logged_candidate_rows(candidates, accepted_pairs):
                 "candidate_source": event.get("candidate_source", ""),
                 "score": finite_float(event.get("fused_score")),
                 "rhpd_distance": finite_float(event.get("rhpd_distance")),
-                "sc_distance": finite_float(event.get("sc_distance")),
+                "heading_distance": finite_float(event.get("heading_distance")),
                 "spatial_distance_m": float("nan"),
                 "accepted_by_n3mapping": accepted,
                 "gate_result": event.get("gate_result", ""),
@@ -226,29 +226,29 @@ def make_logged_candidate_rows(candidates, accepted_pairs):
     return rows
 
 
-def make_sc_rerank_rows(candidates, accepted_pairs, top_k):
+def make_heading_rerank_rows(candidates, accepted_pairs, top_k):
     grouped = {}
     for event in candidates:
         query_id = int(event["query_id"])
-        sc = finite_float(event.get("sc_distance"))
+        sc = finite_float(event.get("heading_distance"))
         if not math.isfinite(sc):
             continue
         grouped.setdefault(query_id, []).append(event)
     rows = []
     for query_id, events in grouped.items():
-        events = sorted(events, key=lambda e: finite_float(e.get("sc_distance")))[: max(1, top_k)]
+        events = sorted(events, key=lambda e: finite_float(e.get("heading_distance")))[: max(1, top_k)]
         for rank, event in enumerate(events, start=1):
             match_id = int(event["match_id"])
             rows.append(
                 {
-                    "method": "sc_rerank_logged_pool",
+                    "method": "heading_rerank_logged_pool",
                     "query_id": query_id,
                     "match_id": match_id,
                     "rank": rank,
                     "candidate_source": event.get("candidate_source", ""),
-                    "score": finite_float(event.get("sc_distance")),
+                    "score": finite_float(event.get("heading_distance")),
                     "rhpd_distance": finite_float(event.get("rhpd_distance")),
-                    "sc_distance": finite_float(event.get("sc_distance")),
+                    "heading_distance": finite_float(event.get("heading_distance")),
                     "spatial_distance_m": float("nan"),
                     "accepted_by_n3mapping": (query_id, match_id) in accepted_pairs if accepted_pairs else event.get("gate_result") == "accepted",
                     "gate_result": event.get("gate_result", ""),
@@ -312,7 +312,7 @@ def make_spatial_rows(candidate_poses, gt_poses, args):
                 "candidate_source": "spatial_radius",
                 "score": distance,
                 "rhpd_distance": float("nan"),
-                "sc_distance": float("nan"),
+                "heading_distance": float("nan"),
                 "spatial_distance_m": distance,
                 "accepted_by_n3mapping": False,
                 "gate_result": "",
@@ -435,7 +435,7 @@ def main():
     rows = []
     if loop_candidates:
         rows.extend(make_logged_candidate_rows(loop_candidates, accepted_pairs))
-        rows.extend(make_sc_rerank_rows(loop_candidates, accepted_pairs, args.sc_top_k))
+        rows.extend(make_heading_rerank_rows(loop_candidates, accepted_pairs, args.heading_top_k))
     rows.extend(make_spatial_rows(candidate_poses, gt_poses, args))
     rows = annotate_rows(rows, gt_poses, args)
     summaries = method_summary(rows, gt_pairs, gt_queries)
@@ -448,7 +448,7 @@ def main():
         "candidate_source",
         "score",
         "rhpd_distance",
-        "sc_distance",
+        "heading_distance",
         "spatial_distance_m",
         "accepted_by_n3mapping",
         "gate_result",
@@ -492,14 +492,14 @@ def main():
             "spatial_radius_m": args.spatial_radius_m,
             "spatial_min_id_gap": args.spatial_min_id_gap,
             "spatial_min_frame_gap": args.spatial_min_frame_gap,
-            "sc_top_k": args.sc_top_k,
+            "heading_top_k": args.heading_top_k,
         },
         "method_summaries": [
             {key: json_number(value) for key, value in row.items()} for row in summaries
         ],
         "notes": [
-            "n3mapping_logged is the current loop_debug candidate set, normally RHPD-primary with SC auxiliary scores.",
-            "sc_rerank_logged_pool ranks only within logged candidates; it is not pure SC global retrieval.",
+            "n3mapping_logged is the current loop_debug candidate set, normally RHPD-primary with heading scores.",
+            "heading_rerank_logged_pool ranks only within logged candidates.",
             "liosam_spatial_* is a LIO-SAM-style spatial/time-gap candidate oracle over keyframe poses; it does not run ICP.",
         ],
     }

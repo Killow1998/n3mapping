@@ -1853,8 +1853,8 @@ TEST_F(MapSerializerTest, OldDescriptorCachesAreIgnoredAndHeadingUsesCurrentPara
         ASSERT_TRUE(proto.SerializeToOstream(&stream));
     }
     Config current = config_;
-    current.sc_num_rings = 12;
-    current.sc_num_sectors = 72;
+    current.heading_num_rings = 12;
+    current.heading_num_sectors = 72;
     current.rhpd_submap_voxel_size = 0.0;
     KeyframeManager loaded_keyframes(current);
     LoopDetector loaded_loops(current);

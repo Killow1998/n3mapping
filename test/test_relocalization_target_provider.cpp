@@ -68,9 +68,8 @@ TEST(RelocTargetProviderTest, SmallCropDoesNotRetainGlobalMapCapacity) {
   EXPECT_LT(crop->points.capacity(), map->size());
 }
 
-TEST(RelocTargetProviderTest, LegacyWithoutAtlasUsesBoundedLocalTarget) {
+TEST(RelocTargetProviderTest, WithoutAtlasUsesBoundedLocalTarget) {
   Config config;
-  config.reloc_target_mode = "legacy_global_atlas";
   ProviderFixture fixture(config);
   const auto cloud = makeTargetCloud();
 
@@ -79,7 +78,7 @@ TEST(RelocTargetProviderTest, LegacyWithoutAtlasUsesBoundedLocalTarget) {
 
   ASSERT_TRUE(target.valid());
   EXPECT_EQ(target.visibility_target, cloud);
-  EXPECT_EQ(target.metrics.registration_source, "legacy_local_lru");
+  EXPECT_EQ(target.metrics.registration_source, "local_lru");
   EXPECT_EQ(target.metrics.anchor_id, 3);
   EXPECT_EQ(target.metrics.target_points, cloud->size());
   EXPECT_DOUBLE_EQ(target.metrics.target_build_ms, 1.25);
@@ -92,9 +91,8 @@ TEST(RelocTargetProviderTest, LegacyWithoutAtlasUsesBoundedLocalTarget) {
 
 TEST(RelocTargetProviderTest, LazyCropReuseIsEquivalentAndCenterInvalidates) {
   Config config;
-  config.reloc_target_mode = "legacy_global_atlas";
   ProviderFixture cached(config);
-  config.reloc_target_mode = "local_no_cache";
+  config.reloc_target_cache_max_entries = 0;
   ProviderFixture uncached(config);
   auto request = makeRequest(3, {});
   const auto map = makeTargetCloud();
@@ -170,9 +168,9 @@ TEST(RelocTargetProviderTest, CandidateFallbackCannotPopulateHypothesisCrop) {
 TEST(RelocTargetProviderTest, ReuseConstructionAblation) {
   const auto cloud = makeTargetCloud();
   constexpr int kRequests = 8;
-  for (const std::string mode : {"local_no_cache", "legacy_global_atlas"}) {
+  for (const bool reuse : {false, true}) {
     Config config;
-    config.reloc_target_mode = mode;
+    config.reloc_target_cache_max_entries = reuse ? 8 : 0;
     ProviderFixture fixture(config);
     auto request = makeRequest(3, {});
     request.build_local_target = [&] {
@@ -180,28 +178,21 @@ TEST(RelocTargetProviderTest, ReuseConstructionAblation) {
     };
     std::size_t builds = 0;
     std::size_t preparations = 0;
-    const auto started = std::chrono::steady_clock::now();
     for (int i = 0; i < kRequests; ++i) {
       const auto target = fixture.provider->getTarget(request);
       ASSERT_TRUE(target.valid());
       builds += target.metrics.target_builds;
       preparations += target.metrics.target_preparations;
     }
-    const double ms = std::chrono::duration<double, std::milli>(
-        std::chrono::steady_clock::now() - started).count();
-    const std::size_t expected = mode == "local_no_cache" ? kRequests : 1;
+    const std::size_t expected = reuse ? 1 : kRequests;
     EXPECT_EQ(builds, expected);
     EXPECT_EQ(preparations, expected);
 
-    RecordProperty(mode + "_milliseconds", std::to_string(ms));
-    RecordProperty(mode + "_builds", static_cast<int>(builds));
-    RecordProperty(mode + "_preparations", static_cast<int>(preparations));
   }
 }
 
-TEST(RelocTargetProviderTest, LegacyUsesLoadedGlobalAtlasForRegistration) {
+TEST(RelocTargetProviderTest, UsesLoadedGlobalAtlasForRegistration) {
   Config config;
-  config.reloc_target_mode = "legacy_global_atlas";
   ProviderFixture fixture(config);
   const auto cloud = makeTargetCloud();
   std::vector<Keyframe::Ptr> keyframes = {
@@ -234,7 +225,7 @@ TEST(RelocTargetProviderTest, LegacyUsesLoadedGlobalAtlasForRegistration) {
 
   ASSERT_TRUE(target.valid());
   EXPECT_EQ(target.visibility_target, cloud);
-  EXPECT_EQ(target.metrics.registration_source, "legacy_global_atlas");
+  EXPECT_EQ(target.metrics.registration_source, "global_atlas");
   EXPECT_EQ(target.metrics.target_points, fixture.atlas.globalMap()->size());
   const auto reused = fixture.provider->getTarget(makeRequest(0, cloud));
   EXPECT_TRUE(reused.metrics.cache_hit);
@@ -298,7 +289,6 @@ TEST(RelocTargetProviderTest, LegacyUsesLoadedGlobalAtlasForRegistration) {
 
 TEST(RelocTargetProviderTest, LocalLruHitsAndMapRevisionInvalidates) {
   Config config;
-  config.reloc_target_mode = "local_lru";
   config.reloc_target_cache_max_bytes = 64 * 1024 * 1024;
   config.reloc_target_cache_max_entries = 4;
   ProviderFixture fixture(config);
@@ -324,7 +314,6 @@ TEST(RelocTargetProviderTest, LocalLruHitsAndMapRevisionInvalidates) {
 
 TEST(RelocTargetProviderTest, LocalLruHonorsEntryBudget) {
   Config config;
-  config.reloc_target_mode = "local_lru";
   config.reloc_target_cache_max_bytes = 64 * 1024 * 1024;
   config.reloc_target_cache_max_entries = 1;
   ProviderFixture fixture(config);
@@ -342,7 +331,6 @@ TEST(RelocTargetProviderTest, LocalLruHonorsEntryBudget) {
 
 TEST(RelocTargetProviderTest, ZeroBudgetNeverRetainsPreparedTargets) {
   Config config;
-  config.reloc_target_mode = "local_lru";
   config.reloc_target_cache_max_bytes = 0;
   config.reloc_target_cache_max_entries = 0;
   ProviderFixture fixture(config);
@@ -361,7 +349,6 @@ TEST(RelocTargetProviderTest, ZeroBudgetNeverRetainsPreparedTargets) {
 
 TEST(RelocTargetProviderTest, OversizedPreparedTargetIsNotCached) {
   Config sizing_config;
-  sizing_config.reloc_target_mode = "local_lru";
   sizing_config.reloc_target_cache_max_bytes = 64 * 1024 * 1024;
   sizing_config.reloc_target_cache_max_entries = 2;
   ProviderFixture sizing_fixture(sizing_config);
@@ -384,7 +371,6 @@ TEST(RelocTargetProviderTest, OversizedPreparedTargetIsNotCached) {
 
 TEST(RelocTargetProviderTest, ConcurrentHitsKeepSharedTargetAlive) {
   Config config;
-  config.reloc_target_mode = "local_lru";
   config.reloc_target_cache_max_bytes = 64 * 1024 * 1024;
   config.reloc_target_cache_max_entries = 2;
   ProviderFixture fixture(config);

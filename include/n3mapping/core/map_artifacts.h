@@ -19,10 +19,10 @@ public:
   explicit MapArtifacts(const Config &config);
 
   bool save(N3MappingCore &core, std::string &error,
-            MapKeyframeSnapshot &snapshot);
+            GlobalMapCache::PointCloudConstPtr &saved_cloud);
 
   void setMode(CoreRunMode mode) { mode_ = mode; }
-  void saveDebug(const MapKeyframeSnapshot &snapshot, std::string &warning);
+  void saveDebug(const GlobalMapCache::PointCloud &saved_cloud, std::string &warning);
   struct GlobalCloud {
     const GlobalMapCache::PointCloud &cloud;
     std::uint64_t revision;
@@ -35,7 +35,6 @@ public:
 private:
   const std::string map_save_path_;
   const bool save_global_map_;
-  const double save_voxel_size_;
   CoreRunMode mode_;
   std::mutex mutex_;
   GlobalMapCache cache_;

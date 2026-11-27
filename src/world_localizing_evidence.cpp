@@ -1,4 +1,5 @@
 #include "n3mapping/world_localizing.h"
+#include "n3mapping/global_map_cache.h"
 
 #include <algorithm>
 #include <chrono>
@@ -201,8 +202,8 @@ void WorldLocalizing::rebuildRelocMapCacheIfNeeded() {
     return;
   }
 
-  reloc_map_cache_ = LocalizationAtlas::buildGlobalMap(
-      config_, keyframe_manager_.getAllKeyframes());
+  reloc_map_cache_ = GlobalMapCache::build(
+      keyframe_manager_.getAllKeyframes(), std::max(1e-3, config_.global_map_voxel_size));
   reloc_map_cached_keyframes_ = current_size;
   reloc_map_revision_ = current_revision;
 }
@@ -246,7 +247,7 @@ double WorldLocalizing::computeRelocLogLikelihood(
   const double fitness_term = -match_result.fitness_score / fit_scale;
   const double desc_distance = std::isfinite(candidate.rhpd_distance)
                                    ? candidate.rhpd_distance
-                                   : candidate.sc_distance;
+                                   : candidate.heading_distance;
   const double desc_term =
       -config_.reloc_reloc_desc_dist_weight * desc_distance;
   return fitness_term + inlier_term + desc_term;

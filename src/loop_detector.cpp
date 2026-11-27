@@ -4,7 +4,7 @@
 #include "n3mapping/keyframe_manager.h"
 
 #include "n3mapping/loop_detector.h"
-#include "Scancontext/KDTreeVectorOfVectorsAdaptor.h"
+#include "third_party/KDTreeVectorOfVectorsAdaptor.h"
 
 #include <algorithm>
 #include <cmath>
@@ -43,10 +43,10 @@ std::vector<double> buildDescriptorYawHypotheses(
     };
 
     double heading_phase = 0.0;
-    if (config.rhpd_use_sc_yaw && candidate.fromSC() &&
-        std::isfinite(candidate.sc_distance)) {
+    if (config.rhpd_use_heading_yaw && candidate.fromHeading() &&
+        std::isfinite(candidate.heading_distance)) {
         const double sector_rad =
-            2.0 * M_PI / static_cast<double>(std::max(4, config.sc_num_sectors));
+            2.0 * M_PI / static_cast<double>(std::max(4, config.heading_num_sectors));
 
         const double base_yaw = -static_cast<double>(candidate.yaw_diff_rad);
         heading_phase = base_yaw;
@@ -227,12 +227,12 @@ std::vector<LoopCandidate> LoopDetector::rankLoopCandidates(
     };
 
     const RHPDHeadingPtr& query_desc = descriptors_[query_index];
-    const bool sc_query_available = static_cast<bool>(query_desc);
+    const bool heading_query_available = static_cast<bool>(query_desc);
 
     if (config_.rhpd_enabled && rhpd_manager_.size() > 0) {
         RHPDPlace query_rhpd;
         if (rhpd_manager_.get(query_id, &query_rhpd) && !query_rhpd.isZero()) {
-            const int preselect = std::max(config_.rhpd_num_candidates * 3, config_.sc_num_candidates * 4);
+            const int preselect = std::max(config_.rhpd_num_candidates * 3, config_.heading_num_candidates * 4);
 
             auto accept_rhpd = [&](int64_t id) {
                 const auto match = id_to_index_.find(id);
@@ -258,25 +258,25 @@ std::vector<LoopCandidate> LoopDetector::rankLoopCandidates(
                 candidate.candidate_source = LoopCandidate::Source::RhpdPrimary;
                 candidate.rhpd_rank = rhpd_rank++;
 
-                const bool sc_match_available = match_index < descriptors_.size() && static_cast<bool>(descriptors_[match_index]);
-                if (config_.rhpd_use_sc_yaw && sc_query_available && sc_match_available) {
-                    auto [sc_dist, yaw_shift] = computeDistance(query_desc, descriptors_[match_index]);
-                    candidate.sc_distance = sc_dist;
+                const bool heading_match_available = match_index < descriptors_.size() && static_cast<bool>(descriptors_[match_index]);
+                if (config_.rhpd_use_heading_yaw && heading_query_available && heading_match_available) {
+                    auto [heading_dist, yaw_shift] = computeDistance(query_desc, descriptors_[match_index]);
+                    candidate.heading_distance = heading_dist;
                     candidate.yaw_diff_rad = static_cast<float>(yaw_shift) *
                         static_cast<float>(getRHPDParams().heading.sectorAngleDeg()) * static_cast<float>(M_PI / 180.0);
-                    candidate.source_flags |= LoopCandidate::SOURCE_SC;
-                    candidate.sc_rank = -1;
-                    if (config_.sc_aux_veto_enabled && sc_dist > config_.sc_aux_veto_threshold) {
+                    candidate.source_flags |= LoopCandidate::SOURCE_HEADING;
+                    candidate.heading_rank = -1;
+                    if (config_.heading_aux_veto_enabled && heading_dist > config_.heading_aux_veto_threshold) {
                         continue;
                     }
                 }
 
                 const double rhpd_norm = rhpd_dist / std::max(1e-6, config_.rhpd_dist_threshold);
-                const double sc_norm = candidate.fromSC() && std::isfinite(candidate.sc_distance)
-                    ? candidate.sc_distance / std::max(1e-6, config_.sc_aux_veto_threshold)
+                const double heading_norm = candidate.fromHeading() && std::isfinite(candidate.heading_distance)
+                    ? candidate.heading_distance / std::max(1e-6, config_.heading_aux_veto_threshold)
                     : 0.0;
                 candidate.fused_score =
-                    config_.rhpd_primary_weight * rhpd_norm + config_.sc_aux_weight * sc_norm;
+                    config_.rhpd_primary_weight * rhpd_norm + config_.heading_aux_weight * heading_norm;
                 candidate.descriptor_score = 1.0 / (1.0 + candidate.fused_score);
                 ranked.push_back(candidate);
             }
@@ -297,7 +297,7 @@ std::vector<LoopCandidate> LoopDetector::rankLoopCandidates(
                         << " kept=" << candidates.size()
                         << " top_match=" << candidates.front().match_id
                         << " rhpd=" << candidates.front().rhpd_distance
-                        << " sc=" << candidates.front().sc_distance
+                        << " heading=" << candidates.front().heading_distance
                         << " yaw=" << candidates.front().yaw_diff_rad;
                 return candidates;
             }
@@ -332,7 +332,7 @@ std::vector<LoopCandidate> LoopDetector::rankLoopCandidates(
                                      nanoflann::SearchParams(10));
 
     if (num_search > 0) {
-        VLOG(1) << "[SC] query=" << query_id
+        VLOG(1) << "[Heading] query=" << query_id
                 << " eligible=" << search_keys.size()
                 << " kd_top1_idx=" << index_to_id_[search_indices[knn_indices[0]]]
                 << " kd_top1_L2=" << knn_dists[0];
@@ -352,13 +352,13 @@ std::vector<LoopCandidate> LoopDetector::rankLoopCandidates(
               [](const auto& a, const auto& b) { return std::get<0>(a) < std::get<0>(b); });
 
     if (!refined_candidates.empty()) {
-        VLOG(1) << "[SC] query=" << query_id
+        VLOG(1) << "[Heading] query=" << query_id
                 << " refined_top1_match=" << index_to_id_[std::get<2>(refined_candidates[0])]
                 << " refined_top1_dist=" << std::get<0>(refined_candidates[0])
-                << " threshold=" << config_.sc_dist_threshold;
+                << " threshold=" << config_.heading_dist_threshold;
     }
 
-    int num_candidates = std::min(config_.sc_num_candidates,
+    int num_candidates = std::min(config_.heading_num_candidates,
                                   static_cast<int>(refined_candidates.size()));
     for (int i = 0; i < num_candidates; ++i) {
         double dist = std::get<0>(refined_candidates[i]);
@@ -369,16 +369,16 @@ std::vector<LoopCandidate> LoopDetector::rankLoopCandidates(
         candidate.query_id = query_id;
         candidate.match_id = index_to_id_[match_index];
         candidate.path_length_m = paths.at(candidate.match_id);
-        candidate.sc_distance = dist;
+        candidate.heading_distance = dist;
         candidate.rhpd_distance = std::numeric_limits<double>::max();
         candidate.yaw_diff_rad = static_cast<float>(yaw_shift) *
             static_cast<float>(getRHPDParams().heading.sectorAngleDeg()) * static_cast<float>(M_PI / 180.0);
-        candidate.source_flags = LoopCandidate::SOURCE_SC;
-        candidate.candidate_source = LoopCandidate::Source::ScanContextFallback;
+        candidate.source_flags = LoopCandidate::SOURCE_HEADING;
+        candidate.candidate_source = LoopCandidate::Source::HeadingFallback;
         candidate.fused_score = dist;
-        candidate.descriptor_score = 1.0 / (1.0 + dist / std::max(1e-6, config_.sc_dist_threshold));
+        candidate.descriptor_score = 1.0 / (1.0 + dist / std::max(1e-6, config_.heading_dist_threshold));
         candidate.fused_rank = i;
-        candidate.sc_rank = i;
+        candidate.heading_rank = i;
         candidates.push_back(candidate);
     }
     return candidates;

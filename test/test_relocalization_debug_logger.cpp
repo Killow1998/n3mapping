@@ -38,7 +38,7 @@ LoopCandidate makeCandidate() {
   candidate.match_id = 7;
   candidate.candidate_source = LoopCandidate::Source::RhpdPrimary;
   candidate.rhpd_distance = 2.5;
-  candidate.sc_distance = 0.2;
+  candidate.heading_distance = 0.2;
   candidate.fused_score = 0.42;
   candidate.yaw_diff_rad = 0.1f;
   return candidate;

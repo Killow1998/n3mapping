@@ -36,15 +36,9 @@ public:
         double z_max = 6.0;
         double min_points = 20;
         int azimuth_bins = 36;
-        bool v2_enable = true;
-        bool v3_enable = false;
-        int v3_visibility_bins = 72;
-        double v3_free_space_margin_m = 0.15;
         bool   enable_negative_space = true;
         bool   enable_pca_confidence = true;
 
-        double part_a_scale = 1.0;
-        double aux_scale    = 1.0;
     };
 
     explicit RHPDescriptor(const Params& params);

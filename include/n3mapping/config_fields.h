@@ -36,12 +36,11 @@ void forEachConfigField(Configuration& config, Visitor&& visit) {
     visit("icp_refine_fitness_gate", config.icp_refine_fitness_gate);
     visit("icp_refine_delta_translation_gate", config.icp_refine_delta_translation_gate);
     visit("icp_refine_delta_rotation_gate", config.icp_refine_delta_rotation_gate);
-    visit("sc_dist_threshold", config.sc_dist_threshold);
-    visit("sc_num_exclude_recent", config.sc_num_exclude_recent);
-    visit("sc_num_candidates", config.sc_num_candidates);
-    visit("sc_max_radius", config.sc_max_radius);
-    visit("sc_num_rings", config.sc_num_rings);
-    visit("sc_num_sectors", config.sc_num_sectors);
+    visit("heading_dist_threshold", config.heading_dist_threshold);
+    visit("heading_num_candidates", config.heading_num_candidates);
+    visit("heading_max_radius", config.heading_max_radius);
+    visit("heading_num_rings", config.heading_num_rings);
+    visit("heading_num_sectors", config.heading_num_sectors);
     visit("optimization_iterations", config.optimization_iterations);
     visit("prior_noise_position", config.prior_noise_position);
     visit("prior_noise_rotation", config.prior_noise_rotation);
@@ -105,7 +104,7 @@ void forEachConfigField(Configuration& config, Visitor&& visit) {
     visit("sync_queue_size", config.sync_queue_size);
     visit("sync_time_tolerance", config.sync_time_tolerance);
     visit("reloc_num_candidates", config.reloc_num_candidates);
-    visit("reloc_sc_dist_threshold", config.reloc_sc_dist_threshold);
+    visit("reloc_heading_dist_threshold", config.reloc_heading_dist_threshold);
     visit("reloc_min_confidence", config.reloc_min_confidence);
     visit("reloc_min_inlier_ratio", config.reloc_min_inlier_ratio);
     visit("reloc_search_radius", config.reloc_search_radius);
@@ -143,7 +142,6 @@ void forEachConfigField(Configuration& config, Visitor&& visit) {
     visit("reloc_debug_path", config.reloc_debug_path);
     visit("reloc_atlas_enable", config.reloc_atlas_enable);
     visit("reloc_atlas_path", config.reloc_atlas_path);
-    visit("reloc_target_mode", config.reloc_target_mode);
     visit("reloc_target_cache_max_bytes", config.reloc_target_cache_max_bytes);
     visit("reloc_target_cache_max_entries", config.reloc_target_cache_max_entries);
     visit("localization_tracking_target_cache_max_bytes", config.localization_tracking_target_cache_max_bytes);
@@ -158,8 +156,6 @@ void forEachConfigField(Configuration& config, Visitor&& visit) {
     visit("reloc_persist_hypotheses", config.reloc_persist_hypotheses);
     visit("reloc_persist_max_frames", config.reloc_persist_max_frames);
     visit("rhpd_enabled", config.rhpd_enabled);
-    visit("rhpd_v2_enable", config.rhpd_v2_enable);
-    visit("rhpd_v3_enable", config.rhpd_v3_enable);
     visit("rhpd_max_range", config.rhpd_max_range);
     visit("rhpd_z_min", config.rhpd_z_min);
     visit("rhpd_z_max", config.rhpd_z_max);
@@ -169,15 +165,13 @@ void forEachConfigField(Configuration& config, Visitor&& visit) {
     visit("rhpd_submap_kf_radius", config.rhpd_submap_kf_radius);
     visit("rhpd_submap_voxel_size", config.rhpd_submap_voxel_size);
     visit("rhpd_primary_weight", config.rhpd_primary_weight);
-    visit("sc_aux_weight", config.sc_aux_weight);
-    visit("sc_aux_veto_enabled", config.sc_aux_veto_enabled);
-    visit("sc_aux_veto_threshold", config.sc_aux_veto_threshold);
-    visit("rhpd_use_sc_yaw", config.rhpd_use_sc_yaw);
+    visit("heading_aux_weight", config.heading_aux_weight);
+    visit("heading_aux_veto_enabled", config.heading_aux_veto_enabled);
+    visit("heading_aux_veto_threshold", config.heading_aux_veto_threshold);
+    visit("rhpd_use_heading_yaw", config.rhpd_use_heading_yaw);
     visit("rhpd_yaw_hypotheses", config.rhpd_yaw_hypotheses);
     visit("rhpd_enable_negative_space", config.rhpd_enable_negative_space);
     visit("rhpd_enable_pca_confidence", config.rhpd_enable_pca_confidence);
-    visit("rhpd_part_a_scale", config.rhpd_part_a_scale);
-    visit("rhpd_aux_scale", config.rhpd_aux_scale);
 }
 
 }

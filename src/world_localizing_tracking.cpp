@@ -7,7 +7,6 @@
 #include <limits>
 #include <glog/logging.h>
 #include <iterator>
-#include <set>
 #include <utility>
 #include "n3mapping/tracking_target_cache.h"
 #include "n3mapping/n3map_proto_utils.h"
@@ -154,60 +153,6 @@ WorldLocalizing::trackLocalizationImpl(const PointCloudT::Ptr &cloud,
 
     tracking_target = tracking_targets_->acquireLocal(nearest_kf_id, submap_range);
     debug_event.submap_build_ms = tracking_target.submap_build_ms;
-    if (VLOG_IS_ON(1)) {
-      LocalMapSelectionRequest shadow_request;
-      shadow_request.predicted_pose = predicted_pose;
-      shadow_request.anchor_id = nearest_kf_id;
-      shadow_request.spatial_radius =
-          std::max(config_.keyframe_distance_threshold,
-                   static_cast<double>(submap_range) *
-                       config_.keyframe_distance_threshold);
-      shadow_request.max_spatial_keyframes = 2 * submap_range + 1;
-
-      shadow_request.recent_tail_count = 0;
-      shadow_request.map_revision = keyframe_manager_.revision();
-      const LocalMapSelection shadow_selection =
-          local_map_selector_.select(shadow_request);
-
-      std::set<int64_t> legacy_ids;
-      for (int64_t id = nearest_kf_id - submap_range;
-           id <= nearest_kf_id + submap_range; ++id) {
-        if (keyframe_manager_.getKeyframe(id)) {
-          legacy_ids.insert(id);
-        }
-      }
-      const std::set<int64_t> spatial_ids(shadow_selection.keyframe_ids.begin(),
-                                          shadow_selection.keyframe_ids.end());
-      std::size_t intersection_size = 0;
-      for (const int64_t id : legacy_ids) {
-        intersection_size += spatial_ids.count(id);
-      }
-      const std::size_t union_size =
-          legacy_ids.size() + spatial_ids.size() - intersection_size;
-      const double jaccard = union_size > 0
-                                 ? static_cast<double>(intersection_size) /
-                                       static_cast<double>(union_size)
-                                 : 1.0;
-      VLOG(1) << "[LocalMapShadow] path=tracking anchor_id=" << nearest_kf_id
-              << " radius=" << shadow_request.spatial_radius
-              << " max_spatial=" << shadow_request.max_spatial_keyframes
-              << " recent_tail=0 legacy_size=" << legacy_ids.size()
-              << " spatial_size=" << spatial_ids.size()
-              << " jaccard=" << jaccard
-              << " legacy_points=" << tracking_target.submap_points
-              << " spatial_points=" << shadow_selection.selected_points
-              << " index_rebuilt=" << shadow_selection.index_rebuilt
-              << " index_build_ms=" << shadow_selection.index_build_ms
-              << " query_ms=" << shadow_selection.query_ms << " revision_match="
-              << shadow_selection.requested_revision_matched
-              << " loaded=" << shadow_selection.loaded_keyframes
-              << " current=" << shadow_selection.current_keyframes
-              << " mixed_loaded_state="
-              << (shadow_selection.loaded_keyframes > 0 &&
-                  shadow_selection.current_keyframes > 0)
-              << " z_span=" << (shadow_selection.z_max - shadow_selection.z_min)
-              << " floor_labels=unavailable";
-    }
   }
   debug_event.submap_size = tracking_target.submap_points;
   if (debug_event.submap_size == 0) {

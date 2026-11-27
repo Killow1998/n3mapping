@@ -16,16 +16,15 @@ TEST(ConfigTest, DefaultValuesRemainStable) {
     EXPECT_FALSE(config.submap_shadow_enable);
     EXPECT_TRUE(config.rhpd_enabled);
     EXPECT_DOUBLE_EQ(config.rhpd_primary_weight, 1.0);
-    EXPECT_DOUBLE_EQ(config.sc_aux_weight, 0.15);
+    EXPECT_DOUBLE_EQ(config.heading_aux_weight, 0.15);
     EXPECT_EQ(config.rhpd_preselect_candidates, 100);
     EXPECT_EQ(config.reloc_lock_min_winner_streak, 3);
     EXPECT_FALSE(config.reloc_debug_enable);
     EXPECT_TRUE(config.reloc_debug_path.empty());
     EXPECT_TRUE(config.reloc_atlas_enable);
     EXPECT_TRUE(config.reloc_atlas_path.empty());
-    EXPECT_EQ(config.reloc_target_mode, "legacy_global_atlas");
-    EXPECT_EQ(config.reloc_target_cache_max_bytes, 0);
-    EXPECT_EQ(config.reloc_target_cache_max_entries, 0);
+    EXPECT_EQ(config.reloc_target_cache_max_bytes, 128 * 1024 * 1024);
+    EXPECT_EQ(config.reloc_target_cache_max_entries, 8);
     EXPECT_EQ(config.localization_tracking_target_cache_max_bytes, 0);
     EXPECT_EQ(config.localization_tracking_target_cache_max_entries, 0);
     EXPECT_FALSE(config.loaded_map_visibility_endpoint_fast_enable);
@@ -48,7 +47,7 @@ TEST(ConfigTest, ToStringContainsKeyFields) {
     config.mode = "localization";
     config.map_path = "/tmp/test.pbstream";
     config.rhpd_enabled = true;
-    config.sc_aux_veto_enabled = false;
+    config.heading_aux_veto_enabled = false;
 
     const std::string summary = config.toString();
 
@@ -155,21 +154,9 @@ TEST(ConfigTest, LoadedMapModesRequireExplicitMapPath) {
     EXPECT_TRUE(config.validate(&error)) << error;
 }
 
-TEST(ConfigTest, RelocTargetProviderValidation) {
+TEST(ConfigTest, TargetCacheBudgetsMustBeNonnegative) {
     Config config;
     std::string error;
-
-    for (const char* mode : {"legacy_global_atlas", "local_no_cache",
-                             "local_lru", "shadow_local_lru"}) {
-        config.reloc_target_mode = mode;
-        EXPECT_TRUE(config.validate(&error)) << mode << ": " << error;
-    }
-
-    config.reloc_target_mode = "implicit_magic_cache";
-    EXPECT_FALSE(config.validate(&error));
-    EXPECT_NE(error.find("reloc_target_mode"), std::string::npos);
-
-    config = Config{};
     config.reloc_target_cache_max_bytes = -1;
     EXPECT_FALSE(config.validate(&error));
     EXPECT_NE(error.find("reloc_target_cache_max_bytes"), std::string::npos);

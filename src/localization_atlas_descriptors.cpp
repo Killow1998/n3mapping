@@ -15,8 +15,7 @@ std::string descriptorConfig(const Config &config) {
   out.imbue(std::locale::classic());
   out << std::setprecision(17) << "rhpd-frame-v1 " << p.max_range << ' '
       << p.z_min << ' ' << p.z_max << ' ' << p.min_points << ' '
-      << p.azimuth_bins << ' ' << p.v2_enable << ' ' << p.v3_enable << ' '
-      << p.v3_visibility_bins << ' ' << p.v3_free_space_margin_m << ' '
+      << p.azimuth_bins << " 1 0 72 " << 0.15 << ' '
       << p.enable_negative_space << ' ' << p.enable_pca_confidence;
   return out.str();
 }
@@ -25,8 +24,8 @@ std::string catalogConfig(const Config &config) {
   out.imbue(std::locale::classic());
   out << std::setprecision(17) << descriptorConfig(config)
       << " place-catalog-v2 " << config.rhpd_submap_kf_radius << ' '
-      << config.rhpd_submap_voxel_size << ' ' << config.sc_num_rings << ' '
-      << config.sc_num_sectors << ' ' << config.sc_max_radius;
+      << config.rhpd_submap_voxel_size << ' ' << config.heading_num_rings << ' '
+      << config.heading_num_sectors << ' ' << config.heading_max_radius;
   return out.str();
 }
 void encodeCells(const RHPDCells &cells, LocalizationAtlasCells &output) {

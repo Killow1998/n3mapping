@@ -94,8 +94,8 @@ protected:
         std::uniform_real_distribution<double> threshold_dist(0.1, 0.5);
 
         config.loop_min_path_length_m = path_length_dist(rng_);
-        config.sc_num_candidates = candidates_dist(rng_);
-        config.sc_dist_threshold = threshold_dist(rng_);
+        config.heading_num_candidates = candidates_dist(rng_);
+        config.heading_dist_threshold = threshold_dist(rng_);
         config.num_threads = 2;
 
         return config;
@@ -219,7 +219,7 @@ TEST_F(LoopDetectorPBTTest, CandidateCountLimit) {
         auto detector = std::make_unique<LoopDetector>(config);
 
         const int num_frames = static_cast<int>(config.loop_min_path_length_m) +
-            config.sc_num_candidates + 20;
+            config.heading_num_candidates + 20;
 
         for (int i = 0; i < num_frames; ++i) {
             auto cloud = generateCircularCloud();
@@ -229,10 +229,10 @@ TEST_F(LoopDetectorPBTTest, CandidateCountLimit) {
         auto candidates = detector->detectLoopCandidates(num_frames - 1,
                                                         lineOfKeyframes(num_frames));
 
-        EXPECT_LE(static_cast<int>(candidates.size()), config.sc_num_candidates)
+        EXPECT_LE(static_cast<int>(candidates.size()), config.heading_num_candidates)
             << "Iteration: " << iter
             << ", Candidates: " << candidates.size()
-            << ", Max: " << config.sc_num_candidates;
+            << ", Max: " << config.heading_num_candidates;
     }
 }
 

@@ -17,7 +17,6 @@ set(CHECK_DIRS
   "${ROOT_DIR}/include/n3mapping"
   "${ROOT_DIR}/src"
   "${ROOT_DIR}/src/core"
-  "${ROOT_DIR}/include/Scancontext"
 )
 
 set(CHECK_FILES

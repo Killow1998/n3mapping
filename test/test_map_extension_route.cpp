@@ -73,7 +73,6 @@ TEST_P(MapExtensionRoute, ExtendsBeyondLoadedGeometryAndRecoversWithoutAnotherIn
   config.mapping_static_start_guard_enable = false;
   config.num_threads = 4;
   config.loop_kf_gap = 1;
-  config.sc_num_exclude_recent = 50;
   config.loop_min_path_length_m = 5.0;
   const auto dir = std::filesystem::temp_directory_path() / "n3mapping_extension_door_route";
   std::filesystem::create_directories(dir);
@@ -189,8 +188,7 @@ TEST_P(MapExtensionRoute, ExtendsBeyondLoadedGeometryAndRecoversWithoutAnotherIn
   record(completed);
   EXPECT_TRUE(geometry_optimized);
   EXPECT_TRUE(std::any_of(accepted_loops.begin(), accepted_loops.end(), [&](const auto& loop) {
-    return !original_poses.count(loop.match_id) && !original_poses.count(loop.query_id) &&
-        loop.query_id - loop.match_id <= config.sc_num_exclude_recent;
+    return !original_poses.count(loop.match_id) && !original_poses.count(loop.query_id);
   }));
   for (const auto& loop : accepted_loops) {
     if (original_poses.count(loop.match_id)) {
@@ -367,7 +365,7 @@ TEST(MapContinuation, DescriptorReturnRepairsDriftBeyondSpatialGate) {
   for (const auto& candidate : query.candidates) {
     ASSERT_GT((poses.at(candidate.match_id).second.translation() -
                poses.back().second.translation()).norm(), 8.0);
-    EXPECT_TRUE(candidate.fromRHPD() || candidate.fromSC());
+    EXPECT_TRUE(candidate.fromRHPD() || candidate.fromHeading());
     EXPECT_DOUBLE_EQ(candidate.path_length_m, 0.0);
   }
 

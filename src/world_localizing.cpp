@@ -12,7 +12,7 @@ WorldLocalizing::WorldLocalizing(const Config &config,
                                  PointCloudMatcher &matcher)
     : config_(config), keyframe_manager_(keyframe_manager),
       matcher_(matcher),
-      local_map_selector_(keyframe_manager_), query_builder_(config_),
+      query_builder_(config_),
       place_index_(config_, keyframe_manager_, loop_detector),
       localization_atlas_(
           std::make_unique<LocalizationAtlas>(config_, matcher_)),

@@ -251,7 +251,7 @@ def freeze_verifier_pairs(
                             "basin_center_id": hypothesis["basin_center_id"],
                             "candidate_source": candidate["candidate_source"],
                             "rhpd_distance": candidate["rhpd_distance"],
-                            "sc_distance": candidate["sc_distance"],
+                            "heading_distance": candidate["heading_distance"],
                             "fused_score": candidate["fused_score"],
                             "candidate_yaw_diff_rad": candidate["yaw_diff_rad"],
                             "fitness_score": hypothesis["fitness_score"],

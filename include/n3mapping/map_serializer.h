@@ -108,6 +108,8 @@ public:
                  const PbstreamLoadOptions& options,
                  SubmapBuilder* submap_builder);
 
+    static bool saveGlobalMap(const std::string& filepath,
+                              const pcl::PointCloud<pcl::PointXYZI>& cloud);
     bool saveGlobalMap(const std::string& filepath,
                        const KeyframeManager& keyframe_manager,
                        double voxel_size = 0.1);

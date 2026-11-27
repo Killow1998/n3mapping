@@ -32,7 +32,7 @@ RelocalizationPlaceIndex::search(const PointCloudT::Ptr &cloud,
   RHPDPlace query_rhpd;
   RHPDHeadingPtr query_sc;
   const bool use_rhpd = config_.rhpd_enabled && rhpd_manager.size() > 0;
-  if (use_rhpd && config_.rhpd_use_sc_yaw) {
+  if (use_rhpd && config_.rhpd_use_heading_yaw) {
     auto features = loop_detector_.computeFeatures(cloud);
     query_rhpd = std::move(features.place);
     query_sc = std::move(features.heading);
@@ -62,7 +62,7 @@ RelocalizationPlaceIndex::search(const PointCloudT::Ptr &cloud,
       const auto &candidate = candidates[i];
       VLOG(1) << "  [rhpd " << i << "] kf=" << candidate.match_id
               << " rhpd=" << candidate.rhpd_distance
-              << " sc=" << candidate.sc_distance
+              << " heading=" << candidate.heading_distance
               << " yaw=" << candidate.yaw_diff_rad
               << " score=" << candidate.fused_score;
     }
@@ -77,9 +77,9 @@ RelocalizationPlaceIndex::search(const PointCloudT::Ptr &cloud,
     return candidates;
   }
 
-  std::vector<LoopCandidate> sc_ranked;
+  std::vector<LoopCandidate> heading_ranked;
   auto descriptors = loop_detector_.getDescriptors();
-  sc_ranked.reserve(descriptors.size());
+  heading_ranked.reserve(descriptors.size());
   for (int i = 0; i < static_cast<int>(descriptors.size()); ++i) {
     const auto &[keyframe_id, descriptor] = descriptors[i];
     if (!descriptor) {
@@ -89,36 +89,36 @@ RelocalizationPlaceIndex::search(const PointCloudT::Ptr &cloud,
                                                    : nullptr);
     if (performance)
       ++performance->heading_comparisons;
-    auto [sc_dist, yaw_shift] =
+    auto [heading_dist, yaw_shift] =
         loop_detector_.computeDistance(query_sc, descriptor);
     heading_timer.finish();
-    if (sc_dist > config_.reloc_sc_dist_threshold) {
+    if (heading_dist > config_.reloc_heading_dist_threshold) {
       continue;
     }
     LoopCandidate candidate;
     candidate.query_id = -1;
     candidate.match_id = keyframe_id;
-    candidate.sc_distance = sc_dist;
+    candidate.heading_distance = heading_dist;
     candidate.yaw_diff_rad =
         static_cast<float>(yaw_shift) *
         static_cast<float>(loop_detector_.getHeadingSectorAngleDeg()) *
         static_cast<float>(M_PI / 180.0);
-    candidate.source_flags = LoopCandidate::SOURCE_SC;
-    candidate.candidate_source = LoopCandidate::Source::ScanContextFallback;
-    candidate.sc_rank = i;
-    candidate.fused_score = sc_dist;
-    sc_ranked.push_back(candidate);
+    candidate.source_flags = LoopCandidate::SOURCE_HEADING;
+    candidate.candidate_source = LoopCandidate::Source::HeadingFallback;
+    candidate.heading_rank = i;
+    candidate.fused_score = heading_dist;
+    heading_ranked.push_back(candidate);
   }
-  std::sort(sc_ranked.begin(), sc_ranked.end(),
+  std::sort(heading_ranked.begin(), heading_ranked.end(),
             [](const LoopCandidate &lhs, const LoopCandidate &rhs) {
-              return lhs.sc_distance < rhs.sc_distance;
+              return lhs.heading_distance < rhs.heading_distance;
             });
-  const auto end = std::min(offset + config_.reloc_num_candidates, sc_ranked.size());
+  const auto end = std::min(offset + config_.reloc_num_candidates, heading_ranked.size());
   for (std::size_t i = offset; i < end; ++i) {
-    sc_ranked[i].fused_rank = i;
-    candidates.push_back(sc_ranked[i]);
+    heading_ranked[i].fused_rank = i;
+    candidates.push_back(heading_ranked[i]);
   }
-  VLOG(1) << "[Reloc/SCFallback] kept=" << candidates.size()
+  VLOG(1) << "[Reloc/HeadingFallback] kept=" << candidates.size()
           << " rhpd_enabled=" << config_.rhpd_enabled
           << " rhpd_db=" << rhpd_manager.size();
   if (performance)
@@ -199,8 +199,8 @@ std::vector<LoopCandidate> RelocalizationPlaceIndex::searchRHPDCandidates(
   const double weight =
       config_.rhpd_primary_weight / std::max(1e-6, config_.rhpd_dist_threshold);
   const double slack =
-      1e-12 * (1.0 + config_.sc_aux_weight /
-                         std::max(1e-6, config_.sc_aux_veto_threshold));
+      1e-12 * (1.0 + config_.heading_aux_weight /
+                         std::max(1e-6, config_.heading_aux_veto_threshold));
   std::vector<LoopCandidate> selected;
   for (const auto &place : ordered) {
     if (selected.size() == limit &&
@@ -216,28 +216,28 @@ std::vector<LoopCandidate> RelocalizationPlaceIndex::searchRHPDCandidates(
       if (found && place_score > best.fused_score + slack)
         break;
       const auto &reference = item.reference->heading;
-      if (heading && reference && config_.rhpd_use_sc_yaw) {
+      if (heading && reference && config_.rhpd_use_heading_yaw) {
         DescriptorPhaseTimer timer(performance ? &performance->heading
                                                : nullptr);
         if (performance)
           ++performance->heading_comparisons;
         const auto [distance, shift] =
             loop_detector_.computeDistance(heading, reference);
-        candidate.sc_distance = distance;
+        candidate.heading_distance = distance;
         candidate.yaw_diff_rad =
             static_cast<float>(shift) *
             static_cast<float>(loop_detector_.getHeadingSectorAngleDeg()) *
             static_cast<float>(M_PI / 180.0);
-        candidate.source_flags |= LoopCandidate::SOURCE_SC;
-        if (config_.sc_aux_veto_enabled &&
-            distance > config_.sc_aux_veto_threshold)
+        candidate.source_flags |= LoopCandidate::SOURCE_HEADING;
+        if (config_.heading_aux_veto_enabled &&
+            distance > config_.heading_aux_veto_threshold)
           continue;
       }
       candidate.fused_score =
           place_score +
-          (candidate.fromSC() && std::isfinite(candidate.sc_distance)
-               ? config_.sc_aux_weight * candidate.sc_distance /
-                     std::max(1e-6, config_.sc_aux_veto_threshold)
+          (candidate.fromHeading() && std::isfinite(candidate.heading_distance)
+               ? config_.heading_aux_weight * candidate.heading_distance /
+                     std::max(1e-6, config_.heading_aux_veto_threshold)
                : 0.0);
       if (!found || better(candidate, best)) {
         best = candidate;

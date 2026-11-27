@@ -1,7 +1,7 @@
 # Development overrides; shared defaults are owned by Config in src/config_defaults.cpp.
 n3mapping_node:
   ros__parameters:
-    sc_num_candidates: 5
+    heading_num_candidates: 5
     loop_min_inlier_ratio: 0.7
     loop_fitness_threshold: 0.2
     loop_max_icp_translation: 2.0

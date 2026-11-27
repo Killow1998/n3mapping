@@ -20,13 +20,13 @@ bool N3MappingNoeticNode::handleSaveMap(std_srvs::Trigger::Request&, std_srvs::T
 {
     std::string error;
     std::string warning;
-    MapKeyframeSnapshot snapshot;
+    GlobalMapCache::PointCloudConstPtr saved_cloud;
     {
         std::lock_guard<std::mutex> lock(data_mutex_);
-        res.success = map_artifacts_->save(*core_, error, snapshot);
+        res.success = map_artifacts_->save(*core_, error, saved_cloud);
     }
     if (res.success && config_.save_global_map_on_shutdown) {
-        map_artifacts_->saveDebug(snapshot, warning);
+        map_artifacts_->saveDebug(*saved_cloud, warning);
     }
     res.message = res.success ? ("saved:" + config_.map_save_path) : error;
     if (res.success && !warning.empty()) {
@@ -88,14 +88,14 @@ void N3MappingNoeticNode::saveMapOnShutdown()
 {
     std::string error;
     std::string warning;
-    MapKeyframeSnapshot snapshot;
+    GlobalMapCache::PointCloudConstPtr saved_cloud;
     bool saved = false;
     {
         std::lock_guard<std::mutex> lock(data_mutex_);
-        saved = map_artifacts_->save(*core_, error, snapshot);
+        saved = map_artifacts_->save(*core_, error, saved_cloud);
     }
     if (saved && config_.save_global_map_on_shutdown) {
-        map_artifacts_->saveDebug(snapshot, warning);
+        map_artifacts_->saveDebug(*saved_cloud, warning);
     }
     if (saved) {
         ROS_INFO("Map snapshot saved under: %s", config_.map_save_path.c_str());

@@ -167,7 +167,6 @@ TEST(LoopConsensusVerifierTest,
 {
     Config config = consensusConfig();
     config.num_threads = 1;
-    config.sc_num_exclude_recent = 50;
     KeyframeManager keyframes(config);
     const auto cloud = registrationCloud();
     std::vector<Keyframe::Ptr> frames;

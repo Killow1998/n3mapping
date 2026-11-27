@@ -456,15 +456,15 @@ TEST(N3MappingKitti360EvalTest, LoopCandidateBenchmarkComparesLoggedAndSpatialCa
         ASSERT_TRUE(debug.is_open());
         debug << "{\"record_type\":\"candidate\",\"query_id\":3,\"match_id\":0,"
               << "\"candidate_source\":\"rhpd_primary\",\"gate_result\":\"accepted\","
-              << "\"fused_score\":0.1,\"rhpd_distance\":1.0,\"sc_distance\":0.4}\n";
+              << "\"fused_score\":0.1,\"rhpd_distance\":1.0,\"heading_distance\":0.4}\n";
         debug << "{\"record_type\":\"candidate\",\"query_id\":3,\"match_id\":1,"
               << "\"candidate_source\":\"rhpd_primary\",\"gate_result\":\"rejected\","
               << "\"reject_reason\":\"fitness_threshold\",\"fused_score\":0.2,"
-              << "\"rhpd_distance\":2.0,\"sc_distance\":0.1}\n";
+              << "\"rhpd_distance\":2.0,\"heading_distance\":0.1}\n";
         debug << "{\"record_type\":\"candidate\",\"query_id\":4,\"match_id\":0,"
               << "\"candidate_source\":\"rhpd_primary\",\"gate_result\":\"rejected\","
               << "\"reject_reason\":\"icp_not_converged\",\"fused_score\":0.3,"
-              << "\"rhpd_distance\":3.0,\"sc_distance\":0.2}\n";
+              << "\"rhpd_distance\":3.0,\"heading_distance\":0.2}\n";
     }
     {
         std::ofstream accepted(input / "accepted_loops.csv");
@@ -484,21 +484,21 @@ TEST(N3MappingKitti360EvalTest, LoopCandidateBenchmarkComparesLoggedAndSpatialCa
         " --min_id_gap 1"
         " --spatial_radius_m 10"
         " --spatial_min_id_gap 1"
-        " --sc_top_k 1";
+        " --heading_top_k 1";
     ASSERT_EQ(std::system(command.c_str()), 0);
 
     const std::string summary = readTextFile(output / "candidate_benchmark_summary.json");
     EXPECT_NE(summary.find("\"method\": \"n3mapping_logged\""), std::string::npos);
-    EXPECT_NE(summary.find("\"method\": \"sc_rerank_logged_pool\""), std::string::npos);
+    EXPECT_NE(summary.find("\"method\": \"heading_rerank_logged_pool\""), std::string::npos);
     EXPECT_NE(summary.find("\"method\": \"liosam_spatial_all\""), std::string::npos);
     EXPECT_NE(summary.find("\"method\": \"liosam_spatial_nearest\""), std::string::npos);
     EXPECT_NE(summary.find("\"spatial_pose_source\": \"gt\""), std::string::npos);
-    EXPECT_NE(summary.find("sc_rerank_logged_pool ranks only within logged candidates"), std::string::npos);
+    EXPECT_NE(summary.find("heading_rerank_logged_pool ranks only within logged candidates"), std::string::npos);
 
     const std::string pairs = readTextFile(output / "candidate_benchmark_pairs.csv");
     EXPECT_NE(pairs.find("method,query_id,match_id,rank,candidate_source,score"), std::string::npos);
     EXPECT_NE(pairs.find("n3mapping_logged,3,0"), std::string::npos);
-    EXPECT_NE(pairs.find("sc_rerank_logged_pool,3,1"), std::string::npos);
+    EXPECT_NE(pairs.find("heading_rerank_logged_pool,3,1"), std::string::npos);
     EXPECT_NE(pairs.find("liosam_spatial_all,3,0"), std::string::npos);
     EXPECT_NE(pairs.find("True"), std::string::npos);
 

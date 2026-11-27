@@ -108,7 +108,7 @@ double RHPDescriptor::distance(const PreparedQuery& query, const Place& b) const
     const double ring_height = squaredDistance(a.ring_height, b.ring_height);
     const double aux = (a.auxiliary - b.auxiliary).squaredNorm();
     const double flipped_aux = (query.flipped_auxiliary - b.auxiliary).squaredNorm();
-    return std::sqrt(std::min(params_.part_a_scale * weight * direct + ring_height + params_.aux_scale * 0.5 * aux,
-                              params_.part_a_scale * weight * flipped + ring_height + params_.aux_scale * 0.5 * flipped_aux));
+    return std::sqrt(std::min(weight * direct + ring_height + 0.5 * aux,
+                              weight * flipped + ring_height + 0.5 * flipped_aux));
 }
 }

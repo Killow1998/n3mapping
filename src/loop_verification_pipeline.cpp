@@ -52,7 +52,7 @@ LoopFeatures makeSegmentAwareLoopFeatures(const Config& config,
             ? static_cast<double>(loop.segment_valid_pair_count) /
                   static_cast<double>(loop.segment_pair_count)
             : 0.0;
-    const bool from_descriptor = candidate.fromRHPD() || candidate.fromSC();
+    const bool from_descriptor = candidate.fromRHPD() || candidate.fromHeading();
     features.descriptor_supported = from_descriptor;
     features.spatial_only = candidate.fromSpatial() && !from_descriptor;
     features.predicted_translation_norm =
@@ -194,7 +194,7 @@ LoopVerificationPipelineResult LoopVerificationPipeline::evaluate(
     const Eigen::Isometry3d predicted =
         match->pose_optimized.inverse() * query->pose_optimized;
     result.descriptor_seeded =
-        context.cross_session && (candidate.fromRHPD() || candidate.fromSC());
+        context.cross_session && (candidate.fromRHPD() || candidate.fromHeading());
     if (!result.descriptor_seeded &&
         predicted.translation().norm() > config_.loop_max_range) {
         result.reject_stage = "work_bound";

@@ -47,7 +47,6 @@ include(${N3MAPPING_ROOT}/cmake/n3mapping_dependencies.cmake)
 
 include_directories(
   ${N3MAPPING_ROOT}/include
-  ${N3MAPPING_ROOT}/include/Scancontext
   ${PCL_INCLUDE_DIRS}
   ${EIGEN3_INCLUDE_DIR}
   ${OpenCV_INCLUDE_DIRS}

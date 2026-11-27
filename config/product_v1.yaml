@@ -38,14 +38,12 @@ n3mapping_node:
     icp_refine_delta_translation_gate: 3.0
     icp_refine_delta_rotation_gate: 0.5
 
-    sc_dist_threshold: 0.2
-    sc_num_exclude_recent: 50
-    sc_num_candidates: 5
-    sc_max_radius: 80.0
-    sc_num_rings: 20
-    sc_num_sectors: 60
+    heading_dist_threshold: 0.2
+    heading_num_candidates: 5
+    heading_max_radius: 80.0
+    heading_num_rings: 20
+    heading_num_sectors: 60
 
-    kdtree_cache_size: 20
 
     optimization_iterations: 10
     prior_noise_position: 0.01
@@ -79,11 +77,8 @@ n3mapping_node:
     continuation_penetration_max_range_m: 20.0
     loop_spatial_candidates_enable: true
     loop_spatial_candidate_radius: 15.0
-    loop_spatial_candidate_min_id_gap: 50
     loop_spatial_candidate_max_candidates: 5
     loop_kf_gap: 5
-    loop_closest_id_th: 50
-    loop_min_id_interval: 20
     loop_max_range: 6.0
 
     # 点云与位姿连续稳定 3 秒可开始静止建图；否则保留点云运动检测。
@@ -97,7 +92,6 @@ n3mapping_node:
     # Frozen product profile keeps the experimental floor factor disabled.
     floor_attitude_enable: false
 
-    output_cloud_voxel_size: 0.2
 
     map_save_path: ""
     global_map_voxel_size: 0.1
@@ -110,7 +104,7 @@ n3mapping_node:
     sync_time_tolerance: 0.1
 
     reloc_num_candidates: 10
-    reloc_sc_dist_threshold: 0.3
+    reloc_heading_dist_threshold: 0.3
     reloc_min_confidence: 0.3
     reloc_min_inlier_ratio: 0.03
     reloc_search_radius: 20.0
@@ -144,9 +138,8 @@ n3mapping_node:
     reloc_debug_path: ""
     reloc_atlas_enable: true
     reloc_atlas_path: ""
-    reloc_target_mode: "legacy_global_atlas"
-    reloc_target_cache_max_bytes: 0
-    reloc_target_cache_max_entries: 0
+    reloc_target_cache_max_bytes: 134217728
+    reloc_target_cache_max_entries: 8
     localization_tracking_target_cache_max_bytes: 134217728
     localization_tracking_target_cache_max_entries: 8
     # Experimental only; frozen false pending endpoint-first quality evidence.
@@ -162,8 +155,6 @@ n3mapping_node:
     reloc_persist_max_frames: 300
 
     rhpd_enabled: true
-    rhpd_v2_enable: true
-    rhpd_v3_enable: false
     rhpd_max_range: 30.0
     rhpd_z_min: -2.0
     rhpd_z_max: 6.0
@@ -173,10 +164,10 @@ n3mapping_node:
     rhpd_submap_kf_radius: 3
     rhpd_submap_voxel_size: 0.15
     rhpd_primary_weight: 1.0
-    sc_aux_weight: 0.15
-    sc_aux_veto_enabled: false
-    sc_aux_veto_threshold: 0.6
-    rhpd_use_sc_yaw: true
+    heading_aux_weight: 0.15
+    heading_aux_veto_enabled: false
+    heading_aux_veto_threshold: 0.6
+    rhpd_use_heading_yaw: true
     rhpd_yaw_hypotheses: 4
     rhpd_enable_negative_space: true
     rhpd_enable_pca_confidence: true

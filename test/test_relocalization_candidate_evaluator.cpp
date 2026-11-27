@@ -114,9 +114,9 @@ TEST_F(RelocalizationCandidateEvaluatorTest, NeighboringHeadingSectorReusesItsSh
     KeyframeManager keyframes(config_);
     LoopCandidate candidate;
     candidate.match_id = keyframes.addKeyframe(1.0, Eigen::Isometry3d::Identity(), map);
-    candidate.source_flags = LoopCandidate::SOURCE_RHPD | LoopCandidate::SOURCE_SC;
-    candidate.sc_distance = 0.0;
-    const float sector = static_cast<float>(2.0 * M_PI / config_.sc_num_sectors);
+    candidate.source_flags = LoopCandidate::SOURCE_RHPD | LoopCandidate::SOURCE_HEADING;
+    candidate.heading_distance = 0.0;
+    const float sector = static_cast<float>(2.0 * M_PI / config_.heading_num_sectors);
     RelocalizationCandidateEvaluator evaluator(config_, keyframes, *matcher_, provider);
     const auto source = matcher_->prepareSourceCloud(map);
     const auto observation = prepareVisibilityObservation(*map, visibilityOptionsFromConfig(config_));

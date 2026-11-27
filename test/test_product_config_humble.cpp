@@ -56,19 +56,6 @@ TEST(ProductConfigHumbleTest, RosParameterFileMatchesGateFactory) {
               runtimeConfigCanonical(expected_development));
     mapping_node.reset();
 
-    const std::string experimental_config_path =
-        std::string(N3MAPPING_SOURCE_DIR) +
-        "/config/mapping_stages/s13_current_best.yaml";
-    rclcpp::NodeOptions experimental_options;
-    experimental_options.arguments(
-        {"--ros-args", "--params-file", experimental_config_path});
-    auto experimental_node =
-        std::make_shared<rclcpp::Node>("n3mapping_node", experimental_options);
-    Config experimental_config;
-    loadConfigFromHumble(experimental_node.get(), &experimental_config);
-    EXPECT_TRUE(experimental_config.floor_attitude_enable);
-    experimental_node.reset();
-
     rclcpp::NodeOptions override_options;
     override_options.append_parameter_override(
         "map_save_path", "/tmp/n3mapping_explicit_map");

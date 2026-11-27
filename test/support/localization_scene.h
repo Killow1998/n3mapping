@@ -136,8 +136,7 @@ inline Config makeSyntheticRelocConfig()
     config.gicp_max_iterations = 60;
     config.gicp_fitness_threshold = 0.8;
     config.gicp_submap_size = 1;
-    config.sc_num_exclude_recent = 0;
-    config.sc_num_candidates = 8;
+    config.heading_num_candidates = 8;
     config.rhpd_enabled = true;
     config.rhpd_dist_threshold = 100.0;
     config.rhpd_num_candidates = 8;

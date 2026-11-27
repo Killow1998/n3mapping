@@ -46,7 +46,8 @@ class N3MappingCore {
     bool loadMap(const std::string& map_path);
 
     bool startMapExtension(std::string* error = nullptr);
-    bool saveMap(const std::string& map_path);
+    bool saveMap(const std::string& map_path,
+                 core::LioFrame::PointCloud::ConstPtr* saved_cloud = nullptr);
     bool saveGlobalMap(const std::string& pcd_path);
     bool saveMapSnapshot(std::string* error = nullptr);
     core::LioFrame::PointCloud::Ptr buildGlobalMap() const;

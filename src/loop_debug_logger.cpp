@@ -123,8 +123,8 @@ const char* candidateSourceName(LoopCandidate::Source source)
     switch (source) {
         case LoopCandidate::Source::RhpdPrimary:
             return "rhpd_primary";
-        case LoopCandidate::Source::ScanContextFallback:
-            return "scan_context_fallback";
+        case LoopCandidate::Source::HeadingFallback:
+            return "heading_fallback";
         case LoopCandidate::Source::RhpdFrame:
             return "rhpd_frame";
         case LoopCandidate::Source::SpatialRadius:
@@ -215,7 +215,7 @@ bool LoopDebugLogger::appendCandidate(const std::string& path, const LoopDebugCa
     appendInteger(os, &first, "match_id", event.candidate.match_id);
     appendString(os, &first, "candidate_source", candidateSourceName(event.candidate.candidate_source));
     appendNumber(os, &first, "rhpd_distance", event.candidate.rhpd_distance);
-    appendNumber(os, &first, "sc_distance", event.candidate.sc_distance);
+    appendNumber(os, &first, "heading_distance", event.candidate.heading_distance);
     appendNumber(os, &first, "fused_score", event.candidate.fused_score);
     appendNumber(os, &first, "yaw_diff_rad", static_cast<double>(event.candidate.yaw_diff_rad));
     appendBool(os, &first, "icp_converged", event.icp_converged);

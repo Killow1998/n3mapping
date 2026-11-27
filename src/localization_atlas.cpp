@@ -4,9 +4,11 @@
 #include "spatial_point_blocks.h"
 
 #include "n3mapping/localization_atlas.h"
+#include "n3mapping/global_map_cache.h"
 
 #include "localization_atlas.pb.h"
 
+#include <algorithm>
 #include <array>
 #include <chrono>
 #include <cmath>
@@ -148,7 +150,7 @@ bool LocalizationAtlas::prepare(const std::vector<Keyframe::Ptr>& keyframes,
     LocalizationAtlasStats local_stats;
     local_stats.keyframe_count = keyframes.size();
     auto start = Clock::now();
-    global_map_ = buildGlobalMap(config_, keyframes);
+    global_map_ = GlobalMapCache::build(keyframes, std::max(1e-3, config_.global_map_voxel_size));
     local_stats.global_map_ms = elapsedMs(start);
     if (!global_map_ || global_map_->empty()) {
 
@@ -218,22 +220,18 @@ bool LocalizationAtlas::compileAndSave(
     }
 
     LocalizationAtlasStats local_stats;
-    local_stats.keyframe_count = keyframes.size();
-    map_sha256_ = fileSha256(map_path, error);
-    if (map_sha256_.empty()) return false;
-    config_sha256_ = configSha256(config_);
-    if (config_sha256_.empty()) {
-        setError(error, "failed to hash atlas config");
-        return false;
-    }
-
+    auto map_sha256 = fileSha256(map_path, error);
+    if (map_sha256.empty()) return false;
     if (!prepare(keyframes, &local_stats)) {
         setError(error, "failed to prepare global atlas target");
         return false;
     }
     loaded_ = false;
-    map_sha256_ = fileSha256(map_path, error);
-    if (map_sha256_.empty()) return false;
+    if (config_sha256_.empty()) {
+        setError(error, "failed to hash atlas config");
+        return false;
+    }
+    map_sha256_ = std::move(map_sha256);
     auto start = Clock::now();
 
     LocalizationAtlasData data;

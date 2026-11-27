@@ -25,11 +25,10 @@ class MappingResumingPBTTest : public ::testing::Test
         config_.gicp_downsampling_resolution = 0.5;
         config_.gicp_max_iterations = 30;
         config_.gicp_fitness_threshold = 0.5;
-        config_.sc_dist_threshold = 0.3;
-        config_.sc_num_exclude_recent = 3;
-        config_.sc_num_candidates = 5;
+        config_.heading_dist_threshold = 0.3;
+        config_.heading_num_candidates = 5;
         config_.reloc_num_candidates = 5;
-        config_.reloc_sc_dist_threshold = 0.5;
+        config_.reloc_heading_dist_threshold = 0.5;
         config_.reloc_search_radius = 20.0;
         config_.reloc_max_track_failures = 5;
         config_.odom_noise_position = 0.1;

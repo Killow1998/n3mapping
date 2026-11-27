@@ -163,18 +163,14 @@ RHPDManager::VecD RHPDManager::makeCoarseKey(const Place& descriptor) const {
 
 RHPDescriptor::Params rhpdParamsFromConfig(const Config& config) {
   RHPDescriptor::Params params;
-  params.heading.rings = std::max(1, config.sc_num_rings);
-  params.heading.sectors = std::max(4, config.sc_num_sectors);
-  params.heading.max_radius = std::max(config.sc_max_radius, params.heading.min_radius + 1e-3);
+  params.heading.rings = std::max(1, config.heading_num_rings);
+  params.heading.sectors = std::max(4, config.heading_num_sectors);
+  params.heading.max_radius = std::max(config.heading_max_radius, params.heading.min_radius + 1e-3);
   params.max_range = std::max(1.0, config.rhpd_max_range);
   params.z_min = config.rhpd_z_min;
   params.z_max = std::max(config.rhpd_z_max, config.rhpd_z_min + 1e-3);
-  params.v2_enable = config.rhpd_v2_enable;
-  params.v3_enable = config.rhpd_v3_enable;
   params.enable_negative_space = config.rhpd_enable_negative_space;
   params.enable_pca_confidence = config.rhpd_enable_pca_confidence;
-  params.part_a_scale = config.rhpd_part_a_scale;
-  params.aux_scale = config.rhpd_aux_scale;
   return params;
 }
 

@@ -84,8 +84,6 @@ public:
     std::shared_ptr<const std::vector<std::uint32_t>> cropVisibilityIndices(
         const Eigen::Vector3d& center) const;
 
-    static PointCloudT::Ptr buildGlobalMap(const Config& config,
-                                           const std::vector<Keyframe::Ptr>& keyframes);
     static PointCloudT::Ptr cropGlobalMap(const Config& config,
                                           const PointCloudT::Ptr& global_map,
                                           const Eigen::Vector3d& center,

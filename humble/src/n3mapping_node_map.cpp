@@ -64,14 +64,14 @@ void N3MappingNode::saveMapOnShutdown()
 {
     std::string error;
     std::string warning;
-    MapKeyframeSnapshot snapshot;
+    GlobalMapCache::PointCloudConstPtr saved_cloud;
     bool saved = false;
     {
         std::lock_guard<std::mutex> lock(data_mutex_);
-        saved = map_artifacts_->save(*n3mapping_core_, error, snapshot);
+        saved = map_artifacts_->save(*n3mapping_core_, error, saved_cloud);
     }
     if (saved && config_.save_global_map_on_shutdown) {
-        map_artifacts_->saveDebug(snapshot, warning);
+        map_artifacts_->saveDebug(*saved_cloud, warning);
     }
     if (saved) {
         RCLCPP_INFO(this->get_logger(), "Map snapshot saved under: %s", config_.map_save_path.c_str());
@@ -88,14 +88,14 @@ void N3MappingNode::handleSaveMap(const std::shared_ptr<std_srvs::srv::Trigger::
 {
     std::string error;
     std::string warning;
-    MapKeyframeSnapshot snapshot;
+    GlobalMapCache::PointCloudConstPtr saved_cloud;
     {
         std::lock_guard<std::mutex> lock(data_mutex_);
         response->success =
-            map_artifacts_->save(*n3mapping_core_, error, snapshot);
+            map_artifacts_->save(*n3mapping_core_, error, saved_cloud);
     }
     if (response->success && config_.save_global_map_on_shutdown) {
-        map_artifacts_->saveDebug(snapshot, warning);
+        map_artifacts_->saveDebug(*saved_cloud, warning);
     }
     response->message =
         response->success ? ("saved:" + config_.map_save_path) : error;

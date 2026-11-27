@@ -1,8 +1,11 @@
 #include "n3mapping/async_log.h"
 #include "n3mapping/core/n3mapping_core.h"
+#include "n3mapping/global_map_cache.h"
 #include "n3mapping_session.h"
 #include "../continuation_cleaning.h"
+#include <algorithm>
 #include <chrono>
+#include <cmath>
 #include <filesystem>
 #include <cstdlib>
 #include <optional>
@@ -19,7 +22,8 @@ struct SaveDirectory {
   }
 };
 }
-bool N3MappingCore::saveMap(const std::string &map_path) {
+bool N3MappingCore::saveMap(const std::string &map_path,
+                            core::LioFrame::PointCloud::ConstPtr *saved_cloud) {
   LogOperation operation("map_save", map_path);
   if (async_loops_ || map_loaded_) {
     LogOperation drain("map_save_drain", map_path);
@@ -122,6 +126,8 @@ bool N3MappingCore::saveMap(const std::string &map_path) {
     serialize.succeed();
   }
   if (!with_atlas) {
+    if (saved_cloud)
+      *saved_cloud = GlobalMapCache::build(keyframes, config_.save_global_map_voxel_size);
     commit_cleaning();
     operation.succeed();
     return true;
@@ -161,6 +167,12 @@ bool N3MappingCore::saveMap(const std::string &map_path) {
             << " atlas_prepare_ms=" << stats.prepare_ms
             << " atlas_serialize_ms=" << stats.serialize_ms
             << " atlas_bytes=" << stats.sidecar_bytes;
+  if (saved_cloud) {
+    const double atlas_voxel_size = std::max(1e-3, config_.global_map_voxel_size);
+    *saved_cloud = std::abs(config_.save_global_map_voxel_size - atlas_voxel_size) <= 1e-9
+        ? atlas.globalMap()
+        : GlobalMapCache::build(keyframes, config_.save_global_map_voxel_size);
+  }
   commit_cleaning();
   operation.succeed();
   return true;
@@ -183,7 +195,8 @@ bool N3MappingCore::saveMapSnapshot(std::string *error) {
   }
 
   const std::string map_file = config_.map_save_path + "/n3map.pbstream";
-  if (!saveMap(map_file)) {
+  core::LioFrame::PointCloud::ConstPtr saved_cloud;
+  if (!saveMap(map_file, config_.save_global_map_on_shutdown ? &saved_cloud : nullptr)) {
     if (error)
       *error = "save_pbstream_failed";
     return false;
@@ -192,11 +205,13 @@ bool N3MappingCore::saveMapSnapshot(std::string *error) {
   if (config_.save_global_map_on_shutdown) {
     const std::string global_map_file =
         config_.map_save_path + "/global_map.pcd";
-    if (!saveGlobalMap(global_map_file)) {
+    LogOperation pcd("map_save_pcd", global_map_file);
+    if (!MapSerializer::saveGlobalMap(global_map_file, *saved_cloud)) {
       if (error)
         *error = "save_global_map_failed";
       return false;
     }
+    pcd.succeed();
   }
 
   return true;

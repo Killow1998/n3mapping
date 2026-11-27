@@ -14,7 +14,7 @@ Config makeProductLocalizationConfig(const std::string& map_path,
     config.mode = "localization";
     config.map_path = map_path;
 
-    config.sc_num_candidates = 5;
+    config.heading_num_candidates = 5;
     config.loop_min_inlier_ratio = 0.7;
     config.loop_fitness_threshold = 0.2;
     config.loop_max_icp_translation = 2.0;
@@ -64,8 +64,8 @@ std::string Config::toString() const {
         << ", iter=" << gicp_max_iterations
         << ", fitness_thr=" << gicp_fitness_threshold
         << ", submap=" << gicp_submap_size << "\n";
-    oss << "SC: dist_thr=" << sc_dist_threshold
-        << ", candidates=" << sc_num_candidates << "\n";
+    oss << "Heading: dist_thr=" << heading_dist_threshold
+        << ", candidates=" << heading_num_candidates << "\n";
     oss << "Loop minimum path length: " << loop_min_path_length_m << " m\n";
     oss << "Odom noise: pos=" << odom_noise_position
         << " rot=" << odom_noise_rotation
@@ -116,7 +116,7 @@ std::string Config::toString() const {
         << (floor_attitude_enable ? "ON" : "OFF")
         << " noise_deg=" << floor_attitude_noise_deg << "\n";
     oss << "Reloc: candidates=" << reloc_num_candidates
-        << ", sc_thr=" << reloc_sc_dist_threshold
+        << ", heading_thr=" << reloc_heading_dist_threshold
         << ", min_conf=" << reloc_min_confidence << "\n";
     oss << "Reloc temporal: window=" << reloc_temporal_window_size
         << ", lock_ll=" << reloc_lock_log_likelihood_threshold
@@ -146,8 +146,7 @@ std::string Config::toString() const {
         << " path=" << (reloc_debug_path.empty() ? "<map_save_path>/relocalization_debug.jsonl" : reloc_debug_path) << "\n";
     oss << "Reloc localization atlas: " << (reloc_atlas_enable ? "ON" : "OFF")
         << " path=" << (reloc_atlas_path.empty() ? "<map_path>.localization_atlas.pb" : reloc_atlas_path) << "\n";
-    oss << "Reloc target provider: mode=" << reloc_target_mode
-        << " cache_bytes=" << reloc_target_cache_max_bytes
+    oss << "Reloc local target cache: bytes=" << reloc_target_cache_max_bytes
         << " cache_entries=" << reloc_target_cache_max_entries << "\n";
     oss << "Localization tracking target cache: bytes="
         << localization_tracking_target_cache_max_bytes
@@ -164,8 +163,6 @@ std::string Config::toString() const {
         << (reloc_persist_hypotheses ? "ON" : "OFF")
         << " max_frames=" << reloc_persist_max_frames << "\n";
     oss << "RHPD: enabled=" << (rhpd_enabled ? "YES" : "NO")
-        << ", v2=" << (rhpd_v2_enable ? "YES" : "NO")
-        << ", v3=" << (rhpd_v3_enable ? "YES" : "NO")
         << ", max_range=" << rhpd_max_range
         << ", z=[" << rhpd_z_min << "," << rhpd_z_max << "]"
         << ", dist_thr=" << rhpd_dist_threshold
@@ -174,10 +171,10 @@ std::string Config::toString() const {
         << ", submap_radius=" << rhpd_submap_kf_radius
         << ", submap_voxel=" << rhpd_submap_voxel_size << "\n";
     oss << "RHPD primary retrieval: weight=" << rhpd_primary_weight
-        << ", sc_aux_weight=" << sc_aux_weight
-        << ", sc_aux_veto=" << (sc_aux_veto_enabled ? "YES" : "NO")
-        << "(thr=" << sc_aux_veto_threshold << ")"
-        << ", use_sc_yaw=" << (rhpd_use_sc_yaw ? "YES" : "NO")
+        << ", heading_aux_weight=" << heading_aux_weight
+        << ", heading_aux_veto=" << (heading_aux_veto_enabled ? "YES" : "NO")
+        << "(thr=" << heading_aux_veto_threshold << ")"
+        << ", use_heading_yaw=" << (rhpd_use_heading_yaw ? "YES" : "NO")
         << ", yaw_hyp=" << rhpd_yaw_hypotheses
         << ", aug(neg=" << (rhpd_enable_negative_space ? "YES" : "NO")
         << ", pca_conf=" << (rhpd_enable_pca_confidence ? "YES" : "NO")
@@ -248,11 +245,11 @@ bool Config::validate(std::string* error) const {
     if (!non_negative(icp_refine_fitness_gate, "icp_refine_fitness_gate")) return false;
     if (!non_negative(icp_refine_delta_translation_gate, "icp_refine_delta_translation_gate")) return false;
     if (!non_negative(icp_refine_delta_rotation_gate, "icp_refine_delta_rotation_gate")) return false;
-    if (!positive(sc_dist_threshold, "sc_dist_threshold")) return false;
-    if (!at_least(sc_num_candidates, 1, "sc_num_candidates")) return false;
-    if (!positive(sc_max_radius, "sc_max_radius")) return false;
-    if (!at_least(sc_num_rings, 1, "sc_num_rings")) return false;
-    if (!at_least(sc_num_sectors, 1, "sc_num_sectors")) return false;
+    if (!positive(heading_dist_threshold, "heading_dist_threshold")) return false;
+    if (!at_least(heading_num_candidates, 1, "heading_num_candidates")) return false;
+    if (!positive(heading_max_radius, "heading_max_radius")) return false;
+    if (!at_least(heading_num_rings, 1, "heading_num_rings")) return false;
+    if (!at_least(heading_num_sectors, 1, "heading_num_sectors")) return false;
     if (!at_least(optimization_iterations, 0, "optimization_iterations")) return false;
     if (!positive(robust_kernel_delta, "robust_kernel_delta")) return false;
     if (!non_negative(loop_min_inlier_ratio, "loop_min_inlier_ratio")) return false;
@@ -295,7 +292,7 @@ bool Config::validate(std::string* error) const {
     if (!at_least(sync_queue_size, 1, "sync_queue_size")) return false;
     if (!positive(sync_time_tolerance, "sync_time_tolerance")) return false;
     if (!at_least(reloc_num_candidates, 1, "reloc_num_candidates")) return false;
-    if (!positive(reloc_sc_dist_threshold, "reloc_sc_dist_threshold")) return false;
+    if (!positive(reloc_heading_dist_threshold, "reloc_heading_dist_threshold")) return false;
     if (!non_negative(reloc_min_confidence, "reloc_min_confidence")) return false;
     if (!non_negative(reloc_min_inlier_ratio, "reloc_min_inlier_ratio")) return false;
     if (!positive(reloc_search_radius, "reloc_search_radius")) return false;
@@ -325,12 +322,6 @@ bool Config::validate(std::string* error) const {
     if (!positive(reloc_ambiguity_min_ratio, "reloc_ambiguity_min_ratio")) return false;
     if (!non_negative(reloc_ambiguity_min_basin_separation, "reloc_ambiguity_min_basin_separation")) return false;
     if (!non_negative(reloc_ambiguity_min_consistency_margin, "reloc_ambiguity_min_consistency_margin")) return false;
-    if (reloc_target_mode != "legacy_global_atlas" &&
-        reloc_target_mode != "local_no_cache" &&
-        reloc_target_mode != "local_lru" &&
-        reloc_target_mode != "shadow_local_lru") {
-        return fail("reloc_target_mode must be one of: legacy_global_atlas, local_no_cache, local_lru, shadow_local_lru");
-    }
     if (!at_least(reloc_target_cache_max_bytes, 0,
                   "reloc_target_cache_max_bytes")) return false;
     if (!at_least(reloc_target_cache_max_entries, 0,
@@ -349,8 +340,8 @@ bool Config::validate(std::string* error) const {
     if (!at_least(rhpd_preselect_candidates, 1, "rhpd_preselect_candidates")) return false;
     if (!at_least(rhpd_submap_kf_radius, 0, "rhpd_submap_kf_radius")) return false;
     if (!non_negative(rhpd_primary_weight, "rhpd_primary_weight")) return false;
-    if (!non_negative(sc_aux_weight, "sc_aux_weight")) return false;
-    if (!positive(sc_aux_veto_threshold, "sc_aux_veto_threshold")) return false;
+    if (!non_negative(heading_aux_weight, "heading_aux_weight")) return false;
+    if (!positive(heading_aux_veto_threshold, "heading_aux_veto_threshold")) return false;
     if (!at_least(rhpd_yaw_hypotheses, 1, "rhpd_yaw_hypotheses")) return false;
     if (reloc_free_space_mode != "veto" && reloc_free_space_mode != "kill") {
         return fail("reloc_free_space_mode must be one of: veto, kill");

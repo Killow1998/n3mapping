@@ -45,12 +45,11 @@ struct Config {
     double icp_refine_delta_translation_gate;
     double icp_refine_delta_rotation_gate;
 
-    double sc_dist_threshold;
-    int sc_num_exclude_recent;
-    int sc_num_candidates;
-    double sc_max_radius;
-    int sc_num_rings;
-    int sc_num_sectors;
+    double heading_dist_threshold;
+    int heading_num_candidates;
+    double heading_max_radius;
+    int heading_num_rings;
+    int heading_num_sectors;
 
     int optimization_iterations;
     double prior_noise_position;
@@ -134,7 +133,7 @@ struct Config {
     double sync_time_tolerance;
 
     int reloc_num_candidates;
-    double reloc_sc_dist_threshold;
+    double reloc_heading_dist_threshold;
     double reloc_min_confidence;
     double reloc_min_inlier_ratio;
     double reloc_search_radius;
@@ -177,7 +176,6 @@ struct Config {
     bool reloc_atlas_enable;
     std::string reloc_atlas_path;
 
-    std::string reloc_target_mode;
 
     int reloc_target_cache_max_bytes;
     int reloc_target_cache_max_entries;
@@ -196,8 +194,6 @@ struct Config {
     int reloc_persist_max_frames;
 
     bool rhpd_enabled;
-    bool rhpd_v2_enable;
-    bool rhpd_v3_enable;
     double rhpd_max_range;
     double rhpd_z_min;
     double rhpd_z_max;
@@ -207,16 +203,14 @@ struct Config {
     int rhpd_submap_kf_radius;
     double rhpd_submap_voxel_size;
     double rhpd_primary_weight;
-    double sc_aux_weight;
-    bool sc_aux_veto_enabled;
-    double sc_aux_veto_threshold;
-    bool rhpd_use_sc_yaw;
+    double heading_aux_weight;
+    bool heading_aux_veto_enabled;
+    double heading_aux_veto_threshold;
+    bool rhpd_use_heading_yaw;
     int rhpd_yaw_hypotheses;
     bool rhpd_enable_negative_space;
     bool rhpd_enable_pca_confidence;
 
-    double rhpd_part_a_scale;
-    double rhpd_aux_scale;
 
     std::string toString() const;
     bool validate(std::string* error = nullptr) const;

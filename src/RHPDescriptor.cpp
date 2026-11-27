@@ -62,12 +62,6 @@ RHPDCells RHPDescriptor::projectToPlane(
     std::array<double, B2> h_min, h_max;
     h_min.fill(std::numeric_limits<double>::max());
     h_max.fill(-std::numeric_limits<double>::max());
-    std::vector<double> sector_max_r;
-    if (params_.v3_enable) {
-        const int sector_n = std::max(8, params_.v3_visibility_bins);
-        sector_max_r.assign(sector_n, 0.0);
-    }
-
     auto getCoord = [](const pcl::PointXYZI& pt, int axis) -> double {
         if (axis == 0) return pt.x;
         if (axis == 1) return pt.y;
@@ -103,14 +97,6 @@ RHPDCells RHPDescriptor::projectToPlane(
         h_sum[idx] += h_norm;
         h_min[idx] = std::min(h_min[idx], h_norm);
         h_max[idx] = std::max(h_max[idx], h_norm);
-        if (params_.v3_enable) {
-            const int sector_n = static_cast<int>(sector_max_r.size());
-            const double rr = std::hypot(v0, v1);
-            const double az = std::atan2(v1, v0);
-            int si = static_cast<int>((az + M_PI) / (2.0 * M_PI) * sector_n);
-            si = std::clamp(si, 0, sector_n - 1);
-            sector_max_r[si] = std::max(sector_max_r[si], rr);
-        }
         ++total;
     }
 
@@ -125,78 +111,9 @@ RHPDCells RHPDescriptor::projectToPlane(
         out(i * RHPD_PLANE_CHANS + 0) = density_norm;
         out(i * RHPD_PLANE_CHANS + 1) = mean_height_norm;
 
-        if (params_.v3_enable) {
-            const int row = i / B;
-            const int col = i % B;
-            const double c0 = r0_min + (static_cast<double>(row) + 0.5) / B * r0_range;
-            const double c1 = r1_min + (static_cast<double>(col) + 0.5) / B * r1_range;
-            const double rc = std::hypot(c0, c1);
-            const int sector_n = static_cast<int>(sector_max_r.size());
-            const double az = std::atan2(c1, c0);
-            int si = static_cast<int>((az + M_PI) / (2.0 * M_PI) * sector_n);
-            si = std::clamp(si, 0, sector_n - 1);
-            const double frontier_r = sector_max_r[si];
-            double visibility_state = 0.0;
-            if (counts[i] > 0.0) {
-              visibility_state = 1.0;
-            } else if (frontier_r > 1e-6 && rc + params_.v3_free_space_margin_m < frontier_r) {
-              visibility_state = 0.5;
-            } else {
-              visibility_state = 0.0;
-            }
-
-            auto class_of = [](double s) -> int {
-              if (s >= 0.75)
-                return 2;
-              if (s >= 0.25)
-                return 1;
-              return 0;
-            };
-            const int cls = class_of(visibility_state);
-            double transition = 0.0;
-            int n_neighbors = 0;
-            const int drow[4] = {-1, 1, 0, 0};
-            const int dcol[4] = {0, 0, -1, 1};
-            for (int n = 0; n < 4; ++n) {
-                const int rr = row + drow[n];
-                const int cc = col + dcol[n];
-                if (rr < 0 || rr >= B || cc < 0 || cc >= B) continue;
-                const int ni = rr * B + cc;
-                double n_state = 0.0;
-                if (counts[ni] > 0.0) {
-                    n_state = 1.0;
-                } else {
-                    const double nc0 = r0_min + (static_cast<double>(rr) + 0.5) / B * r0_range;
-                    const double nc1 = r1_min + (static_cast<double>(cc) + 0.5) / B * r1_range;
-                    const double nrc = std::hypot(nc0, nc1);
-                    const double naz = std::atan2(nc1, nc0);
-                    int nsi = static_cast<int>((naz + M_PI) / (2.0 * M_PI) * sector_n);
-                    nsi = std::clamp(nsi, 0, sector_n - 1);
-                    const double nfrontier_r = sector_max_r[nsi];
-                    if (nfrontier_r > 1e-6 && nrc + params_.v3_free_space_margin_m < nfrontier_r) {
-                        n_state = 0.5;
-                    } else {
-                        n_state = 0.0;
-                    }
-                }
-                const int ncls = class_of(n_state);
-                transition += 0.5 * std::abs(static_cast<double>(cls - ncls));
-                ++n_neighbors;
-            }
-            const double boundary_strength = (n_neighbors > 0) ? (transition / n_neighbors) : 0.0;
-
-            out(i * RHPD_PLANE_CHANS + 2) = visibility_state;
-            out(i * RHPD_PLANE_CHANS + 3) = std::clamp(boundary_strength, 0.0, 1.0);
-        } else if (params_.v2_enable) {
-            const double hit_count_norm = counts[i] * inv_max_count;
-            const double height_extent_norm =
-                counts[i] > 0 ? std::max(0.0, h_max[i] - h_min[i]) : 0.0;
-            out(i * RHPD_PLANE_CHANS + 2) = hit_count_norm;
-            out(i * RHPD_PLANE_CHANS + 3) = height_extent_norm;
-        } else {
-            out(i * RHPD_PLANE_CHANS + 2) = 0.0;
-            out(i * RHPD_PLANE_CHANS + 3) = 0.0;
-        }
+        out(i * RHPD_PLANE_CHANS + 2) = counts[i] * inv_max_count;
+        out(i * RHPD_PLANE_CHANS + 3) =
+            counts[i] > 0 ? std::max(0.0, h_max[i] - h_min[i]) : 0.0;
     }
     RHPDCells cells;
     size_t active = 0;

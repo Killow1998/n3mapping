@@ -23,7 +23,7 @@ from n3mapping_episode_benchmark import (
 SIGNALS = (
     "descriptor_fused_score",
     "descriptor_rhpd_distance",
-    "descriptor_sc_distance",
+    "descriptor_heading_distance",
     "registration_fitness_score",
     "registration_inlier_ratio",
     "mean_visibility_consistency",
@@ -119,7 +119,7 @@ def _extract_lock_signals(events: list[dict[str, Any]]) -> dict[str, float | int
     return {
         "descriptor_fused_score": _finite(candidate.get("fused_score")),
         "descriptor_rhpd_distance": _finite(candidate.get("rhpd_distance")),
-        "descriptor_sc_distance": _finite(candidate.get("sc_distance")),
+        "descriptor_heading_distance": _finite(candidate.get("heading_distance")),
         "registration_fitness_score": _finite(registration.get("fitness_score")),
         "registration_inlier_ratio": _finite(registration.get("inlier_ratio")),
         "mean_visibility_consistency": _finite(winner.get("mean_visibility_consistency")),

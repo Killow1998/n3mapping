@@ -31,7 +31,6 @@ set(N3MAPPING_CORE_SOURCES
   ${N3MAPPING_ROOT}/src/causal_submap.cpp
   ${N3MAPPING_ROOT}/src/continuation_cleaning.cpp
   ${N3MAPPING_ROOT}/src/keyframe_manager.cpp
-  ${N3MAPPING_ROOT}/src/local_map_selector.cpp
   ${N3MAPPING_ROOT}/src/submap_builder.cpp
   ${N3MAPPING_ROOT}/src/submap_graph_topology.cpp
   ${N3MAPPING_ROOT}/src/submap_graph_projection.cpp
@@ -82,7 +81,6 @@ set(N3MAPPING_CORE_SOURCES
   ${N3MAPPING_ROOT}/src/mapped_atlas.cpp
   ${N3MAPPING_ROOT}/src/mapped_target.cpp
   ${N3MAPPING_ROOT}/src/localization_atlas_descriptors.cpp
-  ${N3MAPPING_ROOT}/src/localization_atlas_map.cpp
   ${N3MAPPING_ROOT}/src/localization_crop.cpp
   ${N3MAPPING_ROOT}/src/registration_observability.cpp
   ${N3MAPPING_ROOT}/src/relocalization_candidate_evaluator.cpp
@@ -143,7 +141,7 @@ function(n3mapping_configure_core_target target_name)
     ${PCL_INCLUDE_DIRS} ${EIGEN3_INCLUDE_DIR} ${OpenCV_INCLUDE_DIRS}
     ${GTSAM_INCLUDE_DIR} ${PROTOBUF_INCLUDE_DIRS})
   target_include_directories(${target_name} PRIVATE
-    ${JSONCPP_INCLUDE_DIRS} ${N3MAPPING_ROOT}/include/Scancontext)
+    ${JSONCPP_INCLUDE_DIRS})
 
   target_link_libraries(${target_name}
     PUBLIC

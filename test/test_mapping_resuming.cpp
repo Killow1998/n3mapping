@@ -32,11 +32,10 @@ class MappingResumingTest : public ::testing::Test
         config_.gicp_downsampling_resolution = 0.5;
         config_.gicp_max_iterations = 30;
         config_.gicp_fitness_threshold = 0.5;
-        config_.sc_dist_threshold = 0.3;
-        config_.sc_num_exclude_recent = 3;
-        config_.sc_num_candidates = 5;
+        config_.heading_dist_threshold = 0.3;
+        config_.heading_num_candidates = 5;
         config_.reloc_num_candidates = 5;
-        config_.reloc_sc_dist_threshold = 0.5;
+        config_.reloc_heading_dist_threshold = 0.5;
         config_.reloc_search_radius = 20.0;
         config_.reloc_max_track_failures = 5;
         config_.odom_noise_position = 0.1;
@@ -133,7 +132,6 @@ class MappingResumingTest : public ::testing::Test
 
     void configureSingleFrameRelocalization()
     {
-        config_.sc_num_exclude_recent = 0;
         config_.rhpd_enabled = false;
         config_.reloc_temporal_window_size = 1;
         config_.reloc_lock_min_winner_streak = 1;
@@ -177,7 +175,6 @@ TEST_F(MappingResumingTest, InitializeFromSerializedMap)
     EXPECT_EQ(extension.getState(), MappingResumingState::NOT_INITIALIZED);
     EXPECT_EQ(extension.getOriginalKeyframeCount(), 0u);
     EXPECT_EQ(extension.getNewKeyframeCount(), 0u);
-    EXPECT_EQ(extension.getCrossLoopCount(), 0u);
     EXPECT_EQ(extension.getCurrentSessionId(), kInvalidMapSessionId);
 
     ASSERT_TRUE(loadForExtensionTest(map_file, kf_manager, loop_detector,
@@ -231,7 +228,6 @@ TEST_F(MappingResumingTest, Reset)
 
     EXPECT_EQ(extension.getState(), MappingResumingState::NOT_INITIALIZED);
     EXPECT_EQ(extension.getOriginalKeyframeCount(), 0);
-    EXPECT_EQ(extension.getCrossLoopCount(), 0);
     EXPECT_EQ(extension.getCurrentSessionId(), kInvalidMapSessionId);
 }
 
@@ -379,7 +375,6 @@ TEST_F(MappingResumingTest, ReplayedAcquisitionAdvancesSamplingWithoutAddingInfo
     EXPECT_EQ(reused, 0);
     EXPECT_EQ(frames.size(), 1u);
     EXPECT_EQ(graph.getEdges().size(), edges);
-    EXPECT_EQ(extension.getCrossLoopCount(), 0u);
     EXPECT_EQ(frames.getSessions().size(), 1u);
     auto next = loaded->pose_odom;
     next.translation().x() += .1;
@@ -455,7 +450,6 @@ TEST_F(MappingResumingTest, TrackedKeyframeAtomicallyPinsSessionDrift)
     EXPECT_NEAR(Eigen::AngleAxisd(
                     optimizer.getOptimizedPose(2).rotation()).angle(),
                 0.0, 1.0 * M_PI / 180.0);
-    EXPECT_EQ(extension.getCrossLoopCount(), 1u);
     const auto edges = optimizer.getEdges();
     const auto odometry = std::find_if(
         edges.begin(), edges.end(), [](const EdgeInfo& edge) {
@@ -513,7 +507,7 @@ TEST_F(MappingResumingTest, OptimizeFailureLeavesNoGhostAndCanRetrySameId)
         anchor->cloud, Eigen::Isometry3d::Identity()));
 
     const size_t keyframes_before = kf_manager.size();
-    const size_t sc_before = loop_detector.size();
+    const size_t heading_before = loop_detector.size();
     const size_t rhpd_before = loop_detector.getRHPDManager().size();
     const size_t edges_before = optimizer.getNumEdges();
     const int64_t next_id_before = kf_manager.getNextKeyframeId();
@@ -534,7 +528,7 @@ TEST_F(MappingResumingTest, OptimizeFailureLeavesNoGhostAndCanRetrySameId)
     EXPECT_EQ(extension.getNewKeyframeCount(), 0u);
     EXPECT_EQ(kf_manager.size(), keyframes_before);
     EXPECT_EQ(kf_manager.getNextKeyframeId(), next_id_before);
-    EXPECT_EQ(loop_detector.size(), sc_before);
+    EXPECT_EQ(loop_detector.size(), heading_before);
     EXPECT_EQ(loop_detector.getRHPDManager().size(), rhpd_before);
     EXPECT_EQ(optimizer.getNumEdges(), edges_before);
     EXPECT_FALSE(optimizer.hasNode(next_id_before));

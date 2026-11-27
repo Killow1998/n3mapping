@@ -494,8 +494,8 @@ TEST(LoopVerificationPipelineTest,
     candidate.query_id = query->id;
     candidate.match_id = match->id;
     candidate.source_flags =
-        LoopCandidate::SOURCE_RHPD | LoopCandidate::SOURCE_SC;
-    candidate.sc_distance = 0.0;
+        LoopCandidate::SOURCE_RHPD | LoopCandidate::SOURCE_HEADING;
+    candidate.heading_distance = 0.0;
     candidate.yaw_diff_rad = 0.0f;
     candidate.descriptor_score = 1.0;
     LoopVerificationContext context;

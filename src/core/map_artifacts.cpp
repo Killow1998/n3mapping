@@ -3,14 +3,13 @@
 #include "n3mapping/config.h"
 #include "n3mapping/core/n3mapping_core.h"
 #include <filesystem>
-#include <pcl/io/pcd_io.h>
+#include "n3mapping/map_serializer.h"
 
 namespace n3mapping {
 
 MapArtifacts::MapArtifacts(const Config &config)
     : map_save_path_(config.map_save_path),
       save_global_map_(config.save_global_map_on_shutdown),
-      save_voxel_size_(config.save_global_map_voxel_size),
       mode_(parseCoreRunMode(config.mode)), cache_(config.global_map_voxel_size) {}
 
 MapKeyframeSnapshot snapshotMapKeyframes(const N3MappingCore &core) {
@@ -31,7 +30,7 @@ MapKeyframeSnapshot snapshotMapKeyframes(const N3MappingCore &core) {
 }
 
 bool MapArtifacts::save(N3MappingCore &core, std::string &error,
-                        MapKeyframeSnapshot &snapshot) {
+                        GlobalMapCache::PointCloudConstPtr &saved_cloud) {
   if (!coreRunModeSavesMap(mode_)) {
     error = std::string("save_disabled_in_mode:") + coreRunModeName(mode_);
     return false;
@@ -46,33 +45,23 @@ bool MapArtifacts::save(N3MappingCore &core, std::string &error,
     error = "create_map_directory_failed";
     return false;
   }
-  if (!core.saveMap(map_save_path_ + "/n3map.pbstream")) {
+  if (!core.saveMap(map_save_path_ + "/n3map.pbstream", save_global_map_ ? &saved_cloud : nullptr)) {
     error = "save_pbstream_failed";
     return false;
   }
-  if (save_global_map_)
-    snapshot = snapshotMapKeyframes(core);
   return true;
 }
 
-void MapArtifacts::saveDebug(const MapKeyframeSnapshot &snapshot,
+void MapArtifacts::saveDebug(const GlobalMapCache::PointCloud &saved_cloud,
                              std::string &warning) {
   warning.clear();
-  if (snapshot.keyframes.empty()) {
-    warning = "save_global_map_empty";
-    return;
-  }
   LogOperation operation("map_save_pcd", map_save_path_);
   std::lock_guard<std::mutex> lock(mutex_);
-  const auto cloud = save_voxel_size_ == cache_.voxelSize()
-                         ? cache_.update(snapshot.keyframes, snapshot.revision)
-                         : GlobalMapCache::build(snapshot.keyframes, save_voxel_size_);
-  if (cloud->empty()) {
+  if (saved_cloud.empty()) {
     warning = "save_global_map_empty";
     return;
   }
-  if (pcl::io::savePCDFileBinary(map_save_path_ + "/global_map.pcd", *cloud) ==
-      -1) {
+  if (!MapSerializer::saveGlobalMap(map_save_path_ + "/global_map.pcd", saved_cloud)) {
     warning = "save_global_map_failed";
     return;
   }

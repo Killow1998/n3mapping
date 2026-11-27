@@ -46,8 +46,15 @@ loop candidates from RHPD, heading fallback and spatial search. The distance is
 the odometry arc along the intervening keyframes, including frames without
 descriptors. The loop referee uses the same distance for its temporal-gap
 feature. Cross-session candidates skip the arc-length cutoff and keep the
-existing cross-session verification. `sc_num_exclude_recent` is accepted for
-legacy YAML compatibility and has no effect on loop detection or scoring.
+existing cross-session verification. Use the `heading_*` settings for the
+heading descriptor and `rhpd_use_heading_yaw` to use it in RHPD matching.
+The saved descriptor signature and protobuf field numbers remain compatible
+with existing maps.
+
+Relocalization uses the prepared global Atlas when available and a bounded
+local target cache otherwise. The Atlas uses `global_map_voxel_size` with a
+1 mm minimum. PCD exports use `save_global_map_voxel_size`. A joint save
+reuses the Atlas point cloud when both effective voxel sizes match.
 
 `graph_types.h` exposes graph-edge data and the optimizer interface without GTSAM
 headers. `GraphOptimizer` keeps solver objects in private `graph_optimizer_state.h`.

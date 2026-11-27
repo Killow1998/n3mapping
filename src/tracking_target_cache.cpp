@@ -1,4 +1,5 @@
 #include "n3mapping/tracking_target_cache.h"
+#include "n3mapping/global_map_cache.h"
 
 #include <algorithm>
 #include <utility>
@@ -126,7 +127,7 @@ void TrackingTargetCache::rebuildLoadedMapIfNeeded() {
   }
   loaded_entries_.clear();
   loaded_prepared_.reset();
-  loaded_map_ = LocalizationAtlas::buildGlobalMap(config_, loaded_keyframes);
+  loaded_map_ = GlobalMapCache::build(loaded_keyframes, std::max(1e-3, config_.global_map_voxel_size));
   blocks_ = std::make_shared<SpatialPointBlocks>(*loaded_map_);
   loaded_anchor_positions_.clear();
   for (const auto &keyframe : loaded_keyframes)

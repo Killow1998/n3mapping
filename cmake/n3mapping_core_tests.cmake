@@ -40,7 +40,6 @@ foreach(name
     test_graph_optimizer
     test_graph_optimizer_pbt
     test_keyframe_manager
-    test_local_map_selector
     test_localization_atlas
     test_loop_consensus_verifier
     test_loop_debug_logger

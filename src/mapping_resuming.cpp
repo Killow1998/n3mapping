@@ -21,7 +21,6 @@ MappingResuming::MappingResuming(const Config& config,
     , state_(MappingResumingState::NOT_INITIALIZED)
     , original_keyframe_count_(0)
     , original_max_keyframe_id_(-1)
-    , cross_loop_count_(0)
     , relocalization_anchor_keyframe_id_(-1)
     , previous_new_keyframe_id_(-1)
     , previous_new_odom_pose_(Eigen::Isometry3d::Identity())
@@ -157,11 +156,6 @@ size_t MappingResuming::getNewKeyframeCount() const {
         : 0u;
 }
 
-size_t MappingResuming::getCrossLoopCount() const {
-    std::lock_guard<std::mutex> lock(mutex_);
-    return cross_loop_count_;
-}
-
 bool MappingResuming::isFromOriginalMap(int64_t keyframe_id) const {
     return keyframe_id >= 0 && keyframe_id <= original_max_keyframe_id_;
 }
@@ -179,7 +173,6 @@ void MappingResuming::reset() {
     state_ = MappingResumingState::NOT_INITIALIZED;
     original_keyframe_count_ = 0;
     original_max_keyframe_id_ = -1;
-    cross_loop_count_ = 0;
     relocalization_anchor_keyframe_id_ = -1;
     previous_new_keyframe_id_ = -1;
     previous_new_odom_pose_ = Eigen::Isometry3d::Identity();

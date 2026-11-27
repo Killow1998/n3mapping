@@ -32,7 +32,7 @@ RelocalizationPlaceCatalog compileRelocalizationPlaceCatalog(
 
   constexpr double viewpoint_radius = 0.25;
   const double angle =
-      (360.0 / std::max(4, config.sc_num_sectors)) * M_PI / 180.0;
+      (360.0 / std::max(4, config.heading_num_sectors)) * M_PI / 180.0;
   for (const auto &keyframe : keyframes) {
     if (!keyframe)
       continue;

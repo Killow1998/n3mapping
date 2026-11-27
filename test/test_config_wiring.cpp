@@ -64,23 +64,15 @@ TEST(ConfigWiringTest, DescriptorParamsCarryEveryKey) {
     config.rhpd_max_range = 21.0;
     config.rhpd_z_min = -3.0;
     config.rhpd_z_max = 7.0;
-    config.rhpd_v2_enable = false;
-    config.rhpd_v3_enable = true;
     config.rhpd_enable_negative_space = false;
     config.rhpd_enable_pca_confidence = false;
-    config.rhpd_part_a_scale = 0.25;
-    config.rhpd_aux_scale = 0.75;
 
     const auto params = rhpdParamsFromConfig(config);
     EXPECT_DOUBLE_EQ(params.max_range, 21.0);
     EXPECT_DOUBLE_EQ(params.z_min, -3.0);
     EXPECT_DOUBLE_EQ(params.z_max, 7.0);
-    EXPECT_FALSE(params.v2_enable);
-    EXPECT_TRUE(params.v3_enable);
     EXPECT_FALSE(params.enable_negative_space);
     EXPECT_FALSE(params.enable_pca_confidence);
-    EXPECT_DOUBLE_EQ(params.part_a_scale, 0.25);
-    EXPECT_DOUBLE_EQ(params.aux_scale, 0.75);
 }
 
 TEST(ConfigWiringTest, DescriptorHeightRangeCannotCollapse) {
@@ -89,13 +81,6 @@ TEST(ConfigWiringTest, DescriptorHeightRangeCannotCollapse) {
     config.rhpd_z_max = 1.0;
     const auto params = rhpdParamsFromConfig(config);
     EXPECT_GT(params.z_max, params.z_min);
-}
-
-TEST(ConfigWiringTest, DescriptorBlockScalesDefaultToThePublishedDistance) {
-
-    const auto params = rhpdParamsFromConfig(Config{});
-    EXPECT_DOUBLE_EQ(params.part_a_scale, 1.0);
-    EXPECT_DOUBLE_EQ(params.aux_scale, 1.0);
 }
 
 TEST(ConfigWiringTest, CanonicalCarriesEveryFreeSpaceAndPersistenceKey) {

@@ -5,13 +5,13 @@
 #include <Eigen/Geometry>
 namespace n3mapping {
 struct LoopCandidate {
-    static constexpr uint8_t SOURCE_SC = 1u;
+    static constexpr uint8_t SOURCE_HEADING = 1u;
     static constexpr uint8_t SOURCE_RHPD = 2u;
     static constexpr uint8_t SOURCE_SPATIAL = 4u;
     enum class Source : uint8_t {
         Unknown = 0,
         RhpdPrimary = 1,
-        ScanContextFallback = 2,
+        HeadingFallback = 2,
         RhpdFrame = 3,
         SpatialRadius = 4
     };
@@ -19,7 +19,7 @@ struct LoopCandidate {
     int64_t query_id = -1;
     int64_t match_id = -1;
     double rhpd_distance = std::numeric_limits<double>::max();
-    double sc_distance = std::numeric_limits<double>::max();
+    double heading_distance = std::numeric_limits<double>::max();
     float yaw_diff_rad = 0.0f;
     uint8_t source_flags = 0u;
     Source candidate_source = Source::Unknown;
@@ -27,11 +27,11 @@ struct LoopCandidate {
     double descriptor_score = 0.0;
     double spatial_score = 0.0;
     int fused_rank = -1;
-    int sc_rank = -1;
+    int heading_rank = -1;
     int rhpd_rank = -1;
     double path_length_m = 0.0;
     bool isValid() const { return query_id >= 0 && match_id >= 0; }
-    bool fromSC() const { return (source_flags & SOURCE_SC) != 0u; }
+    bool fromHeading() const { return (source_flags & SOURCE_HEADING) != 0u; }
     bool fromRHPD() const { return (source_flags & SOURCE_RHPD) != 0u; }
     bool fromSpatial() const { return (source_flags & SOURCE_SPATIAL) != 0u; }
 };

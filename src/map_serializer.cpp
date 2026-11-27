@@ -8,14 +8,20 @@ namespace n3mapping {
 
 MapSerializer::MapSerializer(const Config& config) : config_(config) {}
 
-bool MapSerializer::saveGlobalMap(const std::string& filepath, const KeyframeManager& keyframe_manager, double voxel_size) {
+bool MapSerializer::saveGlobalMap(const std::string& filepath,
+                                  const pcl::PointCloud<pcl::PointXYZI>& cloud) {
+    if (cloud.empty()) return false;
     try {
-        std::filesystem::path fp(filepath);
-        if (fp.has_parent_path()) std::filesystem::create_directories(fp.parent_path());
-        auto global = buildGlobalMap(keyframe_manager, voxel_size);
-        if (global->empty()) return false;
-        return pcl::io::savePCDFileBinary(filepath, *global) != -1;
-    } catch (...) { return false; }
+        const std::filesystem::path path(filepath);
+        if (path.has_parent_path()) std::filesystem::create_directories(path.parent_path());
+        return pcl::io::savePCDFileBinary(filepath, cloud) != -1;
+    } catch (const std::exception&) { return false; }
+}
+
+bool MapSerializer::saveGlobalMap(const std::string& filepath,
+                                  const KeyframeManager& keyframe_manager,
+                                  double voxel_size) {
+    return saveGlobalMap(filepath, *buildGlobalMap(keyframe_manager, voxel_size));
 }
 
 pcl::PointCloud<pcl::PointXYZI>::Ptr MapSerializer::buildGlobalMap(const KeyframeManager& keyframe_manager,

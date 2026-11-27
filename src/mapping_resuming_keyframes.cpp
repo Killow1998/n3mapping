@@ -204,7 +204,6 @@ int64_t MappingResuming::processNewKeyframe(
                       << " measurement_t=" << edge.measurement.translation().transpose()
                       << " measurement_rpy_deg=" << measurement_rpy_deg.transpose();
         } else if (has_tracking_constraint) {
-            ++cross_loop_count_;
             LOG(INFO) << "[MappingResuming] Committed loaded-map tracking loop "
                       << "match=" << loaded_tracking_match_id << " query=" << new_kf_id;
         }

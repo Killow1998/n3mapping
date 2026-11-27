@@ -64,7 +64,6 @@ public:
     MappingResumingState getState() const;
     size_t getOriginalKeyframeCount() const;
     size_t getNewKeyframeCount() const;
-    size_t getCrossLoopCount() const;
     bool isFromOriginalMap(int64_t keyframe_id) const;
     MapSessionId getCurrentSessionId() const;
     void reset();
@@ -88,7 +87,6 @@ private:
     MappingResumingState state_;
     size_t original_keyframe_count_;
     int64_t original_max_keyframe_id_;
-    size_t cross_loop_count_;
     int64_t relocalization_anchor_keyframe_id_;
     int64_t previous_new_keyframe_id_;
     Eigen::Isometry3d previous_new_odom_pose_;

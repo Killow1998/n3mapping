@@ -39,7 +39,7 @@ LoopDebugCandidateEvent makeRejectedCandidateEvent()
     event.candidate.match_id = 2;
     event.candidate.candidate_source = LoopCandidate::Source::RhpdPrimary;
     event.candidate.rhpd_distance = 3.5;
-    event.candidate.sc_distance = 0.25;
+    event.candidate.heading_distance = 0.25;
     event.candidate.fused_score = 4.0;
     event.candidate.yaw_diff_rad = 0.1f;
     event.icp_converged = false;

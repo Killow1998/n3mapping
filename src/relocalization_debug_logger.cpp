@@ -203,8 +203,8 @@ const char *candidateSourceName(LoopCandidate::Source source) {
   switch (source) {
   case LoopCandidate::Source::RhpdPrimary:
     return "rhpd_primary";
-  case LoopCandidate::Source::ScanContextFallback:
-    return "scan_context_fallback";
+  case LoopCandidate::Source::HeadingFallback:
+    return "heading_fallback";
   case LoopCandidate::Source::RhpdFrame:
     return "rhpd_frame";
   case LoopCandidate::Source::SpatialRadius:
@@ -222,7 +222,7 @@ void appendCandidateObject(std::ostream &os, const LoopCandidate &candidate) {
   appendString(os, &first, "candidate_source",
                candidateSourceName(candidate.candidate_source));
   appendNumber(os, &first, "rhpd_distance", candidate.rhpd_distance);
-  appendNumber(os, &first, "sc_distance", candidate.sc_distance);
+  appendNumber(os, &first, "heading_distance", candidate.heading_distance);
   appendNumber(os, &first, "fused_score", candidate.fused_score);
   appendNumber(os, &first, "yaw_diff_rad",
                static_cast<double>(candidate.yaw_diff_rad));
