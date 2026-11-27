@@ -18,8 +18,7 @@ struct N3MappingSession {
       : keyframes(config), matcher(config), detector(config), loops(config),
         optimizer(config), serializer(config), submaps(config),
         localizer(config, keyframes, detector, matcher),
-        resuming(config, keyframes, detector, matcher, optimizer, serializer,
-                 localizer, &submaps) {}
+        resuming(config, keyframes, optimizer, localizer, &submaps) {}
 
   KeyframeManager keyframes;
   PointCloudMatcher matcher;

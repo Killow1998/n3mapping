@@ -1,7 +1,6 @@
 #include "n3mapping/mapping_resuming.h"
 #include "n3mapping/world_localizing.h"
 #include "n3mapping/submap_builder.h"
-#include "n3mapping/map_serializer.h"
 #include "n3mapping/keyframe_manager.h"
 #include "n3mapping/graph_optimizer.h"
 #include "n3mapping/rotation_utils.h"
@@ -11,19 +10,12 @@ namespace n3mapping {
 
 MappingResuming::MappingResuming(const Config& config,
                                  KeyframeManager& keyframe_manager,
-                                 LoopDetector& loop_detector,
-                                 PointCloudMatcher& matcher,
                                  GraphOptimizer& optimizer,
-                                 MapSerializer& serializer,
                                  WorldLocalizing& world_localizing,
                                  SubmapBuilder* submap_builder)
     : config_(config)
     , keyframe_manager_(keyframe_manager)
-    , loop_detector_(loop_detector)
-    , matcher_(matcher)
     , optimizer_(optimizer)
-    , loop_closure_manager_(config)
-    , serializer_(serializer)
     , world_localizing_(world_localizing)
     , submap_builder_(submap_builder)
     , state_(MappingResumingState::NOT_INITIALIZED)
@@ -32,7 +24,6 @@ MappingResuming::MappingResuming(const Config& config,
     , cross_loop_count_(0)
     , relocalization_anchor_keyframe_id_(-1)
     , previous_new_keyframe_id_(-1)
-    , last_trusted_constraint_keyframe_id_(-1)
     , previous_new_odom_pose_(Eigen::Isometry3d::Identity())
     , current_session_id_(kInvalidMapSessionId)
     , T_map_session_initial_(Eigen::Isometry3d::Identity())
@@ -52,7 +43,6 @@ bool MappingResuming::initializeFromLoadedMapNoLock() {
         original_max_keyframe_id_ = -1;
         relocalization_anchor_keyframe_id_ = -1;
         previous_new_keyframe_id_ = -1;
-        last_trusted_constraint_keyframe_id_ = -1;
         previous_new_odom_pose_ = Eigen::Isometry3d::Identity();
         current_session_id_ = kInvalidMapSessionId;
         current_session_source_frame_id_.clear();
@@ -61,20 +51,18 @@ bool MappingResuming::initializeFromLoadedMapNoLock() {
         return false;
     }
 
-    auto all_keyframes = keyframe_manager_.getAllKeyframes();
-    original_max_keyframe_id_ = -1;
+    const auto all_keyframes = keyframe_manager_.getAllKeyframes();
+    std::set<int64_t> loaded_ids;
     for (const auto& kf : all_keyframes) {
-        if (kf && kf->id > original_max_keyframe_id_)
-            original_max_keyframe_id_ = kf->id;
+        kf->is_from_loaded_map = true;
+        loaded_ids.insert(kf->id);
     }
-    for (auto& kf : all_keyframes) {
-        if (kf) kf->is_from_loaded_map = true;
-    }
+    original_max_keyframe_id_ = *loaded_ids.rbegin();
+    optimizer_.setFixedNodes(loaded_ids);
 
     state_ = MappingResumingState::MAP_LOADED;
     relocalization_anchor_keyframe_id_ = -1;
     previous_new_keyframe_id_ = -1;
-    last_trusted_constraint_keyframe_id_ = -1;
     previous_new_odom_pose_ = Eigen::Isometry3d::Identity();
     current_session_id_ = kInvalidMapSessionId;
     current_session_source_frame_id_.clear();
@@ -139,7 +127,6 @@ bool MappingResuming::beginSessionNoLock(const Eigen::Isometry3d& T_map_odom,
 
     relocalization_anchor_keyframe_id_ = matched_keyframe_id;
     previous_new_keyframe_id_ = -1;
-    last_trusted_constraint_keyframe_id_ = -1;
     previous_new_odom_pose_ = Eigen::Isometry3d::Identity();
     current_session_id_ = next_session_id;
     current_session_source_frame_id_ = source_frame_id;
@@ -149,15 +136,6 @@ bool MappingResuming::beginSessionNoLock(const Eigen::Isometry3d& T_map_odom,
 
     state_ = MappingResumingState::RELOCALIZED;
     return true;
-}
-
-bool MappingResuming::saveExtendedMap(const std::string& map_path) {
-    std::lock_guard<std::mutex> lock(mutex_);
-    if (!refreshSubmapPosesNoLock("save_extended_map")) {
-        return false;
-    }
-    return serializer_.saveMap(map_path, keyframe_manager_, loop_detector_,
-                               optimizer_, submap_builder_);
 }
 
 MappingResumingState MappingResuming::getState() const {
@@ -204,7 +182,6 @@ void MappingResuming::reset() {
     cross_loop_count_ = 0;
     relocalization_anchor_keyframe_id_ = -1;
     previous_new_keyframe_id_ = -1;
-    last_trusted_constraint_keyframe_id_ = -1;
     previous_new_odom_pose_ = Eigen::Isometry3d::Identity();
     current_session_id_ = kInvalidMapSessionId;
     current_session_source_frame_id_.clear();

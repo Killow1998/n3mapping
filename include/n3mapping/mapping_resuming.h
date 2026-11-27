@@ -12,15 +12,12 @@
 #include <pcl/point_types.h>
 
 #include "n3mapping/config.h"
-#include "n3mapping/loop_closure_manager.h"
+#include "n3mapping/keyframe.h"
 
 namespace n3mapping {
 
 class GraphOptimizer;
 class KeyframeManager;
-class LoopDetector;
-class MapSerializer;
-class PointCloudMatcher;
 class SubmapBuilder;
 class WorldLocalizing;
 struct RelocalizationPerformance;
@@ -44,9 +41,7 @@ public:
     using PointCloudT = pcl::PointCloud<pcl::PointXYZI>;
 
     MappingResuming(const Config& config, KeyframeManager& keyframe_manager,
-                    LoopDetector& loop_detector, PointCloudMatcher& matcher,
-                    GraphOptimizer& optimizer, MapSerializer& serializer,
-                    WorldLocalizing& world_localizing,
+                    GraphOptimizer& optimizer, WorldLocalizing& world_localizing,
                     SubmapBuilder* submap_builder = nullptr);
 
     bool initializeFromLoadedMap();
@@ -66,8 +61,6 @@ public:
             Eigen::Isometry3d::Identity(),
         MappingResumingTiming* timing = nullptr,
         int64_t* reused_acquisition_id = nullptr);
-    int detectCrossLoops(int64_t new_keyframe_id);
-    bool saveExtendedMap(const std::string& map_path);
     MappingResumingState getState() const;
     size_t getOriginalKeyframeCount() const;
     size_t getNewKeyframeCount() const;
@@ -88,11 +81,7 @@ private:
 
     Config config_;
     KeyframeManager& keyframe_manager_;
-    LoopDetector& loop_detector_;
-    PointCloudMatcher& matcher_;
     GraphOptimizer& optimizer_;
-    LoopClosureManager loop_closure_manager_;
-    MapSerializer& serializer_;
     WorldLocalizing& world_localizing_;
     SubmapBuilder* submap_builder_;
 
@@ -102,7 +91,6 @@ private:
     size_t cross_loop_count_;
     int64_t relocalization_anchor_keyframe_id_;
     int64_t previous_new_keyframe_id_;
-    int64_t last_trusted_constraint_keyframe_id_;
     Eigen::Isometry3d previous_new_odom_pose_;
     MapSessionId current_session_id_;
     std::string current_session_source_frame_id_;

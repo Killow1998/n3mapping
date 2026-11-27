@@ -86,7 +86,8 @@ def run(args, root):
         global_maps = []
         current_x, transformed = -4., False
         def receive_status(msg):
-            latest.clear(); latest.update(json.loads(msg.data))
+            nonlocal latest
+            latest = json.loads(msg.data)
         def stamp_ns(stamp):
             return stamp.to_nsec() if args.ros == 'noetic' else stamp.sec*10**9+stamp.nanosec
         def receive_pose(msg):
@@ -184,8 +185,12 @@ def run(args, root):
         assert not call('/n3mapping/save_map').success
         for _ in range(24):
             frame(-3.)
-            if latest.get('state')=='tracking': break
-        assert latest.get('state')=='tracking',latest
+            tracked_status = latest
+            projection = tracked_status.get('projection', {})
+            if tracked_status.get('state') == 'tracking' and projection.get('available'):
+                break
+        assert tracked_status.get('state') == 'tracking' and projection.get('available'), tracked_status
+        session = projection['session_id']
         atlas_sha = hashlib.sha256(source_atlas.read_bytes()).hexdigest()
         wait(lambda:len(locks)==1)
         # Subscribe only after localization: headless startup must not be needed
@@ -204,7 +209,6 @@ def run(args, root):
         wait(lambda: len(late_maps) > 0)
         assert late_maps[-1] == global_maps[-1]
         initial_global_map = global_maps[-1]
-        session = latest['projection']['session_id']
         input_stopped_at = time.monotonic()
         while latest.get('reason') != 'input_cloud_timeout':
             assert time.monotonic() - input_stopped_at < 2.0, latest

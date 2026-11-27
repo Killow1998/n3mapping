@@ -2,6 +2,7 @@
 #include <cstdint>
 
 #include <cstddef>
+#include <functional>
 #include <limits>
 #include <vector>
 
@@ -55,6 +56,9 @@ struct VisibilityConsistencyResult {
       std::numeric_limits<double>::quiet_NaN();
   double planar_max_conflict = std::numeric_limits<double>::quiet_NaN();
 };
+
+using LoadedMapVisibilityEvaluator = std::function<VisibilityConsistencyResult(
+    const pcl::PointCloud<pcl::PointXYZI>&, const Eigen::Isometry3d&)>;
 
 VisibilityConsistencyOptions visibilityOptionsFromConfig(const Config& config);
 

@@ -17,9 +17,11 @@ double elapsedMs(LoopClock::time_point start) {
 }
 
 AsyncLoopJob::AsyncLoopJob(const Config& config, const KeyframeManager& source,
-    std::unique_ptr<GraphOptimizer> graph, std::vector<DetectedLoopQuery> queries)
+    std::unique_ptr<GraphOptimizer> graph, std::vector<DetectedLoopQuery> queries,
+    LoadedMapVisibilityEvaluator visibility)
     : config(config), keyframes(config), matcher(config), manager(config),
-      graph(std::move(graph)), queries(std::move(queries)), revision(source.revision()) {
+      graph(std::move(graph)), visibility(std::move(visibility)), queries(std::move(queries)),
+      revision(source.revision()) {
   if (this->queries.empty()) throw std::invalid_argument("Empty loop job");
   base_graph = this->graph->cloneCommitted();
   std::vector<Keyframe::Ptr> snapshot;
@@ -41,7 +43,7 @@ void AsyncLoopJob::run() {
   started = start;
   const auto cpu_start = std::clock();
   if (!geometryOnly())
-    outcome = processLoopCandidates(config, keyframes, matcher, *graph, manager, queries);
+    outcome = processLoopCandidates(config, keyframes, matcher, *graph, manager, queries, visibility);
   optimizeGeometry();
   worker_wall_ms += elapsedMs(start);
   cpu_upper_ms += 1000.0 * (std::clock() - cpu_start) / CLOCKS_PER_SEC;
@@ -73,16 +75,7 @@ void AsyncLoopJob::optimizeGeometry() {
       graph->getOptimizedPoses());
   outcome.summary.loop_residual_translation_after = residual.translation_norm;
   outcome.summary.loop_residual_rotation_after = residual.rotation_angle;
-  std::vector<Keyframe::Ptr> loaded;
-  for (const auto& frame : keyframes.getAllKeyframes())
-    if (frame->is_from_loaded_map) loaded.push_back(frame);
-  if (!loaded.empty()) {
-    const auto start = LoopClock::now();
-    atlas = std::make_unique<LocalizationAtlas>(config, matcher);
-    if (!atlas->prepare(loaded))
-      throw std::runtime_error("Optimized reference preparation failed");
-    outcome.summary.atlas_prepare_ms = elapsedMs(start);
-  }
+
 }
 
 CoreLoopClosureResult N3MappingCore::processPendingLoopClosuresAsync() {
@@ -145,7 +138,8 @@ CoreLoopClosureResult N3MappingCore::advanceAsyncLoopClosures(bool wait) {
       const auto start = LoopClock::now();
       auto previous = std::move(state.job);
       state.job = std::make_unique<AsyncLoopJob>(config_, session_->keyframes,
-          session_->optimizer.cloneCommitted(), previous->queries);
+          session_->optimizer.cloneCommitted(), std::move(previous->queries),
+          std::move(previous->visibility));
       state.job->outcome = std::move(previous->outcome);
       state.job->worker_wall_ms = previous->worker_wall_ms;
       state.job->cpu_upper_ms = previous->cpu_upper_ms;
@@ -159,13 +153,9 @@ CoreLoopClosureResult N3MappingCore::advanceAsyncLoopClosures(bool wait) {
       const auto queued = result.queued_keyframe_count;
       const auto start = LoopClock::now();
       auto& job = *state.job;
-      Eigen::Isometry3d correction = Eigen::Isometry3d::Identity();
       if (job.outcome.summary.optimized) {
         const auto before = session_->optimizer.getOptimizedPoses();
         const auto after = job.graph->getOptimizedPoses();
-        const int64_t anchor = session_->localizer.getLastMatchedKeyframeId();
-        if (before.count(anchor) && after.count(anchor))
-          correction = after.at(anchor) * before.at(anchor).inverse();
         auto& summary = job.outcome.summary;
         summary.pose_update_count = 0;
         summary.mean_pose_update_translation = summary.mean_pose_update_rotation = 0;
@@ -174,8 +164,13 @@ CoreLoopClosureResult N3MappingCore::advanceAsyncLoopClosures(bool wait) {
         session_->optimizer.swapWith(*job.graph);
       }
       publishLoopOutcome(job.outcome);
-      if (job.atlas)
-        session_->localizer.installOptimizedReference(*job.atlas, correction);
+      if (map_loaded_ && job.outcome.summary.optimized) {
+        const auto latest = session_->keyframes.getLatestKeyframe();
+        if (latest && !latest->is_from_loaded_map &&
+            latest->pose_optimized.matrix().allFinite() && latest->pose_odom.matrix().allFinite())
+          session_->localizer.setMapToOdomTransform(
+              latest->pose_optimized * latest->pose_odom.inverse());
+      }
       result = std::move(job.outcome.summary);
       result.detected_candidate_count = detected;
       result.queued_keyframe_count = queued;
@@ -230,7 +225,7 @@ CoreLoopClosureResult N3MappingCore::advanceAsyncLoopClosures(bool wait) {
       queries.push_back(std::move(state.pending.front()));
       state.pending.pop_front();
     }
-    if (!queries.front().geometry_only && config_.loop_spatial_candidates_enable) {
+    if (!map_loaded_ && !queries.front().geometry_only && config_.loop_spatial_candidates_enable) {
 
       std::map<int64_t, Keyframe::Ptr> current_frames;
       for (const auto& frame : session_->keyframes.getAllKeyframes())
@@ -253,7 +248,8 @@ CoreLoopClosureResult N3MappingCore::advanceAsyncLoopClosures(bool wait) {
     }
     state.job = std::make_unique<AsyncLoopJob>(
         config_, session_->keyframes,
-        session_->optimizer.cloneCommitted(), std::move(queries));
+        session_->optimizer.cloneCommitted(), std::move(queries),
+        map_loaded_ ? session_->localizer.snapshotLoadedMapVisibility() : LoadedMapVisibilityEvaluator{});
     result.snapshot_ms += elapsedMs(start);
     auto* job = state.job.get();
     state.future = state.worker.submit([job] { job->run(); });

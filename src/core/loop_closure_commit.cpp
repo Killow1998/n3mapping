@@ -66,20 +66,21 @@ void rebaseLoopOutcome(const Config& config, GraphOptimizer& optimizer,
   for (auto& [query_id, loops] : by_query) {
     const auto edges = manager.buildLoopEdges(loops, LoopEdgeDirection::MatchToQuery);
     const auto before = optimizer.getOptimizedPoses();
-    const auto committed = optimizer.getEdges();
     std::string rejection;
     for (const auto& edge : edges) {
-      const auto trial = computeLoopGraphTrialDiagnostics(config, before, committed, {edge});
+      const auto trial = computeLoopGraphTrialDiagnostics(config, optimizer, {edge});
+      const bool cross_session = optimizer.fixedNodes().count(edge.from_id) &&
+          !optimizer.fixedNodes().count(edge.to_id);
       for (auto& loop : loops)
         if (loop.match_id == edge.from_id && loop.query_id == edge.to_id)
           assignLoopGraphTrialDiagnostics(&loop, trial);
       for (auto& event : outcome.candidates)
         if (event.candidate.match_id == edge.from_id && event.candidate.query_id == edge.to_id)
           assignGraphTrialDiagnostics(event, trial);
-      const auto reason = loopGraphTrialRejectReason(trial);
+      const auto reason = loopGraphTrialRejectReason(trial, cross_session);
       if (!reason.empty()) rejection = reason;
     }
-    if (rejection.empty() && !edges.empty() && manager.applyEdges(edges, optimizer)) {
+    if (rejection.empty() && optimizer.optimizeLoopEdges(edges)) {
       outcome.summary.place_candidate_count += loops.size();
       recordLoopOptimization(config, edges, loops, before, optimizer.getOptimizedPoses(), outcome);
       continue;

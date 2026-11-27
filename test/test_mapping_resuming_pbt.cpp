@@ -148,7 +148,7 @@ TEST_F(MappingResumingPBTTest, Property9_KeyframeIdContinuity)
         MapSerializer serializer(config_);
         WorldLocalizing relocalization(config_, kf_manager, loop_detector, matcher);
 
-        MappingResuming extension(config_, kf_manager, loop_detector, matcher, optimizer, serializer, relocalization);
+        MappingResuming extension(config_, kf_manager, optimizer, relocalization);
 
         ASSERT_TRUE(loadForExtensionTest(map_file, kf_manager, loop_detector,
                                          optimizer, serializer, extension))
@@ -210,7 +210,7 @@ TEST_F(MappingResumingPBTTest, OriginalMapIntegrity)
         MapSerializer serializer2(config_);
         WorldLocalizing relocalization2(config_, kf_manager2, loop_detector2, matcher2);
 
-        MappingResuming extension(config_, kf_manager2, loop_detector2, matcher2, optimizer2, serializer2, relocalization2);
+        MappingResuming extension(config_, kf_manager2, optimizer2, relocalization2);
 
         ASSERT_TRUE(loadForExtensionTest(map_file, kf_manager2, loop_detector2,
                                          optimizer2, serializer2, extension));
@@ -225,7 +225,7 @@ TEST_F(MappingResumingPBTTest, OriginalMapIntegrity)
         }
 
         std::string extended_file = config_.map_save_path + "/extended_" + std::to_string(iter) + ".pbstream";
-        ASSERT_TRUE(extension.saveExtendedMap(extended_file));
+        ASSERT_TRUE(serializer2.saveMap(extended_file, kf_manager2, loop_detector2, optimizer2));
 
         KeyframeManager kf_manager3(config_);
         LoopDetector loop_detector3(config_);
@@ -259,7 +259,7 @@ TEST_F(MappingResumingPBTTest, IsFromOriginalMapCorrectness)
         MapSerializer serializer(config_);
         WorldLocalizing relocalization(config_, kf_manager, loop_detector, matcher);
 
-        MappingResuming extension(config_, kf_manager, loop_detector, matcher, optimizer, serializer, relocalization);
+        MappingResuming extension(config_, kf_manager, optimizer, relocalization);
 
         ASSERT_TRUE(loadForExtensionTest(map_file, kf_manager, loop_detector,
                                          optimizer, serializer, extension));

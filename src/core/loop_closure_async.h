@@ -13,14 +13,14 @@
 #include "n3mapping/graph_optimizer.h"
 #include "n3mapping/keyframe_manager.h"
 #include "n3mapping/point_cloud_matcher.h"
-#include "n3mapping/localization_atlas.h"
 
 namespace n3mapping {
 using LoopClock = std::chrono::steady_clock;
 
 struct AsyncLoopJob {
   AsyncLoopJob(const Config& config, const KeyframeManager& source,
-               std::unique_ptr<GraphOptimizer> graph, std::vector<DetectedLoopQuery> queries);
+               std::unique_ptr<GraphOptimizer> graph, std::vector<DetectedLoopQuery> queries,
+               LoadedMapVisibilityEvaluator visibility = {});
   void run();
   void rebase();
   void optimizeGeometry();
@@ -32,7 +32,7 @@ struct AsyncLoopJob {
   LoopClosureManager manager;
   std::unique_ptr<GraphOptimizer> graph;
   std::unique_ptr<GraphOptimizer> base_graph;
-  std::unique_ptr<LocalizationAtlas> atlas;
+  LoadedMapVisibilityEvaluator visibility;
   std::vector<DetectedLoopQuery> queries;
   KeyframeMapRevision revision;
   LoopClosureOutcome outcome;

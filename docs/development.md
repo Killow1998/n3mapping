@@ -430,13 +430,23 @@ and graph solving use an isolated snapshot; the owner commits only a matching
 map generation and revision. Appended keyframes catch up through a conditioned
 tail solve. A conflicting graph revision requires readmission and re-solving,
 while retaining measured registration evidence. Saving drains pending loop
-work. Strict map extension verifies loaded-map geometry and commits its tracking
-constraint inline. This append solve preserves the Atlas-verified live pose.
-The extension worker refines geometry and installs the optimized reference and
-its coordinate correction together. Place-based loop retrieval in new areas
-and cross-session loop retrieval are outside that online extension flow.
-The explicit cross-session retrieval helper prepares its query descriptors on
-demand. Appending a keyframe in the online flow only commits its geometry.
+work. Map continuation conditions every graph solve on the exact loaded poses.
+The graph retains its persistent factors. Shared planes can optimize against
+both loaded and new observations, and the loaded Atlas remains available for
+tracking and loop visibility checks.
+
+Continuation uses the same asynchronous loop worker as mapping. A keyframe
+already constrained by loaded-map tracking can still close a loop within the
+new session. When tracking cannot establish that constraint, descriptor
+retrieval can recover a loaded-map match outside the spatial search radius.
+Cross-session verification requires Atlas visibility and neighborhood consensus.
+A missing Atlas rejects cross-session candidates at the visibility gate.
+The trial and commit interpolate large corrections from the preceding
+loaded-map anchor to the return keyframe, then carry the full correction
+through any unanchored tail up to the next loaded-map anchor. The temporary
+solve excludes shared-plane observations on moved poses. The worker
+reassociates planes after correcting the trajectory. After commit, the newest
+continuation keyframe defines the map-to-odometry transform.
 
 Causal descriptor neighborhoods stay within the keyframe's session in both pose
 domains. Automatic Atlas preparation rebuilds older place caches once. Explicit

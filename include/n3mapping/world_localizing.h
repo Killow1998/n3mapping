@@ -112,9 +112,7 @@ public:
                          const Eigen::Isometry3d &odom_pose,
                          const Eigen::Isometry3d &oracle_pose);
 
-  VisibilityConsistencyResult
-  evaluateLoadedMapPoseVisibility(const PointCloudT::Ptr &query_cloud,
-                                  const Eigen::Isometry3d &T_map_lidar);
+  LoadedMapVisibilityEvaluator snapshotLoadedMapVisibility() const;
 
   void warmLoadedMapTrackingTarget(int64_t anchor_id);
 

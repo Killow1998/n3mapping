@@ -212,7 +212,7 @@ LoopVerificationPipelineResult LoopVerificationPipeline::evaluate(
     result.target_registration_cloud =
         keyframe_manager_.buildSubmapInRootFrame(
             candidate.match_id, config_.gicp_submap_size,
-            candidate.match_id, candidate.query_id);
+            candidate.match_id, candidate.query_id, context.cross_session);
     if (!result.source_registration_cloud ||
         result.source_registration_cloud->empty() ||
         !result.target_registration_cloud ||

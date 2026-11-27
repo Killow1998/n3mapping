@@ -19,6 +19,7 @@ class ISAM2;
 class Pose3;
 class Values;
 class NonlinearFactorGraph;
+class LevenbergMarquardtParams;
 namespace noiseModel { class Base; class Gaussian; class Diagonal; }
 }
 
@@ -53,6 +54,10 @@ class GraphOptimizer : public LoopOptimizerInterface
     static bool isRobustGlobalEdge(EdgeType type);
     bool hasGlobalConstraint() const;
 
+    void setFixedNodes(const std::set<int64_t>& ids) { fixed_node_ids_ = ids; }
+    const std::set<int64_t>& fixedNodes() const { return fixed_node_ids_; }
+
+    bool optimizeLoopEdges(const std::vector<EdgeInfo>& edges);
     void optimize();
 
     bool incrementalOptimize();
@@ -101,7 +106,10 @@ class GraphOptimizer : public LoopOptimizerInterface
     bool isOptimizationHealthy() const;
 
   private:
-    bool optimizeGeometryUpdate();
+    bool optimizeGeometryUpdate(const gtsam::Values* rebased_poses = nullptr);
+    gtsam::Values solveConditioned(
+        const gtsam::NonlinearFactorGraph& graph, const gtsam::Values& values,
+        const gtsam::LevenbergMarquardtParams& params) const;
     struct GtsamState;
     std::unique_ptr<GtsamState> gtsam_;
     Config config_;
@@ -110,6 +118,7 @@ class GraphOptimizer : public LoopOptimizerInterface
     std::vector<std::pair<size_t, PlaneObservation>> pending_plane_observations_;
     std::vector<EdgeInfo> pending_edges_;
     std::set<int64_t> node_ids_;
+    std::set<int64_t> fixed_node_ids_;
     std::set<int64_t> pending_node_ids_;
     bool has_loop_closure_;
     bool pending_has_loop_closure_;

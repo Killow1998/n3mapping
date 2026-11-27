@@ -236,17 +236,17 @@ void WorldLocalizing::warmLoadedMapTrackingTarget(int64_t anchor_id) {
   tracking_targets_->acquireLoaded(anchor_id);
 }
 
-VisibilityConsistencyResult WorldLocalizing::evaluateLoadedMapPoseVisibility(
-    const PointCloudT::Ptr &query_cloud, const Eigen::Isometry3d &T_map_lidar) {
-  if (!query_cloud || query_cloud->empty() ||
-      !T_map_lidar.matrix().allFinite()) {
-    return {};
-  }
+LoadedMapVisibilityEvaluator WorldLocalizing::snapshotLoadedMapVisibility() const {
   std::lock_guard<std::mutex> lock(mutex_);
-  auto target = tracking_targets_->loadedVisibilityTarget(T_map_lidar.translation());
-  if (!target) return {};
-  return evaluateVisibilityConsistency(*target, *query_cloud, T_map_lidar,
-                                       visibilityOptionsFromConfig(config_));
+  if (!localization_atlas_->loaded()) return {};
+  return [config = config_, map = localization_atlas_->globalMap(),
+          blocks = localization_atlas_->visibilityBlocks()](
+             const PointCloudT& query, const Eigen::Isometry3d& pose) {
+    const auto target = LocalizationAtlas::cropGlobalMap(
+        config, map, pose.translation(), blocks.get());
+    if (!target) return VisibilityConsistencyResult{};
+    return evaluateVisibilityConsistency(*target, query, pose, visibilityOptionsFromConfig(config));
+  };
 }
 
 }

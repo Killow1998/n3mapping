@@ -27,47 +27,56 @@ void N3MappingCore::appendLoopDebugOptimization(
 
 std::vector<DetectedLoopQuery> N3MappingCore::detectPendingLoopCandidates(
     CoreLoopClosureResult& result) {
-  std::vector<int64_t> keyframes_to_check;
+  std::vector<PendingLoopQuery> keyframes_to_check;
   { std::lock_guard<std::mutex> lock(loop_queue_mutex_);
     keyframes_to_check.swap(loop_detection_queue_); }
   result.queued_keyframe_count = keyframes_to_check.size();
   std::vector<DetectedLoopQuery> queries;
-  if (map_loaded_ && config_.loop_geometry_enable && !keyframes_to_check.empty()) {
-    DetectedLoopQuery query;
-    query.id = keyframes_to_check.back();
-    query.geometry_only = true;
-    queries.push_back(std::move(query));
-    return queries;
-  }
-  for (int64_t query_id : keyframes_to_check) {
-    if (query_id - last_loop_check_id_ < config_.loop_kf_gap) {
-      continue;
-    }
+  if (keyframes_to_check.empty()) return queries;
 
-    auto query_kf = session_->keyframes.getKeyframe(query_id);
-    if (!query_kf) {
-      continue;
-    }
+  std::map<int64_t, Keyframe::Ptr> keyframe_map;
+  for (const auto& keyframe : session_->keyframes.getAllKeyframes())
+    keyframe_map.emplace(keyframe->id, keyframe);
 
-    std::map<int64_t, Keyframe::Ptr> keyframe_map;
-    for (const auto &keyframe : session_->keyframes.getAllKeyframes()) {
-      if (keyframe) {
-        keyframe_map[keyframe->id] = keyframe;
-      }
-    }
+  for (const auto& pending : keyframes_to_check) {
+    const auto query_id = pending.id;
+    if (query_id - last_loop_check_id_ < config_.loop_kf_gap) continue;
+    const auto query = keyframe_map.find(query_id);
+    if (query == keyframe_map.end()) continue;
+    const auto& query_kf = query->second;
+
     const auto within_work_bound = [&](int64_t match_id) {
       const auto match = keyframe_map.find(match_id);
       if (match == keyframe_map.end()) return false;
       const auto predicted = match->second->pose_optimized.inverse() * query_kf->pose_optimized;
       return !(predicted.translation().norm() > config_.loop_max_range);
     };
-    std::vector<LoopCandidate> candidates =
-        session_->detector.detectLoopCandidates(query_id, keyframe_map, {},
-                                                      within_work_bound);
+    std::vector<LoopCandidate> candidates;
+    if (map_loaded_) {
+      candidates = session_->detector.detectLoopCandidates(query_id, keyframe_map,
+          [&](int64_t id) {
+            const auto& match = keyframe_map.at(id);
+            return !match->is_from_loaded_map && match->session_id == query_kf->session_id &&
+                query_id - id > config_.sc_num_exclude_recent && within_work_bound(id);
+          });
+      if (!pending.tracked_against_loaded_map) {
+        auto old_map = session_->detector.detectLoopCandidates(query_id, keyframe_map,
+            [&](int64_t id) { return keyframe_map.at(id)->is_from_loaded_map; });
+        candidates.insert(candidates.end(), old_map.begin(), old_map.end());
+      }
+    } else {
+      candidates = session_->detector.detectLoopCandidates(
+          query_id, keyframe_map, {}, within_work_bound);
+    }
     if (config_.loop_spatial_candidates_enable) {
-      auto spatial_candidates =
-          session_->detector.detectSpatialCandidates(query_id,
-                                                           keyframe_map, {}, true);
+      auto spatial_candidates = session_->detector.detectSpatialCandidates(
+          query_id, keyframe_map, [&](int64_t id) {
+            if (!map_loaded_) return true;
+            const auto& match = *keyframe_map.at(id);
+            if (match.is_from_loaded_map) return !pending.tracked_against_loaded_map;
+            return match.session_id == query_kf->session_id &&
+                query_id - id > config_.sc_num_exclude_recent && within_work_bound(id);
+          }, true);
       for (const auto &spatial : spatial_candidates) {
         auto duplicate =
             std::find_if(candidates.begin(), candidates.end(),
@@ -92,6 +101,12 @@ std::vector<DetectedLoopQuery> N3MappingCore::detectPendingLoopCandidates(
     queries.push_back({query_id, std::move(candidates)});
   }
 
+  if (queries.empty() && map_loaded_ && config_.loop_geometry_enable) {
+    DetectedLoopQuery geometry;
+    geometry.id = keyframes_to_check.back().id;
+    geometry.geometry_only = true;
+    queries.push_back(std::move(geometry));
+  }
   return queries;
 }
 
@@ -103,7 +118,7 @@ void N3MappingCore::publishLoopOutcome(const LoopClosureOutcome& outcome) {
 }
 
 CoreLoopClosureResult N3MappingCore::processPendingLoopClosures() {
-  if (config_.loop_geometry_enable && !async_loops_)
+  if ((map_loaded_ || config_.loop_geometry_enable) && !async_loops_)
     async_loops_ = std::make_unique<AsyncLoopState>();
   if (async_loops_) {
     CoreLoopClosureResult total;

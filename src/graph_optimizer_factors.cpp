@@ -3,6 +3,7 @@
 #include <gtsam/navigation/AttitudeFactor.h>
 #include <algorithm>
 #include <iostream>
+#include <limits>
 namespace n3mapping {
 void GraphOptimizer::addPriorFactor(int64_t id, const Eigen::Isometry3d& pose) {
     gtsam::Key key = gtsam::Symbol('x', id);
@@ -89,6 +90,48 @@ void GraphOptimizer::addLoopEdge(const EdgeInfo& edge) {
     needs_optimization_ = true;
 }
 
+bool GraphOptimizer::optimizeLoopEdges(const std::vector<EdgeInfo>& edges) {
+    if (edges.empty()) return false;
+    gtsam::Values rebased_poses;
+    for (const auto& edge : edges) {
+        if (!fixed_node_ids_.count(edge.from_id) || fixed_node_ids_.count(edge.to_id) ||
+            edge.constraint_mode != EdgeConstraintMode::FULL_6DOF) continue;
+        const auto current = getOptimizedPose(edge.to_id);
+        const Eigen::Isometry3d desired = getOptimizedPose(edge.from_id) * edge.measurement;
+        const Eigen::Isometry3d error = current.inverse() * desired;
+        if (error.translation().norm() <= config_.loop_max_range &&
+            Eigen::AngleAxisd(error.rotation()).angle() <= std::acos(-1.0) / 12.0) continue;
+
+        int64_t anchor = -1;
+        int64_t next_anchor = std::numeric_limits<int64_t>::max();
+        for (const auto& committed : edges_) {
+            if (!isRobustGlobalEdge(committed.type) || !fixed_node_ids_.count(committed.from_id) ||
+                fixed_node_ids_.count(committed.to_id)) continue;
+            if (committed.to_id < edge.to_id)
+                anchor = std::max(anchor, committed.to_id);
+            else if (committed.to_id > edge.to_id)
+                next_anchor = std::min(next_anchor, committed.to_id);
+        }
+        const Eigen::Isometry3d correction = desired * current.inverse();
+        for (auto it = node_ids_.upper_bound(anchor); it != node_ids_.end() && *it < next_anchor; ++it) {
+            const auto id = *it;
+            if (fixed_node_ids_.count(id)) continue;
+            const double fraction = anchor < 0 || id >= edge.to_id ? 1.0 :
+                static_cast<double>(id - anchor) / (edge.to_id - anchor);
+            const auto pose = getOptimizedPose(id);
+            const Eigen::Isometry3d target = correction * pose;
+            Eigen::Isometry3d guess = Eigen::Isometry3d::Identity();
+            guess.translation() = pose.translation() + fraction * (target.translation() - pose.translation());
+            guess.linear() = Eigen::Quaterniond(pose.rotation()).slerp(
+                fraction, Eigen::Quaterniond(target.rotation())).toRotationMatrix();
+            rebased_poses.insert(gtsam::Symbol('x', id), eigenToGtsam(guess));
+        }
+        break;
+    }
+    for (const auto& edge : edges) addLoopEdge(edge);
+    return rebased_poses.empty() ? incrementalOptimize() : optimizeGeometryUpdate(&rebased_poses);
+}
+
 bool GraphOptimizer::rebaseSessionAndAddLoopEdge(
     const EdgeInfo& edge, int64_t first_session_node_id) {
     if (needs_optimization_ || first_session_node_id < 0 ||
@@ -98,6 +141,12 @@ bool GraphOptimizer::rebaseSessionAndAddLoopEdge(
         !edge.measurement.matrix().allFinite() ||
         !edge.information.allFinite()) {
         return false;
+    }
+
+    if (!fixed_node_ids_.empty()) {
+        if (!fixed_node_ids_.count(edge.from_id) || fixed_node_ids_.count(edge.to_id))
+            return false;
+        return optimizeLoopEdges({edge});
     }
 
     const auto poses = getOptimizedPoses();

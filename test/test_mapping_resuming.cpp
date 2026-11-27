@@ -1,3 +1,4 @@
+#include "n3mapping/core/n3mapping_core.h"
 #include "n3mapping/submap_builder.h"
 #include "n3mapping/pcl_compat.h"
 #include "n3mapping/async_log.h"
@@ -171,7 +172,7 @@ TEST_F(MappingResumingTest, InitializeFromSerializedMap)
     MapSerializer serializer(config_);
     WorldLocalizing relocalization(config_, kf_manager, loop_detector, matcher);
 
-    MappingResuming extension(config_, kf_manager, loop_detector, matcher, optimizer, serializer, relocalization);
+    MappingResuming extension(config_, kf_manager, optimizer, relocalization);
 
     EXPECT_EQ(extension.getState(), MappingResumingState::NOT_INITIALIZED);
     EXPECT_EQ(extension.getOriginalKeyframeCount(), 0u);
@@ -201,7 +202,7 @@ TEST_F(MappingResumingTest, SerializedLoadFailureKeepsUninitialized)
     MapSerializer serializer(config_);
     WorldLocalizing relocalization(config_, kf_manager, loop_detector, matcher);
 
-    MappingResuming extension(config_, kf_manager, loop_detector, matcher, optimizer, serializer, relocalization);
+    MappingResuming extension(config_, kf_manager, optimizer, relocalization);
 
     EXPECT_FALSE(loadForExtensionTest("/non/existent/path.pbstream", kf_manager,
                                       loop_detector, optimizer, serializer,
@@ -220,7 +221,7 @@ TEST_F(MappingResumingTest, Reset)
     MapSerializer serializer(config_);
     WorldLocalizing relocalization(config_, kf_manager, loop_detector, matcher);
 
-    MappingResuming extension(config_, kf_manager, loop_detector, matcher, optimizer, serializer, relocalization);
+    MappingResuming extension(config_, kf_manager, optimizer, relocalization);
 
     ASSERT_TRUE(loadForExtensionTest(map_file, kf_manager, loop_detector,
                                      optimizer, serializer, extension));
@@ -234,56 +235,30 @@ TEST_F(MappingResumingTest, Reset)
     EXPECT_EQ(extension.getCurrentSessionId(), kInvalidMapSessionId);
 }
 
-TEST_F(MappingResumingTest, SaveExtendedMap)
+TEST_F(MappingResumingTest, CoreSaveRestoresMapAndShadowSubmaps)
 {
     config_.submap_shadow_enable = true;
-    std::string map_file = createTestMap(3);
+    const auto map_file = createTestMap(3);
+    const auto extended = config_.map_save_path + "/extended_map.pbstream";
+    N3MappingCore core(config_);
+    ASSERT_TRUE(core.loadMap(map_file));
+    ASSERT_TRUE(core.saveMap(extended));
 
-    KeyframeManager kf_manager(config_);
-    LoopDetector loop_detector(config_);
-    PointCloudMatcher matcher(config_);
-    GraphOptimizer optimizer(config_);
-    MapSerializer serializer(config_);
-    SubmapBuilder submap_builder(config_);
-    WorldLocalizing relocalization(config_, kf_manager, loop_detector, matcher);
-
-    MappingResuming extension(config_, kf_manager, loop_detector, matcher,
-                              optimizer, serializer, relocalization,
-                              &submap_builder);
-
-    ASSERT_TRUE(loadForExtensionTest(map_file, kf_manager, loop_detector,
-                                     optimizer, serializer, extension));
-    for (const auto& keyframe : kf_manager.getAllKeyframes()) {
-        ASSERT_TRUE(submap_builder.appendKeyframe(keyframe));
-    }
-
-    std::string extended_map_file = config_.map_save_path + "/extended_map.pbstream";
-    ASSERT_TRUE(extension.saveExtendedMap(extended_map_file));
-    ASSERT_TRUE(std::filesystem::exists(extended_map_file));
-
-    KeyframeManager kf_manager2(config_);
-    LoopDetector loop_detector2(config_);
-    GraphOptimizer optimizer2(config_);
-
-    ASSERT_TRUE(serializer.loadMap(extended_map_file, kf_manager2, loop_detector2, optimizer2));
-    EXPECT_EQ(kf_manager2.size(), 3);
+    N3MappingCore reloaded(config_);
+    ASSERT_TRUE(reloaded.loadMap(extended));
+    ASSERT_EQ(reloaded.getAllKeyframes().size(), 3u);
+    EXPECT_EQ(reloaded.getOptimizedPoses().at(1).matrix(),
+              core.getOptimizedPoses().at(1).matrix());
 
     ASSERT_TRUE(AsyncLog::instance().drain());
-    std::ifstream trial_input(
-        config_.map_save_path + "/submap_graph_trial.jsonl");
+    std::ifstream trial_input(config_.map_save_path + "/submap_graph_trial.jsonl");
     ASSERT_TRUE(trial_input.is_open());
     std::string trial_record;
     ASSERT_TRUE(static_cast<bool>(std::getline(trial_input, trial_record)));
-    EXPECT_NE(trial_record.find(
-                  "\"runtime_source\":\"mapping_resuming\""),
-              std::string::npos);
-    EXPECT_NE(trial_record.find("\"context\":\"save_extended_map\""),
-              std::string::npos);
+    EXPECT_NE(trial_record.find("\"context\":\"save_map\""), std::string::npos);
     EXPECT_NE(trial_record.find("\"valid\":true"), std::string::npos);
     EXPECT_NE(trial_record.find("\"solved\":true"), std::string::npos);
-    EXPECT_NE(trial_record.find(
-                  "\"optimized_keyframe_reference_count\":3"),
-              std::string::npos);
+    EXPECT_NE(trial_record.find("\"optimized_keyframe_reference_count\":3"), std::string::npos);
 }
 
 TEST_F(MappingResumingTest, CommitsSessionAnchorThenRawOdometry)
@@ -303,8 +278,7 @@ TEST_F(MappingResumingTest, CommitsSessionAnchorThenRawOdometry)
     GraphOptimizer optimizer(config_);
     MapSerializer serializer(config_);
     WorldLocalizing relocalization(config_, kf_manager, loop_detector, matcher);
-    MappingResuming extension(config_, kf_manager, loop_detector, matcher,
-                              optimizer, serializer, relocalization);
+    MappingResuming extension(config_, kf_manager, optimizer, relocalization);
 
     ASSERT_TRUE(loadForExtensionTest(map_file, kf_manager, loop_detector,
                                      optimizer, serializer, extension));
@@ -357,7 +331,6 @@ TEST_F(MappingResumingTest, CommitsSessionAnchorThenRawOdometry)
     EXPECT_NEAR(anchor_edge->information(0, 0), 25.0, 1e-9);
     EXPECT_NEAR(anchor_edge->information(3, 3), 1.0 / 0.09, 1e-9);
 
-    EXPECT_EQ(extension.detectCrossLoops(first_id), 0);
     EXPECT_EQ(optimizer.getEdges().size(), 1u);
 
     first_keyframe->pose_optimized.translation().y() += 50.0;
@@ -395,7 +368,7 @@ TEST_F(MappingResumingTest, ReplayedAcquisitionAdvancesSamplingWithoutAddingInfo
     GraphOptimizer graph(config_);
     MapSerializer serializer(config_);
     WorldLocalizing localizer(config_, frames, detector, matcher);
-    MappingResuming extension(config_, frames, detector, matcher, graph, serializer, localizer);
+    MappingResuming extension(config_, frames, graph, localizer);
     ASSERT_TRUE(loadForExtensionTest(path, frames, detector, graph, serializer, extension));
     const auto loaded = frames.getKeyframe(0);
     ASSERT_TRUE(extension.performInitialRelocalization(loaded->cloud, loaded->pose_odom));
@@ -444,8 +417,7 @@ TEST_F(MappingResumingTest, TrackedKeyframeAtomicallyPinsSessionDrift)
     MapSerializer serializer(config_);
     SubmapBuilder submap_builder(config_);
     WorldLocalizing relocalization(config_, kf_manager, loop_detector, matcher);
-    MappingResuming extension(config_, kf_manager, loop_detector, matcher,
-                              optimizer, serializer, relocalization,
+    MappingResuming extension(config_, kf_manager, optimizer, relocalization,
                               &submap_builder);
 
     ASSERT_TRUE(loadForExtensionTest(map_file, kf_manager, loop_detector,
@@ -531,8 +503,7 @@ TEST_F(MappingResumingTest, OptimizeFailureLeavesNoGhostAndCanRetrySameId)
     GraphOptimizer optimizer(config_);
     MapSerializer serializer(config_);
     WorldLocalizing relocalization(config_, kf_manager, loop_detector, matcher);
-    MappingResuming extension(config_, kf_manager, loop_detector, matcher,
-                              optimizer, serializer, relocalization);
+    MappingResuming extension(config_, kf_manager, optimizer, relocalization);
 
     ASSERT_TRUE(loadForExtensionTest(map_file, kf_manager, loop_detector,
                                      optimizer, serializer, extension));

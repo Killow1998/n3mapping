@@ -1,5 +1,6 @@
 #pragma once
 #include <chrono>
+#include "n3mapping/visibility_consistency.h"
 #include "n3mapping/core/loop_closure_result.h"
 #include "n3mapping/loop_closure_manager.h"
 #include "n3mapping/loop_debug_logger.h"
@@ -28,7 +29,8 @@ void recordLoopOptimization(
 LoopClosureOutcome processLoopCandidates(
     const Config& config, KeyframeManager& keyframes, PointCloudMatcher& matcher,
     GraphOptimizer& optimizer, LoopClosureManager& manager,
-    const std::vector<DetectedLoopQuery>& queries);
+    const std::vector<DetectedLoopQuery>& queries,
+    const LoadedMapVisibilityEvaluator& visibility = {});
 void rebaseLoopOutcome(const Config& config, GraphOptimizer& optimizer,
                        LoopClosureManager& manager, LoopClosureOutcome& outcome);
 }

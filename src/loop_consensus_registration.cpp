@@ -139,7 +139,7 @@ std::vector<LoopConsensusResult> LoopConsensusVerifier::evaluate(
     for (const auto& [target_key, tasks] : tasks_by_target) {
         const auto [target_id, excluded] = target_key;
         const auto target = keyframes.buildSubmapInRootFrame(
-            target_id, config_.gicp_submap_size, target_id, excluded);
+            target_id, config_.gicp_submap_size, target_id, excluded, cross_session);
         PointCloudMatcher::PreparedTarget prepared_target;
         bool prepared = false;
         for (const auto& task : tasks) {

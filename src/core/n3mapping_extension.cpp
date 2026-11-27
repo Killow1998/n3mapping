@@ -172,9 +172,14 @@ N3MappingCore::processMapExtensionFrame(const core::LioFrame &frame) {
     performance.descriptor_update_ms = resuming_timing.descriptor_update_ms;
   }
   if (keyframe_id >= 0) {
-    if (config_.loop_geometry_enable) {
+    const auto descriptor_started = timingStarted();
+    session_->detector.addDescriptor(keyframe_id, frame.undistorted_cloud);
+    addRhpdDescriptorForKeyframe(keyframe_id, frame.undistorted_cloud);
+    if (performance.enabled)
+      performance.descriptor_update_ms += elapsedMilliseconds(descriptor_started);
+    {
       std::lock_guard<std::mutex> lock(loop_queue_mutex_);
-      loop_detection_queue_.push_back(keyframe_id);
+      loop_detection_queue_.push_back({keyframe_id, tracked});
     }
 
     const auto refresh_started = timingStarted();

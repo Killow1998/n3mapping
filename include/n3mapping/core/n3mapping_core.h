@@ -105,7 +105,11 @@ class N3MappingCore {
     std::unique_ptr<AsyncLoopState> async_loops_;
     mutable std::mutex loop_queue_mutex_;
     mutable std::mutex loop_debug_mutex_;
-    std::vector<int64_t> loop_detection_queue_;
+    struct PendingLoopQuery {
+        int64_t id;
+        bool tracked_against_loaded_map = false;
+    };
+    std::vector<PendingLoopQuery> loop_detection_queue_;
     std::vector<core::AnchoredDenseTrajectorySample> dense_trajectory_samples_;
     core::DenseTrajectoryMetadata dense_trajectory_metadata_;
     bool external_dense_trajectory_recording_enabled_ = false;

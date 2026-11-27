@@ -38,7 +38,35 @@ public:
 };
 }
 
-bool GraphOptimizer::optimizeGeometryUpdate() {
+gtsam::Values GraphOptimizer::solveConditioned(
+    const gtsam::NonlinearFactorGraph& graph, const gtsam::Values& values,
+    const gtsam::LevenbergMarquardtParams& params) const {
+  if (fixed_node_ids_.empty())
+    return gtsam::LevenbergMarquardtOptimizer(graph, values, params).optimize();
+
+  gtsam::Values fixed;
+  gtsam::Values free;
+  for (const auto& entry : values) {
+    const gtsam::Symbol symbol(entry.key);
+    auto& destination = symbol.chr() == 'x' && fixed_node_ids_.count(symbol.index())
+        ? fixed : free;
+    destination.insert(entry.key, entry.value);
+  }
+  if (free.empty()) return values;
+
+  gtsam::NonlinearFactorGraph reduced;
+  for (const auto& factor : graph) {
+    const auto fixed_count = std::count_if(factor->keys().begin(), factor->keys().end(),
+        [&](gtsam::Key key) { return fixed.exists(key); });
+    if (fixed_count == 0) reduced.push_back(factor);
+    else if (static_cast<size_t>(fixed_count) < factor->size())
+      reduced.push_back(boost::make_shared<ConditionedFactor>(factor, fixed));
+  }
+  fixed.insert(gtsam::LevenbergMarquardtOptimizer(reduced, free, params).optimize());
+  return fixed;
+}
+
+bool GraphOptimizer::optimizeGeometryUpdate(const gtsam::Values* rebased_poses) {
   try {
     return internal::runGraphSolve(config_.num_threads, [&] {
       gtsam::LevenbergMarquardtParams params;
@@ -58,10 +86,30 @@ bool GraphOptimizer::optimizeGeometryUpdate() {
         if (!std::isfinite(local.error(tail))) throw std::runtime_error("Non-finite append cost");
         result.insert(tail);
       } else {
-        auto candidate = gtsam_->graph_;
+        gtsam::NonlinearFactorGraph candidate;
+        gtsam::Values unobserved_planes;
+        if (rebased_poses) result.update(*rebased_poses);
+        if (rebased_poses && !shared_planes_.empty()) {
+          // Plane associations for moved poses will be rebuilt from the solved trajectory.
+          for (const auto& factor : gtsam_->graph_) {
+            const auto* plane = dynamic_cast<const planar_geometry::MomentPlaneFactor*>(factor.get());
+            if (!plane || !rebased_poses->exists(plane->key1()))
+              candidate.push_back(factor);
+          }
+          const auto active_keys = candidate.keys();
+          for (size_t i = 0; i < shared_planes_.size(); ++i) {
+            const gtsam::Symbol key('p', i);
+            if (active_keys.count(key)) continue;
+            unobserved_planes.insert(key, result.at(key));
+            result.erase(key);
+          }
+        } else {
+          candidate = gtsam_->graph_;
+        }
         appendPendingTo(&candidate, &result);
-        result = gtsam::LevenbergMarquardtOptimizer(candidate, result, params).optimize();
+        result = solveConditioned(candidate, result, params);
         if (!std::isfinite(candidate.error(result))) throw std::runtime_error("Non-finite graph cost");
+        result.insert(unobserved_planes);
       }
       for (const auto id : pending_node_ids_)
         if (!result.at<gtsam::Pose3>(gtsam::Symbol('x', id)).matrix().allFinite())

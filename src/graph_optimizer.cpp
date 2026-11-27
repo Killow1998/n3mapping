@@ -64,7 +64,8 @@ void GraphOptimizer::addFloorAttitudeFactor(int64_t id,
 
 void GraphOptimizer::optimize() {
     gtsam::NonlinearFactorGraph candidate_graph = gtsam_->graph_;
-    gtsam::Values candidate_values = gtsam_->initial_values_;
+    gtsam::Values candidate_values = fixed_node_ids_.empty()
+        ? gtsam_->initial_values_ : gtsam_->current_estimate_;
     appendPendingTo(&candidate_graph, &candidate_values);
 
     if (candidate_graph.empty() || candidate_values.empty()) {
@@ -92,7 +93,7 @@ bool GraphOptimizer::incrementalOptimize() {
         return true;
     }
 
-    if (!shared_planes_.empty() ||
+    if (!fixed_node_ids_.empty() || !shared_planes_.empty() ||
         (config_.loop_geometry_enable && !node_ids_.empty() &&
          (has_session_anchor_ || pending_has_session_anchor_)))
         return optimizeGeometryUpdate();
@@ -205,6 +206,7 @@ void GraphOptimizer::swapWith(GraphOptimizer& other) {
     swap(pending_plane_observations_, other.pending_plane_observations_);
     swap(pending_edges_, other.pending_edges_);
     swap(node_ids_, other.node_ids_);
+    swap(fixed_node_ids_, other.fixed_node_ids_);
     swap(pending_node_ids_, other.pending_node_ids_);
     swap(has_loop_closure_, other.has_loop_closure_);
     swap(pending_has_loop_closure_, other.pending_has_loop_closure_);
@@ -234,6 +236,7 @@ void GraphOptimizer::clear() {
     pending_plane_observations_.clear();
     pending_edges_.clear();
     node_ids_.clear();
+    fixed_node_ids_.clear();
     pending_node_ids_.clear();
     has_loop_closure_ = false;
     pending_has_loop_closure_ = false;
@@ -351,7 +354,7 @@ void GraphOptimizer::commitPending(const gtsam::Values& optimized_estimate,
 
 void GraphOptimizer::rebuildISAM2FromCommitted() {
     gtsam_->isam2_ = createISAM2();
-    if (gtsam_->graph_.empty()) {
+    if (!fixed_node_ids_.empty() || gtsam_->graph_.empty()) {
         return;
     }
     const gtsam::Values& values = !gtsam_->current_estimate_.empty() ? gtsam_->current_estimate_ : gtsam_->initial_values_;
@@ -378,8 +381,7 @@ bool GraphOptimizer::optimizeCandidate(const gtsam::NonlinearFactorGraph& candid
             params.maxIterations = config_.optimization_iterations;
             params.verbosity = gtsam::NonlinearOptimizerParams::SILENT;
 
-            gtsam::LevenbergMarquardtOptimizer optimizer(candidate_graph, candidate_values, params);
-            *optimized_estimate = optimizer.optimize();
+            *optimized_estimate = solveConditioned(candidate_graph, candidate_values, params);
             return !optimized_estimate->empty();
         });
     } catch (const std::exception& e) {

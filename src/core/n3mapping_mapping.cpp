@@ -121,7 +121,7 @@ N3MappingCore::processMappingFrame(const core::LioFrame &frame) {
 
   {
     std::lock_guard<std::mutex> lock(loop_queue_mutex_);
-    loop_detection_queue_.push_back(keyframe_id);
+    loop_detection_queue_.push_back({keyframe_id});
   }
   return output;
 }

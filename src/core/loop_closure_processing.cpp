@@ -3,6 +3,7 @@
 #include "n3mapping/keyframe_manager.h"
 #include "loop_closure_diagnostics.h"
 
+#include <array>
 #include <map>
 #include <set>
 #include <utility>
@@ -18,7 +19,8 @@ using namespace loop_diagnostics;
 LoopClosureOutcome processLoopCandidates(
     const Config& config, KeyframeManager& keyframes, PointCloudMatcher& matcher,
     GraphOptimizer& optimizer, LoopClosureManager& manager,
-    const std::vector<DetectedLoopQuery>& queries) {
+    const std::vector<DetectedLoopQuery>& queries,
+    const LoadedMapVisibilityEvaluator& visibility) {
   LoopClosureOutcome outcome;
   auto& result = outcome.summary;
   LoopVerificationPipeline verification_pipeline(config, keyframes, matcher, optimizer, manager);
@@ -28,8 +30,7 @@ LoopClosureOutcome processLoopCandidates(
     const auto query_kf = keyframes.getKeyframe(query.id);
     if (!query_kf) continue;
     const auto& candidates = query.candidates;
-    std::vector<VerifiedLoop> verified_loops;
-    verified_loops.reserve(candidates.size());
+    std::array<std::vector<VerifiedLoop>, 2> verified_groups;
     std::vector<LoopDebugCandidateEvent> debug_events;
     std::map<std::pair<int64_t, int64_t>, EdgeInfo> edge_by_pair;
     std::map<std::pair<int64_t, int64_t>, std::string> graph_reject_by_pair;
@@ -78,7 +79,18 @@ LoopClosureOutcome processLoopCandidates(
         };
 
     for (const auto &candidate : candidates) {
-      auto pipeline_result = verification_pipeline.evaluate(candidate);
+      const auto match = keyframes.getKeyframe(candidate.match_id);
+      if (!match) continue;
+      const bool cross_session = !query_kf->is_from_loaded_map && match->is_from_loaded_map;
+      LoopVerificationContext context;
+      context.cross_session = cross_session;
+      if (cross_session) {
+        context.pose_visibility_evaluator = [&](const Eigen::Isometry3d& pose) {
+          return visibility ? visibility(*query_kf->cloud, pose)
+                            : VisibilityConsistencyResult{};
+        };
+      }
+      auto pipeline_result = verification_pipeline.evaluate(candidate, context);
       VLOG(1) << "[Loop/Verification] query=" << candidate.query_id
               << " match=" << candidate.match_id
               << " registered=" << pipeline_result.registration_attempted
@@ -95,59 +107,44 @@ LoopClosureOutcome processLoopCandidates(
             pipeline_result, matcher, config.loop_debug_vertical_hypotheses_enable));
       }
       if (pipeline_result.registration_attempted)
-        verified_loops.push_back(std::move(pipeline_result.loop));
+        verified_groups[cross_session].push_back(std::move(pipeline_result.loop));
     }
 
-    if (verified_loops.empty()) {
-      flush_debug_events({}, "not_selected");
-      continue;
-    }
-
-    auto valid_loops =
-        manager.filterValidLoops(verified_loops);
-
-    auto candidate_loops =
-        config.loop_keep_all_verified
-            ? valid_loops
-            : manager.selectBestPerQuery(valid_loops);
-    if (candidate_loops.empty()) {
-      flush_debug_events({}, "not_selected");
-      continue;
-    }
-
-    const auto poses_before = optimizer.getOptimizedPoses();
     std::vector<VerifiedLoop> gated_loops;
-    gated_loops.reserve(candidate_loops.size());
 
     std::multimap<std::pair<int64_t, int64_t>, LoopDebugCandidateEvent*> events_by_pair;
     for (auto& event : debug_events)
       events_by_pair.emplace(std::make_pair(event.candidate.query_id, event.candidate.match_id), &event);
 
-    for (const auto &gate : verification_pipeline.evaluateConstraints(
-             candidate_loops, LoopEdgeDirection::MatchToQuery)) {
-      const auto key = std::make_pair(gate.loop.query_id, gate.loop.match_id);
-      if (gate.has_edge) edge_by_pair[key] = gate.edge;
-      const auto events = events_by_pair.equal_range(key);
-      for (auto it = events.first; it != events.second; ++it) {
-        auto& event = *it->second;
-        assignConsensusDiagnostics(event, gate.consensus);
-        event.loop_referee_recommendation = gate.loop.loop_referee_recommendation;
-        event.loop_referee_reason = gate.loop.loop_referee_reason;
-        event.loop_referee_risk_flags = gate.loop.loop_referee_risk_flags;
-        if (gate.has_edge) {
-          event.loop_information = gate.edge.information;
-          assignGraphTrialDiagnostics(event, gate.graph_trial);
+    for (size_t group = 0; group < verified_groups.size(); ++group) {
+      const auto valid = manager.filterValidLoops(verified_groups[group]);
+      const auto selected = config.loop_keep_all_verified ? valid : manager.selectBestPerQuery(valid);
+      for (const auto& gate : verification_pipeline.evaluateConstraints(
+               selected, LoopEdgeDirection::MatchToQuery, {group != 0})) {
+        const auto key = std::make_pair(gate.loop.query_id, gate.loop.match_id);
+        if (gate.has_edge) edge_by_pair[key] = gate.edge;
+        const auto events = events_by_pair.equal_range(key);
+        for (auto it = events.first; it != events.second; ++it) {
+          auto& event = *it->second;
+          assignConsensusDiagnostics(event, gate.consensus);
+          event.loop_referee_recommendation = gate.loop.loop_referee_recommendation;
+          event.loop_referee_reason = gate.loop.loop_referee_reason;
+          event.loop_referee_risk_flags = gate.loop.loop_referee_risk_flags;
+          if (gate.has_edge) {
+            event.loop_information = gate.edge.information;
+            assignGraphTrialDiagnostics(event, gate.graph_trial);
+          }
+          if (gate.has_consensus_estimator_trial)
+            assignConsensusEstimatorTrialDiagnostics(event, gate.consensus_estimator_trial);
         }
-        if (gate.has_consensus_estimator_trial)
-          assignConsensusEstimatorTrialDiagnostics(event, gate.consensus_estimator_trial);
+        if (!gate.accepted || !gate.has_edge) {
+          graph_reject_by_pair[key] = gate.reject_reason.empty()
+                                          ? "verification_pipeline_rejected"
+                                          : gate.reject_reason;
+          continue;
+        }
+        gated_loops.push_back(gate.loop);
       }
-      if (!gate.accepted || !gate.has_edge) {
-        graph_reject_by_pair[key] = gate.reject_reason.empty()
-                                        ? "verification_pipeline_rejected"
-                                        : gate.reject_reason;
-        continue;
-      }
-      gated_loops.push_back(gate.loop);
     }
 
     if (gated_loops.empty()) {
@@ -179,7 +176,7 @@ LoopClosureOutcome processLoopCandidates(
       flush_debug_events({}, "same_query_consensus_rejected");
       continue;
     }
-    if (config.loop_geometry_enable && queries.size() > 1) {
+    if (config.loop_geometry_enable && queries.size() > 1 && optimizer.fixedNodes().empty()) {
       batch_edges.insert(batch_edges.end(), edges.begin(), edges.end());
       batch_loops.insert(batch_loops.end(), best_loops.begin(), best_loops.end());
       std::set<std::pair<int64_t, int64_t>> pairs;
@@ -187,9 +184,10 @@ LoopClosureOutcome processLoopCandidates(
       flush_debug_events(pairs, "not_selected");
       continue;
     }
+    const auto poses_before = optimizer.getOptimizedPoses();
     result.place_candidate_count += best_loops.size();
     const bool optimization_committed =
-        manager.applyEdges(edges, optimizer);
+        optimizer.optimizeLoopEdges(edges);
     if (!optimization_committed) {
       flush_debug_events({}, "optimization_failed");
       continue;
@@ -210,10 +208,9 @@ LoopClosureOutcome processLoopCandidates(
   if (!batch_edges.empty()) {
     const auto before = optimizer.getOptimizedPoses();
 
-    const auto trial = computeLoopGraphTrialDiagnostics(
-        config, before, optimizer.getEdges(), batch_edges);
+    const auto trial = computeLoopGraphTrialDiagnostics(config, optimizer, batch_edges);
     if (trial.success && loopGraphTrialRejectReason(trial).empty() &&
-        manager.applyEdges(batch_edges, optimizer)) {
+        optimizer.optimizeLoopEdges(batch_edges)) {
       result.place_candidate_count += batch_loops.size();
       recordLoopOptimization(config, batch_edges, batch_loops, before,
                              optimizer.getOptimizedPoses(), outcome);

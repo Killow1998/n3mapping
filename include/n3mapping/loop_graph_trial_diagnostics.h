@@ -1,6 +1,7 @@
 #pragma once
 
 #include <map>
+#include <set>
 #include <limits>
 #include <string>
 #include <vector>
@@ -38,6 +39,12 @@ LoopGraphTrialDiagnostics computeLoopGraphTrialDiagnostics(
     const Config& config,
     const std::map<int64_t, Eigen::Isometry3d>& poses_before,
     const std::vector<EdgeInfo>& committed_edges,
+    const std::vector<EdgeInfo>& candidate_edges,
+    const std::set<int64_t>& fixed_node_ids = {});
+
+class GraphOptimizer;
+LoopGraphTrialDiagnostics computeLoopGraphTrialDiagnostics(
+    const Config& config, const GraphOptimizer& graph,
     const std::vector<EdgeInfo>& candidate_edges);
 
 struct VerifiedLoop;

@@ -1,6 +1,8 @@
 #include "n3mapping/core/n3mapping_core.h"
 #include "n3mapping/pcl_compat.h"
 #include "n3map.pb.h"
+#include "n3mapping/world_localizing.h"
+#include "../src/core/loop_closure_async.h"
 #include <gtest/gtest.h>
 #include <algorithm>
 #include <cmath>
@@ -61,6 +63,9 @@ TEST_P(MapExtensionRoute, ExtendsBeyondLoadedGeometryAndRecoversWithoutAnotherIn
   Config config;
   config.mapping_static_start_guard_enable = false;
   config.num_threads = 4;
+  config.loop_kf_gap = 1;
+  config.sc_num_exclude_recent = 2;
+  config.loop_min_path_length_m = 0.0;
   const auto dir = std::filesystem::temp_directory_path() / "n3mapping_extension_door_route";
   std::filesystem::create_directories(dir);
   const auto original_path = (dir / "original.pbstream").string();
@@ -86,6 +91,9 @@ TEST_P(MapExtensionRoute, ExtendsBeyondLoadedGeometryAndRecoversWithoutAnotherIn
     return frame;
   };
   const auto original_poses = core.getOptimizedPoses();
+  std::map<int64_t, Eigen::Isometry3d> original_keyframes;
+  for (const auto& frame : core.getAllKeyframes())
+    original_keyframes.emplace(frame->id, frame->pose_optimized);
   int64_t stamp = 10000000000LL;
   core::BackendOutput output;
   int locks = 0;
@@ -114,10 +122,25 @@ TEST_P(MapExtensionRoute, ExtendsBeyondLoadedGeometryAndRecoversWithoutAnotherIn
     EXPECT_TRUE(core.startMapExtension(&switch_error));
     stamp += 100000000LL;
   }
-  ASSERT_TRUE(core.processMapExtensionFrame(sensor_frame(stamp, -3, 0)).accepted_keyframe);
+  const auto anchor = core.processMapExtensionFrame(sensor_frame(stamp, -3, 0));
+  ASSERT_TRUE(anchor.accepted_keyframe);
+  ASSERT_EQ(anchor.pose_source, PoseSource::GEOMETRICALLY_CORRECTED);
+  const auto overlap = core.processPendingLoopClosuresAsync();
+  EXPECT_EQ(overlap.queued_keyframe_count, 1u);
+  EXPECT_EQ(overlap.detected_candidate_count, 0u);
+  auto geometry = core.processPendingLoopClosures();
+  EXPECT_EQ(geometry.atlas_prepare_ms, 0.0);
   stamp += 1000000000LL;
   int prediction_frames = 0, prediction_keyframes = 0, lost_frames = 0;
-  std::vector<int64_t> predicted_keyframes;
+  std::set<int64_t> tracked_keyframes{anchor.keyframe_id};
+  std::vector<VerifiedLoop> accepted_loops;
+  bool geometry_optimized = geometry.geometry.optimized;
+  const auto record = [&](const CoreLoopClosureResult& result) {
+    geometry_optimized |= result.geometry.optimized;
+    EXPECT_EQ(result.atlas_prepare_ms, 0.0);
+    accepted_loops.insert(accepted_loops.end(),
+                          result.accepted_loops.begin(), result.accepted_loops.end());
+  };
   double maximum_error = 0.0;
   const double route[][2] = {
     {-2,0},{-1,0},{0,0},{1,0},{2,0},{3,0},{4,0},
@@ -136,8 +159,9 @@ TEST_P(MapExtensionRoute, ExtendsBeyondLoadedGeometryAndRecoversWithoutAnotherIn
     if (output.pose_source == PoseSource::ODOM_PREDICTED) {
       ++prediction_frames;
       prediction_keyframes += output.accepted_keyframe;
-      if (output.accepted_keyframe) predicted_keyframes.push_back(output.keyframe_id);
       EXPECT_NE(output.relocalization_state, RelocalizationState::FULL_6DOF_LOCKED);
+    } else if (output.accepted_keyframe && output.pose_source == PoseSource::GEOMETRICALLY_CORRECTED) {
+      tracked_keyframes.insert(output.keyframe_id);
     }
     lost_frames += output.relocalization_state == RelocalizationState::LOST;
     frame.stamp.nsec += 100000000LL;
@@ -146,8 +170,28 @@ TEST_P(MapExtensionRoute, ExtendsBeyondLoadedGeometryAndRecoversWithoutAnotherIn
     EXPECT_FALSE(intermediate.accepted_keyframe);
     EXPECT_NEAR(core.getDenseOptimizedTrajectory().back().timestamp,
                 frame.stamp.nsec*1e-9, 1e-9);
-    core.processPendingLoopClosuresAsync();
+    record(core.processPendingLoopClosuresAsync());
   }
+  const auto completed = core.processPendingLoopClosures();
+  ASSERT_TRUE(completed.optimized);
+  record(completed);
+  EXPECT_TRUE(geometry_optimized);
+  EXPECT_TRUE(std::any_of(accepted_loops.begin(), accepted_loops.end(), [&](const auto& loop) {
+    return !original_poses.count(loop.match_id) && !original_poses.count(loop.query_id);
+  }));
+  for (const auto& loop : accepted_loops) {
+    if (original_poses.count(loop.match_id)) {
+      EXPECT_EQ(tracked_keyframes.count(loop.query_id), 0u);
+    }
+  }
+  const auto latest = core.getAllKeyframes().back();
+  auto prediction = sensor_frame(stamp, -3, 0);
+  prediction.undistorted_cloud->resize(1);
+  const auto predicted = core.processMapExtensionFrame(prediction);
+  ASSERT_EQ(predicted.pose_source, PoseSource::ODOM_PREDICTED);
+  EXPECT_TRUE(predicted.T_world_lidar.isApprox(
+      latest->pose_optimized * latest->pose_odom.inverse() * prediction.T_world_lidar, 1e-10));
+  stamp += 1000000000LL;
   EXPECT_GT(prediction_keyframes, 0);
   EXPECT_GT(lost_frames, 0);
   EXPECT_EQ(locks, 1);
@@ -172,8 +216,11 @@ TEST_P(MapExtensionRoute, ExtendsBeyondLoadedGeometryAndRecoversWithoutAnotherIn
   EXPECT_EQ(core.getAllKeyframes().size(), before_invalid);
 
   ASSERT_TRUE(core.saveMap(extended_path));
-  for (const auto& [id, pose] : original_poses)
-    EXPECT_LT((core.getOptimizedPoses().at(id).translation()-pose.translation()).norm(), 0.02);
+  const auto final_poses = core.getOptimizedPoses();
+  for (const auto& [id, pose] : original_poses) {
+    EXPECT_EQ(final_poses.at(id).matrix(), pose.matrix());
+    EXPECT_EQ(core.getKeyframe(id)->pose_optimized.matrix(), original_keyframes.at(id).matrix());
+  }
   N3Map serialized;
   std::ifstream input(extended_path, std::ios::binary);
   ASSERT_TRUE(serialized.ParseFromIstream(&input));
@@ -184,8 +231,6 @@ TEST_P(MapExtensionRoute, ExtendsBeyondLoadedGeometryAndRecoversWithoutAnotherIn
     loops += edge.type() == EdgeProto::LOOP;
     if (edge.type() == EdgeProto::LOOP &&
         original_poses.count(edge.from_id())) {
-      EXPECT_EQ(std::find(predicted_keyframes.begin(), predicted_keyframes.end(), edge.to_id()),
-                predicted_keyframes.end());
       return_constraint |= edge.to_id() == returned_keyframe;
     }
   }
@@ -231,6 +276,178 @@ TEST_P(MapExtensionRoute, ExtendsBeyondLoadedGeometryAndRecoversWithoutAnotherIn
   }
   if (!HasFailure()) std::filesystem::remove_all(dir);
 }
+TEST(MapContinuation, DescriptorReturnRepairsDriftBeyondSpatialGate) {
+  Config config;
+  config.num_threads = 2;
+  config.sc_num_exclude_recent = 0;
+  config.loop_min_path_length_m = 0.0;
+  config.rhpd_num_candidates = 4;
+  config.keyframe_distance_threshold = 0.25;
+  constexpr int64_t first_new = 15;
+  constexpr int64_t query_id = first_new + 240;
+  constexpr double drift = 9.6;
+  constexpr double return_x = -3.4;
+
+  GraphOptimizer graph(config);
+  KeyframeManager frames(config);
+  LoopDetector detector(config);
+  PointCloudMatcher matcher(config);
+  std::vector<Keyframe::Ptr> keyframes;
+  std::vector<Keyframe::Ptr> loaded;
+  std::vector<std::pair<int64_t, Eigen::Isometry3d>> poses;
+  std::vector<EdgeInfo> edges;
+  std::set<int64_t> fixed;
+  const Eigen::Matrix<double, 6, 6> information =
+      Eigen::Matrix<double, 6, 6>::Identity() * 100;
+  const auto stationary = roomFrame(0, return_x + 1.2, 0);
+  const auto missing_scan = pcl::make_shared<core::LioFrame::PointCloud>();
+  for (int64_t id = 0; id <= query_id; ++id) {
+    const bool reference = id < first_new;
+    auto frame = reference ? roomFrame(0, -4.8 + 0.2 * id, 0) : stationary;
+    if (!reference) {
+      const auto steps_to_return = query_id - id;
+      if (steps_to_return < 6)
+        frame = roomFrame(0, return_x + 0.2 * steps_to_return, 0);
+      else if (id > first_new + 16)
+        frame.undistorted_cloud = missing_scan;
+      frame.T_world_lidar.translation().y() = drift * (id - first_new) / (query_id - first_new);
+    }
+    auto keyframe = Keyframe::create(id, id, frame.T_world_lidar, frame.undistorted_cloud);
+    keyframe->session_id = reference ? 0 : 1;
+    keyframes.push_back(keyframe);
+    poses.emplace_back(id, frame.T_world_lidar);
+    if (reference) {
+      loaded.push_back(keyframe);
+      fixed.insert(id);
+    }
+    if (id > 0) {
+      const Eigen::Isometry3d delta = poses[id - 1].second.inverse() * poses[id].second;
+      const auto type = id == first_new ? EdgeType::SESSION_ANCHOR : EdgeType::ODOMETRY;
+      edges.push_back({id - 1, id, delta, information, type});
+    }
+    if (reference || id == query_id) {
+      detector.addDescriptor(id, frame.undistorted_cloud);
+      detector.addRHPD(id, frame.undistorted_cloud);
+    }
+  }
+  MapSessionInfo old_session, new_session;
+  old_session.source_frame_id = "reference";
+  new_session.id = 1;
+  new_session.source_frame_id = "continuation";
+  new_session.start_timestamp = first_new;
+  ASSERT_TRUE(frames.loadKeyframes(keyframes, {old_session, new_session}));
+  std::map<int64_t, Keyframe::Ptr> by_id;
+  for (const auto& frame : frames.getAllKeyframes()) {
+    frame->is_from_loaded_map = fixed.count(frame->id) != 0;
+    by_id.emplace(frame->id, frame);
+  }
+  ASSERT_TRUE(graph.loadGraph(poses, edges, {}, {}, true));
+  graph.setFixedNodes(fixed);
+
+  LocalizationAtlas atlas(config, matcher);
+  ASSERT_TRUE(atlas.prepare(loaded));
+  WorldLocalizing localizer(config, frames, detector, matcher);
+  localizer.installOptimizedReference(atlas, Eigen::Isometry3d::Identity());
+  DetectedLoopQuery query{query_id, detector.detectLoopCandidates(
+      query_id, by_id, [&](int64_t id) { return fixed.count(id) != 0; })};
+  ASSERT_FALSE(query.candidates.empty());
+  for (const auto& candidate : query.candidates) {
+    ASSERT_GT((poses.at(candidate.match_id).second.translation() -
+               poses.back().second.translation()).norm(), 8.0);
+    EXPECT_TRUE(candidate.fromRHPD() || candidate.fromSC());
+  }
+
+  Config no_atlas_config = config;
+  no_atlas_config.reloc_atlas_enable = false;
+  no_atlas_config.loop_debug_enable = true;
+  WorldLocalizing no_atlas(no_atlas_config, frames, detector, matcher);
+  auto missing_visibility = no_atlas.snapshotLoadedMapVisibility();
+  ASSERT_FALSE(missing_visibility);
+  LoopCandidate same_session;
+  same_session.query_id = first_new + 10;
+  same_session.match_id = first_new + 1;
+  same_session.source_flags = LoopCandidate::SOURCE_SPATIAL;
+  auto no_atlas_graph = graph.cloneCommitted();
+  LoopClosureManager no_atlas_manager(no_atlas_config);
+  const auto no_atlas_result = processLoopCandidates(
+      no_atlas_config, frames, matcher, *no_atlas_graph, no_atlas_manager,
+      {query, {same_session.query_id, {same_session}}}, missing_visibility);
+  EXPECT_TRUE(std::any_of(no_atlas_result.candidates.begin(), no_atlas_result.candidates.end(),
+      [&](const auto& event) {
+        return event.candidate.query_id == query_id &&
+               event.reject_reason == "loaded_map_visibility_nonpositive";
+      }));
+  ASSERT_FALSE(no_atlas_result.summary.accepted_loops.empty());
+  for (const auto& loop : no_atlas_result.summary.accepted_loops) {
+    EXPECT_EQ(loop.query_id, same_session.query_id);
+    EXPECT_EQ(loop.match_id, same_session.match_id);
+  }
+
+  AsyncLoopJob worker(config, frames, graph.cloneCommitted(), {query},
+                      localizer.snapshotLoadedMapVisibility());
+  worker.run();
+  ASSERT_TRUE(worker.outcome.summary.optimized);
+  EXPECT_TRUE(worker.outcome.summary.geometry.optimized);
+  ASSERT_FALSE(worker.outcome.summary.accepted_loops.empty());
+  EXPECT_EQ(worker.outcome.summary.atlas_prepare_ms, 0.0);
+  for (const auto& loop : worker.outcome.summary.accepted_loops) {
+    EXPECT_EQ(loop.query_id, query_id);
+    EXPECT_EQ(fixed.count(loop.match_id), 1u);
+    EXPECT_EQ(loop.consensus_shadow_decision, "commit");
+  }
+  for (int64_t id : fixed)
+    EXPECT_EQ(worker.graph->getOptimizedPose(id).matrix(), graph.getOptimizedPose(id).matrix());
+  EXPECT_NEAR(worker.graph->getOptimizedPose(query_id).translation().x(), return_x, 0.15);
+  const auto corrected = worker.graph->getOptimizedPose(query_id).translation().eval();
+  EXPECT_NEAR(corrected.y(), 0.0, 0.15);
+  RecordProperty("return_lateral_error_m", std::to_string(std::abs(corrected.y())));
+  RecordProperty("inserted_cross_session_edges", worker.outcome.summary.edge_count);
+
+  // The live graph has more frames and new plane associations by the time the job returns.
+  for (int64_t id = query_id + 1; id <= query_id + 3; ++id) {
+    auto frame = roomFrame(0, return_x - 0.2 * (id - query_id), 0);
+    frame.T_world_lidar.translation().y() = drift * (id - first_new) / (query_id - first_new);
+    auto keyframe = Keyframe::create(id, id, frame.T_world_lidar, frame.undistorted_cloud);
+    keyframe->session_id = new_session.id;
+    keyframes.push_back(keyframe);
+    const Eigen::Isometry3d delta = poses.back().second.inverse() * frame.T_world_lidar;
+    poses.emplace_back(id, frame.T_world_lidar);
+    ASSERT_TRUE(graph.addSessionOdometryEdge({id - 1, id, delta, information, EdgeType::ODOMETRY},
+                                            frame.T_world_lidar));
+    ASSERT_TRUE(graph.incrementalOptimize());
+  }
+  ASSERT_TRUE(frames.loadKeyframes(keyframes, {old_session, new_session}));
+  for (const auto& frame : frames.getAllKeyframes())
+    frame->is_from_loaded_map = fixed.count(frame->id) != 0;
+  GeometryOptimizationStats stats;
+  const auto stale_planes = buildSharedPlanes(frames.getAllKeyframes(), stats);
+  ASSERT_TRUE(std::any_of(stale_planes.begin(), stale_planes.end(), [&](const auto& plane) {
+    return std::any_of(plane.observations.begin(), plane.observations.end(),
+        [&](const auto& obs) { return obs.node_id > query_id; });
+  }));
+  ASSERT_TRUE(graph.replaceSharedPlanes(stale_planes, false, stats));
+  AsyncLoopJob retry(config, frames, graph.cloneCommitted(), {query},
+                     localizer.snapshotLoadedMapVisibility());
+  retry.outcome = std::move(worker.outcome);
+  retry.rebase();
+  ASSERT_FALSE(retry.outcome.summary.accepted_loops.empty());
+  EXPECT_TRUE(retry.outcome.summary.geometry.optimized);
+  EXPECT_EQ(retry.outcome.summary.atlas_prepare_ms, 0.0);
+  EXPECT_NEAR(retry.graph->getOptimizedPose(query_id).translation().y(), 0.0, 0.15);
+  double max_tail_error = 0.;
+  for (int64_t id = query_id + 1; id <= poses.back().first; ++id) {
+    const Eigen::Isometry3d actual =
+        retry.graph->getOptimizedPose(id - 1).inverse() * retry.graph->getOptimizedPose(id);
+    const Eigen::Isometry3d measured = poses[id - 1].second.inverse() * poses[id].second;
+    max_tail_error = std::max(max_tail_error, (actual.translation() - measured.translation()).norm());
+  }
+  EXPECT_LT(max_tail_error, 0.05);
+  for (int64_t id : fixed)
+    EXPECT_EQ(retry.graph->getOptimizedPose(id).matrix(), graph.getOptimizedPose(id).matrix());
+  RecordProperty("rebase_tail_translation_error_m", std::to_string(max_tail_error));
+  RecordProperty("rebased_cross_session_edges", retry.outcome.summary.edge_count);
+}
+
 INSTANTIATE_TEST_SUITE_P(Startup, MapExtensionRoute, ::testing::Values(false, true));
 }
 }

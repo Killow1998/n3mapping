@@ -15,6 +15,7 @@ std::unique_ptr<GraphOptimizer> GraphOptimizer::cloneCommitted() const {
     result->edges_ = edges_;
     result->shared_planes_ = shared_planes_;
     result->node_ids_ = node_ids_;
+    result->fixed_node_ids_ = fixed_node_ids_;
     result->has_loop_closure_ = has_loop_closure_;
     result->has_session_anchor_ = has_session_anchor_;
     result->floor_attitude_factor_count_ = floor_attitude_factor_count_;

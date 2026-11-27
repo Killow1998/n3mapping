@@ -17,7 +17,7 @@ struct SaveDirectory {
 }
 bool N3MappingCore::saveMap(const std::string &map_path) {
   LogOperation operation("map_save", map_path);
-  if (async_loops_ || (map_loaded_ && config_.loop_geometry_enable)) {
+  if (async_loops_ || map_loaded_) {
     LogOperation drain("map_save_drain", map_path);
     const auto loops = processPendingLoopClosures();
     logEvent("map_save_drained", "edges=" + std::to_string(loops.edge_count) +

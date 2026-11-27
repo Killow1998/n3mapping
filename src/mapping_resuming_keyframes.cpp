@@ -203,10 +203,8 @@ int64_t MappingResuming::processNewKeyframe(
                       << " to=" << edge.to_id << " session=" << current_session_id_
                       << " measurement_t=" << edge.measurement.translation().transpose()
                       << " measurement_rpy_deg=" << measurement_rpy_deg.transpose();
-            last_trusted_constraint_keyframe_id_ = new_kf_id;
         } else if (has_tracking_constraint) {
             ++cross_loop_count_;
-            last_trusted_constraint_keyframe_id_ = new_kf_id;
             LOG(INFO) << "[MappingResuming] Committed loaded-map tracking loop "
                       << "match=" << loaded_tracking_match_id << " query=" << new_kf_id;
         }

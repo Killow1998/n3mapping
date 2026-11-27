@@ -71,7 +71,7 @@ bool GraphOptimizer::replaceSharedPlanes(const std::vector<SharedPlane>& planes,
       params.maxIterations = 20;
       params.diagonalDamping = true;
       values = internal::runGraphSolve(config_.num_threads, [&] {
-        return gtsam::LevenbergMarquardtOptimizer(candidate, values, params).optimize();
+        return solveConditioned(candidate, values, params);
       });
       stats.solve_ms = std::chrono::duration<double, std::milli>(
           std::chrono::steady_clock::now() - start).count();
@@ -84,6 +84,7 @@ bool GraphOptimizer::replaceSharedPlanes(const std::vector<SharedPlane>& planes,
       if (!values.at<gtsam::Pose3>(gtsam::Symbol('x', id)).matrix().allFinite())
         throw std::runtime_error("Non-finite geometry pose");
     for (int64_t id : node_ids_) {
+      if (fixed_node_ids_.count(id)) continue;
       const auto key = gtsam::Symbol('x', id);
       const auto& before = gtsam_->current_estimate_.at<gtsam::Pose3>(key);
       const auto& after = values.at<gtsam::Pose3>(key);

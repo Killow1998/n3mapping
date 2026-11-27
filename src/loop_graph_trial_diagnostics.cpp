@@ -148,11 +148,12 @@ double consistencyScore(const LoopGraphTrialDiagnostics& diagnostics)
 
 }
 
-LoopGraphTrialDiagnostics computeLoopGraphTrialDiagnostics(
+namespace {
+LoopGraphTrialDiagnostics evaluateGraphTrial(
     const Config& config,
     const std::map<int64_t, Eigen::Isometry3d>& poses_before,
     const std::vector<EdgeInfo>& committed_edges,
-    const std::vector<EdgeInfo>& candidate_edges)
+    const std::vector<EdgeInfo>& candidate_edges, GraphOptimizer& trial_optimizer)
 {
     LoopGraphTrialDiagnostics diagnostics;
     diagnostics.recommendation = "trial_not_run";
@@ -161,22 +162,8 @@ LoopGraphTrialDiagnostics computeLoopGraphTrialDiagnostics(
         return diagnostics;
     }
 
-    std::vector<std::pair<int64_t, Eigen::Isometry3d>> nodes;
-    nodes.reserve(poses_before.size());
-    for (const auto& [id, pose] : poses_before) {
-        nodes.emplace_back(id, pose);
-    }
-
     try {
-        GraphOptimizer trial_optimizer(config);
-        if (!trial_optimizer.loadGraph(nodes, committed_edges)) {
-            diagnostics.recommendation = "trial_load_failed";
-            return diagnostics;
-        }
-        for (const auto& edge : candidate_edges) {
-            trial_optimizer.addLoopEdge(edge);
-        }
-        if (!trial_optimizer.incrementalOptimize()) {
+        if (!trial_optimizer.optimizeLoopEdges(candidate_edges)) {
             diagnostics.recommendation = "trial_optimize_failed";
             return diagnostics;
         }
@@ -202,6 +189,42 @@ LoopGraphTrialDiagnostics computeLoopGraphTrialDiagnostics(
         diagnostics.recommendation = "trial_exception";
     }
     return diagnostics;
+}
+
+}
+
+LoopGraphTrialDiagnostics computeLoopGraphTrialDiagnostics(
+    const Config& config,
+    const std::map<int64_t, Eigen::Isometry3d>& poses_before,
+    const std::vector<EdgeInfo>& committed_edges,
+    const std::vector<EdgeInfo>& candidate_edges,
+    const std::set<int64_t>& fixed_node_ids) {
+    if (poses_before.empty() || candidate_edges.empty()) {
+        LoopGraphTrialDiagnostics diagnostics;
+        diagnostics.recommendation = "trial_unavailable";
+        return diagnostics;
+    }
+    GraphOptimizer trial(config);
+    const std::vector<std::pair<int64_t, Eigen::Isometry3d>> nodes(
+        poses_before.begin(), poses_before.end());
+    if (!trial.loadGraph(nodes, committed_edges, {}, {}, !fixed_node_ids.empty())) {
+        LoopGraphTrialDiagnostics diagnostics;
+        diagnostics.recommendation = "trial_load_failed";
+        return diagnostics;
+    }
+    trial.setFixedNodes(fixed_node_ids);
+    return evaluateGraphTrial(config, poses_before, committed_edges, candidate_edges, trial);
+}
+
+LoopGraphTrialDiagnostics computeLoopGraphTrialDiagnostics(
+    const Config& config, const GraphOptimizer& graph,
+    const std::vector<EdgeInfo>& candidate_edges) {
+    if (graph.fixedNodes().empty())
+        return computeLoopGraphTrialDiagnostics(
+            config, graph.getOptimizedPoses(), graph.getEdges(), candidate_edges);
+    auto trial = graph.cloneCommitted();
+    return evaluateGraphTrial(config, graph.getOptimizedPoses(), graph.getEdges(),
+                              candidate_edges, *trial);
 }
 
 std::string loopGraphTrialRejectReason(

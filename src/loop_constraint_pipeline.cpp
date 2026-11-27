@@ -175,10 +175,8 @@ LoopVerificationPipeline::evaluateConstraints(
         result.edge = edges.front();
         result.has_edge = true;
 
-        const auto poses_before = optimizer_.getOptimizedPoses();
-        const auto committed_edges = optimizer_.getEdges();
         result.graph_trial = computeLoopGraphTrialDiagnostics(
-            config_, poses_before, committed_edges, {result.edge});
+            config_, optimizer_, {result.edge});
         assignLoopGraphTrialDiagnostics(&result.loop, result.graph_trial);
 
         if (config_.loop_debug_enable && !context.cross_session &&
@@ -187,7 +185,7 @@ LoopVerificationPipeline::evaluateConstraints(
             estimator_edge.measurement =
                 result.consensus.estimator_measurement_match_query;
             result.consensus_estimator_trial = computeLoopGraphTrialDiagnostics(
-                config_, poses_before, committed_edges, {estimator_edge});
+                config_, optimizer_, {estimator_edge});
             result.has_consensus_estimator_trial = true;
         }
 
