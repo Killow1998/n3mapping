@@ -212,7 +212,8 @@ LoopClosureOutcome processLoopCandidates(
 
     const auto trial = computeLoopGraphTrialDiagnostics(
         config, before, optimizer.getEdges(), batch_edges);
-    if (loopGraphTrialRejectReason(trial, true).empty() && manager.applyEdges(batch_edges, optimizer)) {
+    if (trial.success && loopGraphTrialRejectReason(trial).empty() &&
+        manager.applyEdges(batch_edges, optimizer)) {
       result.place_candidate_count += batch_loops.size();
       recordLoopOptimization(config, batch_edges, batch_loops, before,
                              optimizer.getOptimizedPoses(), outcome);

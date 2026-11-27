@@ -87,11 +87,7 @@ Config::Config()
       floor_attitude_max_radius_m(8.0),
       floor_attitude_min_points(400),
       loop_max_range(6.0),
-#ifdef N3MAPPING_SOURCE_DIR
-      map_save_path(std::string(N3MAPPING_SOURCE_DIR) + "/map"),
-#else
       map_save_path("./map"),
-#endif
       global_map_voxel_size(0.1),
       save_global_map_voxel_size(0.1),
       global_map_publish_hz(1.0),

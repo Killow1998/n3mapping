@@ -151,9 +151,10 @@ void N3MappingNoeticNode::denseOdomCallback(const nav_msgs::OdometryConstPtr& od
         return;
     }
 
+    const auto source = toCoreOdometrySource(*odom_msg);
+    if (!source.pose_valid) return;
     std::lock_guard<std::mutex> lock(data_mutex_);
-    core_->recordDenseTrajectoryPose(
-        run_mode_, odom_msg->header.stamp.toSec(), odometryPoseToIsometry(*odom_msg));
+    core_->recordDenseTrajectoryPose(run_mode_, odom_msg->header.stamp.toSec(), source.pose);
 }
 
 void N3MappingNoeticNode::loopDetectionTimerCallback(const ros::TimerEvent&)

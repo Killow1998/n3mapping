@@ -183,6 +183,22 @@ Visualization Manager:
     Frame Rate: 30
   Name: root
   Tools:
+    - Class: rviz/MarkerArray
+      Enabled: true
+      Marker Topic: /n3mapping/trajectory_markers
+      Name: Trajectory markers
+      Namespaces:
+        {}
+      Queue Size: 100
+      Value: true
+  Enabled: true
+  Global Options:
+    Background Color: 48; 48; 48
+    Default Light: true
+    Fixed Frame: map
+    Frame Rate: 30
+  Name: root
+  Tools:
     - Class: rviz/Interact
       Hide Inactive Objects: true
     - Class: rviz/MoveCamera

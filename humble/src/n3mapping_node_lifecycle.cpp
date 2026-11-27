@@ -187,6 +187,7 @@ void N3MappingNode::initializeROS()
     rclcpp::QoS marker_qos(10);
     marker_qos.transient_local();
     loop_marker_pub_ = this->create_publisher<visualization_msgs::msg::MarkerArray>("/n3mapping/loop_closure_markers", marker_qos);
+    path_marker_pub_ = this->create_publisher<visualization_msgs::msg::MarkerArray>("/n3mapping/trajectory_markers", marker_qos);
     relocalization_lock_pub_ = this->create_publisher<std_msgs::msg::UInt32>("/n3mapping/relocalization_lock", 10);
     rclcpp::QoS relocalization_status_qos(1);
     relocalization_status_qos.reliable();

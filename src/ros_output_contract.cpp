@@ -68,6 +68,9 @@ std::string localizationStatusJson(CoreRunMode mode,
     } else if (!valid_pose) {
         state = "error";
         reason = "invalid_pose";
+    } else if (mode == CoreRunMode::LOCALIZATION &&
+               output.relocalization_decision == "map_not_loaded") {
+        reason = "map_not_loaded";
     } else if (mode != CoreRunMode::LOCALIZATION &&
                output.mapping_block_reason != core::MappingBlockReason::None) {
         state = "initializing";

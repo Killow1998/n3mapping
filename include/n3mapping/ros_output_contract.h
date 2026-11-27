@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cmath>
+#include <cstddef>
 #include <cstdint>
 #include <optional>
 #include <stdexcept>
@@ -14,6 +15,8 @@
 namespace n3mapping {
 
 enum class CoreRunMode;
+
+inline constexpr std::size_t kLocalizationPathLimit = 6000;
 
 enum class InputLinearVelocityFrame { CHILD, PARENT };
 

@@ -84,7 +84,8 @@ void LoopDetector::restoreMapDescriptors(
             ++cached;
         } else {
             auto cloud = radius > 0
-                ? manager.buildCausalSubmapInRootFrame(kf->id, radius, kf->id)
+                ? manager.buildCausalSubmapInRootFrame(
+                      kf->id, radius, kf->id, KeyframeManager::PoseSource::OptimizedWithinSession)
                 : kf->cloud;
             if (!cloud || cloud->empty()) cloud = kf->cloud;
             addRHPD(kf->id, maybeVoxelizeRhpdCloud(cloud, config_.rhpd_submap_voxel_size));

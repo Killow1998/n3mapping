@@ -7,6 +7,7 @@ namespace n3mapping {
 
 void N3MappingNode::spinOnce(rclcpp::Executor &executor)
 {
+    executor.spin_once(std::chrono::milliseconds(5));
     if (run_mode_ == CoreRunMode::LOCALIZATION) {
         executor.spin_all(std::chrono::milliseconds(5));
     } else {

@@ -128,7 +128,11 @@ n3mapping.
 
 Copy [config/n3mapping.yaml](../config/n3mapping.yaml) for your robot. Set the
 input topics, `body_frame`, `world_frame`, `map_path` and `map_save_path`.
-Use a separate save directory when extending a map you want to retain.
+By default, map outputs are written to `./map` relative to the node process.
+For deployment, set an explicit writable `map_save_path`. Use a separate save
+directory when extending a map you want to retain. A failed startup map load
+is recorded as `map_load_failed`. Localization reports `map_not_loaded`
+when processing observations and withholds map-frame pose output.
 The [ROS interface](ros_interface.md) defines frame and velocity conventions.
 
 Pass your configuration to the selected launch file:

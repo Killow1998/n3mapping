@@ -1,4 +1,5 @@
 #include "n3mapping/mapping_resuming.h"
+#include "causal_submap.h"
 #include "n3mapping/world_localizing.h"
 #include "n3mapping/loop_detector.h"
 #include "n3mapping/keyframe_manager.h"
@@ -24,6 +25,16 @@ int MappingResuming::detectCrossLoops(int64_t new_keyframe_id) {
     if (new_keyframe_id == original_max_keyframe_id_ + 1) {
         return 0;
     }
+
+    loop_detector_.addDescriptor(new_keyframe_id, new_kf->cloud);
+    const int radius = config_.rhpd_submap_kf_radius;
+    const auto submap = radius > 0
+        ? keyframe_manager_.buildCausalSubmapInRootFrame(
+              new_keyframe_id, radius, new_keyframe_id,
+              KeyframeManager::PoseSource::OptimizedWithinSession)
+        : new_kf->cloud;
+    loop_detector_.addRHPD(new_keyframe_id,
+        maybeVoxelizeRhpdCloud(submap, config_.rhpd_submap_voxel_size));
 
     std::map<int64_t, Keyframe::Ptr> keyframe_map;
     for (const auto& keyframe : keyframe_manager_.getAllKeyframes()) {

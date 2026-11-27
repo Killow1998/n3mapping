@@ -311,6 +311,8 @@ install(PROGRAMS
 
 if(N3MAPPING_BUILD_RESEARCH_TOOLS)
   install(TARGETS
+    n3mapping_planar_geometry_eval
+    n3mapping_registration_cross_eval
     n3mapping_synthetic_relocalization_eval
     n3mapping_kitti360_reader
     n3mapping_kitti360_eval

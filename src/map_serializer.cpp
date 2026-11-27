@@ -1,7 +1,6 @@
 #include "n3mapping/map_serializer.h"
 #include "n3mapping/global_map_cache.h"
 #include "n3mapping/keyframe_manager.h"
-#include "n3mapping/pcl_compat.h"
 #include <filesystem>
 #include <pcl/io/pcd_io.h>
 
@@ -21,10 +20,7 @@ bool MapSerializer::saveGlobalMap(const std::string& filepath, const KeyframeMan
 
 pcl::PointCloud<pcl::PointXYZI>::Ptr MapSerializer::buildGlobalMap(const KeyframeManager& keyframe_manager,
                                                                    double voxel_size) const {
-    GlobalMapCache cache(voxel_size);
-    auto cloud = cache.update(
-        keyframe_manager.getAllKeyframes(), keyframe_manager.revision());
-    return pcl::make_shared<pcl::PointCloud<pcl::PointXYZI>>(*cloud);
+    return GlobalMapCache::build(keyframe_manager.getAllKeyframes(), voxel_size);
 }
 
 }

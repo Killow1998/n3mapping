@@ -1,14 +1,11 @@
 #include "n3mapping/mapping_resuming.h"
 #include "n3mapping/world_localizing.h"
 #include "n3mapping/submap_builder.h"
-#include "n3mapping/loop_detector.h"
 #include "n3mapping/keyframe_manager.h"
 #include "n3mapping/graph_optimizer.h"
 #include "n3mapping/rotation_utils.h"
 #include <glog/logging.h>
 #include <chrono>
-#include <exception>
-#include "n3mapping/cloud_utils.h"
 
 namespace n3mapping {
 
@@ -246,44 +243,7 @@ int64_t MappingResuming::processNewKeyframe(
         }
     }
 
-    ScopedElapsedMilliseconds descriptor_timer(
-        timing ? &timing->descriptor_update_ms : nullptr);
-    try {
-        const auto descriptor =
-            loop_detector_.addDescriptor(new_kf_id, cloud);
-        if (!descriptor) {
-            LOG(WARNING) << "[MappingResuming] RHPD heading missing for accepted keyframe id="
-                         << new_kf_id;
-        }
-
-        auto new_kf = keyframe_manager_.getKeyframe(new_kf_id);
-        if (new_kf) {
-            const int submap_radius =
-                std::max(0, config_.rhpd_submap_kf_radius);
-            PointCloudT::Ptr rhpd_cloud = cloud;
-            if (submap_radius > 0) {
-                rhpd_cloud = keyframe_manager_.buildCausalSubmapInRootFrame(
-                    new_kf_id, submap_radius, new_kf_id);
-            }
-            if (rhpd_cloud && !rhpd_cloud->empty() &&
-                config_.rhpd_submap_voxel_size > 1e-4) {
-                PointCloudT::Ptr filtered;
-                if (safeVoxelGridFilter<pcl::PointXYZI>(
-                        rhpd_cloud, config_.rhpd_submap_voxel_size, &filtered) &&
-                    filtered && !filtered->empty()) {
-                    rhpd_cloud = filtered;
-                }
-            }
-            loop_detector_.addRHPD(new_kf_id, rhpd_cloud);
-        }
-    } catch (const std::exception& error) {
-        LOG(WARNING) << "[MappingResuming] Descriptor generation failed for accepted keyframe id="
-                     << new_kf_id << ": " << error.what();
-    } catch (...) {
-        LOG(WARNING) << "[MappingResuming] Descriptor generation failed for accepted keyframe id="
-                     << new_kf_id;
-    }
-
+    if (timing) timing->descriptor_update_ms = 0.0;
     return new_kf_id;
 }
 

@@ -178,6 +178,7 @@ class N3MappingNoeticNode {
     ros::Publisher cloud_body_pub_;
     ros::Publisher cloud_world_pub_;
     ros::Publisher loop_marker_pub_;
+    ros::Publisher path_marker_pub_;
     ros::Publisher global_map_pub_;
     ros::Publisher relocalization_lock_pub_;
     ros::Publisher relocalization_status_pub_;
@@ -198,7 +199,7 @@ class N3MappingNoeticNode {
     double input_cloud_timeout_sec_ = 0.5;
     std::string optimization_log_path_;
 
-    std::vector<geometry_msgs::PoseStamped> localization_path_;
+    nav_msgs::Path localization_path_;
     ros::Time last_tf_stamp_;
     std::size_t frame_count_ = 0;
     std::size_t keyframe_count_ = 0;

@@ -87,7 +87,7 @@ void WorldLocalizing::recoverWeakTranslation(
         !evaluateRelocMatchQuality(recovered, config_).accepted)
       return;
     WeakTranslationAxes recovered_axes;
-    auto pose = supportedTrackingPose(source, config_.gicp_num_neighbors, seed,
+    auto pose = supportedTrackingPose(config_.gicp_num_neighbors, seed,
                                       recovered, recovered_axes);
     if (!pose)
       return;

@@ -6,6 +6,11 @@ namespace n3mapping {
 core::BackendOutput
 N3MappingCore::processLocalizationFrame(const core::LioFrame &frame) {
   extension_anchor_frame_.reset();
+  if (!map_loaded_) {
+    auto output = makeOutput(false, frame.T_world_lidar, frame.undistorted_cloud);
+    output.relocalization_decision = "map_not_loaded";
+    return output;
+  }
   auto &localizer = session_->localizer;
   if (!frame.pose_valid || !isFiniteRigidPose(frame.T_world_lidar)) {
 
@@ -18,10 +23,6 @@ N3MappingCore::processLocalizationFrame(const core::LioFrame &frame) {
     localization_source_frame_id_ = frame.source_frame_id;
   }
   if (!frame.undistorted_cloud || frame.undistorted_cloud->empty()) {
-    return makeOutput(false, frame.T_world_lidar, frame.undistorted_cloud);
-  }
-
-  if (!map_loaded_) {
     return makeOutput(false, frame.T_world_lidar, frame.undistorted_cloud);
   }
 

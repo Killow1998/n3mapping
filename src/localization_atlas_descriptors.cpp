@@ -24,7 +24,7 @@ std::string catalogConfig(const Config &config) {
   std::ostringstream out;
   out.imbue(std::locale::classic());
   out << std::setprecision(17) << descriptorConfig(config)
-      << " place-catalog-v1 " << config.rhpd_submap_kf_radius << ' '
+      << " place-catalog-v2 " << config.rhpd_submap_kf_radius << ' '
       << config.rhpd_submap_voxel_size << ' ' << config.sc_num_rings << ' '
       << config.sc_num_sectors << ' ' << config.sc_max_radius;
   return out.str();
@@ -103,7 +103,7 @@ void encodeAtlasDescriptors(const Config &config,
     headings.emplace(keyframe->id, std::move(features.heading));
     const int radius = std::max(0, config.rhpd_submap_kf_radius);
     auto cloud = radius > 0 ? buildCausalSubmap(snapshot, keyframe->id, radius,
-                                                keyframe->id, false)
+                                                keyframe->id, KeyframeManager::PoseSource::OptimizedWithinSession)
                             : keyframe->cloud;
     if (!cloud || cloud->empty())
       cloud = keyframe->cloud;

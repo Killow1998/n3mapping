@@ -7,7 +7,9 @@ namespace n3mapping {
 
 void N3MappingNoeticNode::publishPath(const std_msgs::Header& header, const Eigen::Isometry3d* current_pose)
 {
-    nav_msgs::Path path_msg;
+    nav_msgs::Path mapping_path;
+    auto& path_msg = run_mode_ == CoreRunMode::LOCALIZATION
+      ? localization_path_ : mapping_path;
     path_msg.header = header;
     path_msg.header.frame_id = config_.world_frame;
 
@@ -16,9 +18,12 @@ void N3MappingNoeticNode::publishPath(const std_msgs::Header& header, const Eige
             geometry_msgs::PoseStamped pose;
             pose.header = path_msg.header;
             pose.pose = makePose(*current_pose);
-            localization_path_.push_back(pose);
+            if (path_msg.poses.size() >= kLocalizationPathLimit) {
+                path_msg.poses.erase(path_msg.poses.begin(),
+                                     path_msg.poses.begin() + kLocalizationPathLimit / 10);
+            }
+            path_msg.poses.push_back(pose);
         }
-        path_msg.poses = localization_path_;
     } else {
         std::vector<geometry_msgs::Point> loaded_points;
         std::vector<geometry_msgs::Point> new_points;
@@ -41,7 +46,8 @@ void N3MappingNoeticNode::publishPath(const std_msgs::Header& header, const Eige
         publishPathMarkers(loaded_points, new_points, header);
     }
 
-    path_pub_.publish(path_msg);
+    if (path_pub_.getNumSubscribers() > 0)
+        path_pub_.publish(path_msg);
 }
 
 void N3MappingNoeticNode::publishLoopMarkers(const std::vector<VerifiedLoop>& loops)
@@ -81,7 +87,7 @@ void N3MappingNoeticNode::publishPathMarkers(const std::vector<geometry_msgs::Po
     addPathMarker("path_loaded", 0, loaded_points, 0.2f, 0.4f, 1.0f, header, &markers);
     addPathMarker("path_new", 1, new_points, 0.1f, 1.0f, 0.2f, header, &markers);
     if (!markers.markers.empty()) {
-        loop_marker_pub_.publish(markers);
+        path_marker_pub_.publish(markers);
     }
 }
 

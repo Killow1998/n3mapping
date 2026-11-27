@@ -10,9 +10,8 @@ namespace n3mapping {
 MapArtifacts::MapArtifacts(const Config &config)
     : map_save_path_(config.map_save_path),
       save_global_map_(config.save_global_map_on_shutdown),
-      mode_(parseCoreRunMode(config.mode)) {
-  cache_.setVoxelSize(config.global_map_voxel_size);
-}
+      save_voxel_size_(config.save_global_map_voxel_size),
+      mode_(parseCoreRunMode(config.mode)), cache_(config.global_map_voxel_size) {}
 
 MapKeyframeSnapshot snapshotMapKeyframes(const N3MappingCore &core) {
   const auto keyframes = core.getAllKeyframes();
@@ -65,7 +64,9 @@ void MapArtifacts::saveDebug(const MapKeyframeSnapshot &snapshot,
   }
   LogOperation operation("map_save_pcd", map_save_path_);
   std::lock_guard<std::mutex> lock(mutex_);
-  const auto cloud = cache_.update(snapshot.keyframes, snapshot.revision);
+  const auto cloud = save_voxel_size_ == cache_.voxelSize()
+                         ? cache_.update(snapshot.keyframes, snapshot.revision)
+                         : GlobalMapCache::build(snapshot.keyframes, save_voxel_size_);
   if (cloud->empty()) {
     warning = "save_global_map_empty";
     return;

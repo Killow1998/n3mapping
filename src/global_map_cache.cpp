@@ -42,6 +42,14 @@ GlobalMapCache::GlobalMapCache(double voxel_size)
 {
 }
 
+GlobalMapCache::PointCloudPtr GlobalMapCache::build(
+    const std::vector<Keyframe::Ptr>& keyframes, double voxel_size)
+{
+    GlobalMapCache cache(voxel_size);
+    cache.update(keyframes, {});
+    return cache.cloud_;
+}
+
 void GlobalMapCache::setVoxelSize(double voxel_size)
 {
     const double normalized = std::isfinite(voxel_size) && voxel_size > 0.0 ? voxel_size : 0.0;
@@ -80,9 +88,12 @@ GlobalMapCache::PointCloudConstPtr GlobalMapCache::update(
             ordered.push_back(keyframe);
         }
     }
-    std::sort(ordered.begin(), ordered.end(), [](const Keyframe::Ptr& lhs, const Keyframe::Ptr& rhs) {
+    const auto by_id = [](const Keyframe::Ptr& lhs, const Keyframe::Ptr& rhs) {
         return lhs->id < rhs->id;
-    });
+    };
+    if (!std::is_sorted(ordered.begin(), ordered.end(), by_id)) {
+        std::sort(ordered.begin(), ordered.end(), by_id);
+    }
 
     bool rebuild = full_rebuild_required_ || !cached_map_revision_ ||
                    cached_map_revision_->generation != map_revision.generation ||
@@ -90,40 +101,37 @@ GlobalMapCache::PointCloudConstPtr GlobalMapCache::update(
                        map_revision.pose_revision;
     if (!rebuild && cached_map_revision_->structure_revision !=
                         map_revision.structure_revision) {
-        const bool monotonic_structure =
-            map_revision.structure_revision >=
-            cached_map_revision_->structure_revision;
-        const std::uint64_t structure_delta =
-            monotonic_structure
-                ? map_revision.structure_revision -
-                      cached_map_revision_->structure_revision
-                : 0;
-        const std::size_t keyframe_delta =
-            ordered.size() >= cached_input_keyframe_count_
-                ? ordered.size() - cached_input_keyframe_count_
-                : 0;
-        bool cached_ids_still_present =
-            ordered.size() >= cached_input_keyframe_count_;
-        for (int64_t cached_id : cached_keyframe_ids_) {
-            cached_ids_still_present =
-                cached_ids_still_present &&
-                std::any_of(
-                    ordered.begin(), ordered.end(),
-                    [cached_id](const Keyframe::Ptr& keyframe) {
-                        return keyframe->id == cached_id;
-                    });
+        const auto previous = cached_map_revision_->structure_revision;
+        rebuild = map_revision.structure_revision < previous ||
+                  ordered.size() < cached_input_keyframe_count_ ||
+                  map_revision.structure_revision - previous !=
+                      ordered.size() - cached_input_keyframe_count_;
+        if (!rebuild) {
+            std::size_t retained = 0;
+            std::optional<int64_t> previous_id;
+            for (const auto& frame : ordered) {
+                if (frame->id != previous_id) {
+                    retained += cached_keyframe_ids_.count(frame->id);
+                    previous_id = frame->id;
+                }
+            }
+            rebuild = retained != cached_keyframe_ids_.size();
         }
-
-        rebuild = !monotonic_structure || !cached_ids_still_present ||
-                  structure_delta != keyframe_delta;
     }
     if (rebuild) {
         resetStorage();
+        if (!useVoxelGrid()) {
+            std::size_t point_count = 0;
+            for (const auto& frame : ordered) {
+                if (frame->cloud) point_count += frame->cloud->size();
+            }
+            cloud_->reserve(point_count);
+        }
     }
 
     bool changed = false;
     for (const auto& keyframe : ordered) {
-        if (!keyframe || cached_keyframe_ids_.count(keyframe->id) != 0) {
+        if (cached_keyframe_ids_.count(keyframe->id) != 0) {
             continue;
         }
         if (appendKeyframe(keyframe)) {
@@ -173,7 +181,6 @@ bool GlobalMapCache::appendKeyframe(const Keyframe::Ptr& keyframe)
 
     bool appended_any = false;
     if (!useVoxelGrid()) {
-        cloud_->points.reserve(cloud_->points.size() + transformed.points.size());
         for (const auto& point : transformed.points) {
             if (!finitePoint(point)) {
                 continue;

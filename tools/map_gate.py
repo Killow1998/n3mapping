@@ -170,6 +170,9 @@ cand = load(sys.argv[1])
 base = load(sys.argv[2]) if len(sys.argv) > 2 else None
 
 rc, rb = revisit(cand), (revisit(base) if base else None)
+if rc is None:
+    print("有效重访不足，无法评估单层高度一致性", file=sys.stderr)
+    sys.exit(2)
 gc, gb = geometry(cand), (geometry(base) if base else None)
 
 back_end = np.linalg.norm(cand["P"] - cand["Podom"], axis=1)

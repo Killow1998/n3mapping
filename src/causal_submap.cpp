@@ -5,7 +5,10 @@ namespace n3mapping {
 Keyframe::PointCloudT::Ptr
 buildCausalSubmap(const std::map<int64_t, Keyframe::Ptr> &keyframes,
                   int64_t center_id, int range, int64_t root_id,
-                  bool use_odometry) {
+                  KeyframeManager::PoseSource poses) {
+  using PoseSource = KeyframeManager::PoseSource;
+  const bool use_odometry = poses == PoseSource::Odometry;
+  const bool same_session = poses != PoseSource::Optimized;
   auto submap = pcl::make_shared<Keyframe::PointCloudT>();
 
   auto root_it = keyframes.find(root_id);
@@ -24,7 +27,7 @@ buildCausalSubmap(const std::map<int64_t, Keyframe::Ptr> &keyframes,
     auto kf = it->second;
     if (!kf->cloud || kf->cloud->empty())
       continue;
-    if (use_odometry && kf->session_id != root.session_id)
+    if (same_session && kf->session_id != root.session_id)
       continue;
 
     const Eigen::Matrix4f T_root_kf =

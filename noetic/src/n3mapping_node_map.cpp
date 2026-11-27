@@ -109,12 +109,9 @@ void N3MappingNoeticNode::saveMapOnShutdown()
 
 void N3MappingNoeticNode::loadMap()
 {
-    if (config_.map_path.empty()) {
-        ROS_ERROR("Map path is empty");
-        return;
-    }
     if (!core_->loadMap(config_.map_path)) {
         ROS_ERROR("Failed to load map: %s", config_.map_path.c_str());
+        logEvent("map_load_failed", "path=" + config_.map_path, true);
         return;
     }
     ROS_INFO("Loaded map with %zu keyframes", core_->getAllKeyframes().size());

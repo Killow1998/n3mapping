@@ -35,6 +35,7 @@ public:
 private:
   const std::string map_save_path_;
   const bool save_global_map_;
+  const double save_voxel_size_;
   CoreRunMode mode_;
   std::mutex mutex_;
   GlobalMapCache cache_;

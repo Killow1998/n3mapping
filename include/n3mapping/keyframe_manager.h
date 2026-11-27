@@ -55,7 +55,7 @@ public:
     Keyframe::PointCloudT::Ptr buildSubmapInRootFrame(
         int64_t center_id, int range, int64_t root_id,
         int64_t excluded_keyframe_id = -1) const;
-    enum class PoseSource { Optimized, Odometry };
+    enum class PoseSource { Optimized, Odometry, OptimizedWithinSession };
 
     Keyframe::PointCloudT::Ptr buildCausalSubmapInRootFrame(
         int64_t center_id, int range, int64_t root_id,

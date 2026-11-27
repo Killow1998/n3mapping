@@ -24,6 +24,7 @@ public:
 
     explicit GlobalMapCache(double voxel_size = 0.0);
 
+    static PointCloudPtr build(const std::vector<Keyframe::Ptr>& keyframes, double voxel_size);
     void setVoxelSize(double voxel_size);
     double voxelSize() const { return voxel_size_; }
 

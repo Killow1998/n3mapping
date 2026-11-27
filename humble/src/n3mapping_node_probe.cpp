@@ -41,6 +41,8 @@ void N3MappingNode::initializeAuthorityProbe()
     marker_qos.transient_local();
     loop_marker_pub_ = this->create_publisher<visualization_msgs::msg::MarkerArray>(
         "/n3mapping/loop_closure_markers", marker_qos);
+    path_marker_pub_ = this->create_publisher<visualization_msgs::msg::MarkerArray>(
+        "/n3mapping/trajectory_markers", marker_qos);
 
     rclcpp::QoS status_qos(1);
     status_qos.reliable();

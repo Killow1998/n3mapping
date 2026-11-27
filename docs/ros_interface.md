@@ -12,16 +12,25 @@
 | `/n3mapping/cloud_body` | topic | `sensor_msgs/PointCloud2` | Current cloud in body frame |
 | `/n3mapping/cloud_world` | topic | `sensor_msgs/PointCloud2` | Current cloud transformed to world/map frame |
 | `/n3mapping/global_map` | topic | `sensor_msgs/PointCloud2` | Published global map |
-| `/n3mapping/loop_closure_markers` | topic | `visualization_msgs/MarkerArray` | Loop closure and trajectory markers |
+| `/n3mapping/loop_closure_markers` | topic | `visualization_msgs/MarkerArray` | Loop closure markers |
+| `/n3mapping/trajectory_markers` | topic | `visualization_msgs/MarkerArray` | Loaded and newly mapped trajectory markers |
 | `/n3mapping/relocalization_lock` | topic | `std_msgs/UInt32` | Relocalization lock event counter |
 | `/n3mapping/save_map` | service | `std_srvs/Trigger` / `std_srvs/srv/Trigger` | Save map files |
 | `/n3mapping/start_map_extension` | service | `std_srvs/Trigger` / `std_srvs/srv/Trigger` | Continue the loaded map from the current verified localization |
+
+The localization Path display retains up to 6,000 recent poses. Recorded dense
+trajectories and saved maps follow their existing recording policies.
 
 Global map visualization is built on demand when a subscriber appears, then
 latched/transient-local for later subscribers. Both adapters use the loaded
 keyframes and their map revision; an adjacent `global_map.pcd` is an export,
 not an unchecked replacement for the selected map. Extension and loop corrections
 invalidate the cache. Headless localization does not construct this display cloud.
+
+When the localization node cannot load its startup map, processed observations
+report `reason: map_not_loaded` with the existing `localizing` state and
+map-frame projection unavailable. This differs from `awaiting_localization`,
+which means a loaded map is waiting for a match.
 
 During tracking, `/localization/status` can include `weak_translation_axes`.
 Each entry is a unit vector `[x, y, z]` in the map frame. It describes a direction

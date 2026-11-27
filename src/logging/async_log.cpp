@@ -37,9 +37,6 @@ LogOptions LogOptions::fromEnvironment() {
         std::string(user_home ? user_home : ".") + "/.ros") + "/n3mapping/logs";
   }
   if (const auto* legacy = std::getenv("GLOG_log_dir")) options.legacy_directory = legacy;
-#ifdef N3MAPPING_SOURCE_DIR
-  else if (!std::getenv("N3MAPPING_LOG_DIR")) options.legacy_directory = std::string(N3MAPPING_SOURCE_DIR) + "/logs";
-#endif
   options.total_bytes = environmentLimit("N3MAPPING_LOG_TOTAL_BYTES", options.total_bytes);
   return options;
 }

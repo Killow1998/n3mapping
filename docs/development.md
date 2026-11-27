@@ -415,6 +415,9 @@ changed foreground leaves first-return agreement below the correspondence gate,
 positive visibility evidence additionally requires stable horizontal and yaw
 support from tight point-to-plane correspondences. Each planar direction needs
 at least `gicp_num_neighbors` effective observations; a floor alone cannot pass.
+The directional assessment uses the normal covariance variance from the
+supported small_gicp covariance model (0.001). Isotropic fallback covariances
+can occur at any point when there are too few neighbors.
 If narrow optimization fails, the predicted pose may instead undergo the same
 fresh geometric verification with the original GICP metric. This does not carry
 an old successful status through missing or contradictory scans. Ordinary
@@ -428,9 +431,17 @@ map generation and revision. Appended keyframes catch up through a conditioned
 tail solve. A conflicting graph revision requires readmission and re-solving,
 while retaining measured registration evidence. Saving drains pending loop
 work. Strict map extension verifies loaded-map geometry and commits its tracking
-constraint inline. This append solve preserves the Atlas-verified live pose;
-the worker later installs the optimized reference and its coordinate correction
-together.
+constraint inline. This append solve preserves the Atlas-verified live pose.
+The extension worker refines geometry and installs the optimized reference and
+its coordinate correction together. Place-based loop retrieval in new areas
+and cross-session loop retrieval are outside that online extension flow.
+The explicit cross-session retrieval helper prepares its query descriptors on
+demand. Appending a keyframe in the online flow only commits its geometry.
+
+Causal descriptor neighborhoods stay within the keyframe's session in both pose
+domains. Automatic Atlas preparation rebuilds older place caches once. Explicit
+historical Atlas files retain their geometry and refresh descriptor inputs
+at runtime.
 
 `loop_geometry_cpu_budget` defaults to **0.5** CPU seconds per wall second for
 background extension geometry; **0** disables pacing. It leaves ordinary mapping

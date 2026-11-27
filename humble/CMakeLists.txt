@@ -235,6 +235,7 @@ install(TARGETS
   n3mapping_filter_nav_pbstream
   n3mapping_dense_trajectory_export
   n3mapping_relocalization_manifest_eval
+  n3mapping_rhpd_recall_eval
   EXPORT export_n3mapping
   ARCHIVE DESTINATION lib
   LIBRARY DESTINATION lib
@@ -267,6 +268,8 @@ install(PROGRAMS
 
 if(N3MAPPING_BUILD_RESEARCH_TOOLS)
   install(TARGETS
+    n3mapping_planar_geometry_eval
+    n3mapping_registration_cross_eval
     n3mapping_synthetic_relocalization_eval
     n3mapping_kitti360_reader
     n3mapping_kitti360_eval
@@ -328,6 +331,13 @@ ament_export_dependencies(
   rosidl_default_runtime
   small_gicp
   OpenSSL
+  OpenMP
+  Eigen3
+  GTSAM
+  PCL
+  OpenCV
+  Protobuf
+  glog
 )
 
 install(DIRECTORY ${N3MAPPING_ROOT}/include/

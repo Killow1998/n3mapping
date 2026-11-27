@@ -357,7 +357,7 @@ Keyframe::PointCloudT::Ptr KeyframeManager::buildSubmapInRootFrame(
 Keyframe::PointCloudT::Ptr KeyframeManager::buildCausalSubmapInRootFrame(
     int64_t center_id, int range, int64_t root_id, PoseSource poses) const {
     std::lock_guard<std::mutex> lock(mutex_);
-    return buildCausalSubmap(keyframes_, center_id, range, root_id, poses == PoseSource::Odometry);
+    return buildCausalSubmap(keyframes_, center_id, range, root_id, poses);
 }
 
 }

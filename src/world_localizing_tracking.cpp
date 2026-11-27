@@ -351,7 +351,7 @@ WorldLocalizing::trackLocalizationImpl(const PointCloudT::Ptr &cloud,
             predicted_match.inlier_ratio >= config_.reloc_min_inlier_ratio) {
           match_result = std::move(predicted_match);
           if (prepared_source.has_refine_cloud) {
-            supportedTrackingPose(*prepared_source.refine_cloud, config_.gicp_num_neighbors,
+            supportedTrackingPose(config_.gicp_num_neighbors,
                                   predicted_pose, match_result, weak_axes);
           }
           visibility = predicted_visibility;

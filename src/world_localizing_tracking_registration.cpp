@@ -273,7 +273,7 @@ MatchResult WorldLocalizing::registerTracking(
       hasValidRegistrationResult(match_result)) {
     const auto projection_started = Clock::now();
     const auto supported_pose = supportedTrackingPose(
-        *prepared_source.refine_cloud, config_.gicp_num_neighbors,
+        config_.gicp_num_neighbors,
         predicted_pose, match_result, weak_axes);
     if (!supported_pose) {
       match_result = MatchResult{};

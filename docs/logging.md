@@ -36,9 +36,8 @@ now append across restarts instead of being truncated.
 
 The instance directory contains `runtime.log`, `events.jsonl`, `catalog.json`
 and `logger_health.json`. Recognizable historical `n3mapping_node.*.log.*` files
-in `GLOG_log_dir` also join retention; without an explicit instance directory,
-the previous source-tree `logs/` location is checked as a fallback. Unrelated
-files are never deleted. Previously configured external debug destinations are
+in an explicitly configured `GLOG_log_dir` also join retention. Unrelated files
+are never deleted. Previously configured external debug destinations are
 managed once registered in the catalog; unknown historical paths cannot be
 discovered automatically. Map files, bags and logs owned by roscore, launchers,
 frontends or terminal capture are separate artifacts/services.

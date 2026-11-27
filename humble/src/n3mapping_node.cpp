@@ -6,7 +6,6 @@
 #include <iostream>
 #include <stdexcept>
 #include <string_view>
-#include <thread>
 
 void
 signalHandler(int signum)
@@ -64,7 +63,6 @@ main(int argc, char** argv)
 
     while (rclcpp::ok() && !n3mapping::g_shutdown_requested) {
         node->spinOnce(executor);
-        std::this_thread::sleep_for(std::chrono::milliseconds(1));
     }
 
     node->shutdown();

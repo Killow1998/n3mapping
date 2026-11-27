@@ -26,6 +26,10 @@ void N3MappingNode::publishPath(const std_msgs::msg::Header& header, const Eigen
             pose.pose.orientation.x = q.x();
             pose.pose.orientation.y = q.y();
             pose.pose.orientation.z = q.z();
+            if (path_msg.poses.size() >= kLocalizationPathLimit) {
+                path_msg.poses.erase(path_msg.poses.begin(),
+                                     path_msg.poses.begin() + kLocalizationPathLimit / 10);
+            }
             path_msg.poses.push_back(pose);
         }
     } else {
@@ -85,7 +89,8 @@ void N3MappingNode::publishPath(const std_msgs::msg::Header& header, const Eigen
         publishPathMarkers(loaded_points, new_points, header);
     }
 
-    path_pub_->publish(path_msg);
+    if (path_pub_->get_subscription_count() > 0)
+        path_pub_->publish(path_msg);
 }
 
 void N3MappingNode::publishPathMarkers(const std::vector<geometry_msgs::msg::Point>& loaded_points,
@@ -129,7 +134,7 @@ void N3MappingNode::publishPathMarkers(const std::vector<geometry_msgs::msg::Poi
     }
 
     if (!markers.markers.empty()) {
-        loop_marker_pub_->publish(markers);
+        path_marker_pub_->publish(markers);
     }
 }
 

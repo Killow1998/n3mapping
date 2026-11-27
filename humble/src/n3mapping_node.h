@@ -192,6 +192,7 @@ class N3MappingNode : public rclcpp::Node
     rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr cloud_body_pub_;
     rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr cloud_world_pub_;
     rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr loop_marker_pub_;
+    rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr path_marker_pub_;
     rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr global_map_pub_;
     rclcpp::Publisher<std_msgs::msg::UInt32>::SharedPtr relocalization_lock_pub_;
     rclcpp::Publisher<msg::RelocalizationStatus>::SharedPtr
