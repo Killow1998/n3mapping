@@ -65,8 +65,8 @@ std::string Config::toString() const {
         << ", fitness_thr=" << gicp_fitness_threshold
         << ", submap=" << gicp_submap_size << "\n";
     oss << "SC: dist_thr=" << sc_dist_threshold
-        << ", exclude=" << sc_num_exclude_recent
         << ", candidates=" << sc_num_candidates << "\n";
+    oss << "Loop minimum path length: " << loop_min_path_length_m << " m\n";
     oss << "Odom noise: pos=" << odom_noise_position
         << " rot=" << odom_noise_rotation
         << " | Loop noise: pos=" << loop_noise_position
@@ -249,7 +249,6 @@ bool Config::validate(std::string* error) const {
     if (!non_negative(icp_refine_delta_translation_gate, "icp_refine_delta_translation_gate")) return false;
     if (!non_negative(icp_refine_delta_rotation_gate, "icp_refine_delta_rotation_gate")) return false;
     if (!positive(sc_dist_threshold, "sc_dist_threshold")) return false;
-    if (!at_least(sc_num_exclude_recent, 0, "sc_num_exclude_recent")) return false;
     if (!at_least(sc_num_candidates, 1, "sc_num_candidates")) return false;
     if (!positive(sc_max_radius, "sc_max_radius")) return false;
     if (!at_least(sc_num_rings, 1, "sc_num_rings")) return false;

@@ -22,42 +22,16 @@ std::vector<LoopCandidate> LoopDetector::detectSpatialCandidates(
     }
     const auto& query_pose = query_it->second->pose_optimized;
     const double radius = std::max(1e-6, config_.loop_spatial_candidate_radius);
-    const double min_path = std::max(0.0, config_.loop_min_path_length_m);
-
-    std::map<int64_t, double> path_at;
-    {
-        double travelled = 0.0;
-        const Eigen::Vector3d* previous = nullptr;
-        Eigen::Vector3d previous_store;
-        for (const auto& [id, keyframe] : keyframes) {
-            if (keyframe) {
-                const Eigen::Vector3d t = keyframe->pose_odom.translation();
-                if (previous) {
-                    travelled += (t - *previous).norm();
-                }
-                previous_store = t;
-                previous = &previous_store;
-            }
-            path_at[id] = travelled;
-        }
-    }
-    const auto query_path_it = path_at.find(query_id);
-    const double query_path =
-        query_path_it != path_at.end() ? query_path_it->second : 0.0;
+    const auto paths = eligiblePathsToQuery(keyframes, query_it);
 
     std::vector<std::pair<double, int64_t>> ranked;
     std::size_t spatial_considered = 0;
     std::size_t spatial_outside_radius = 0;
     for (const auto& [match_id, keyframe] : keyframes) {
-        if (!keyframe || match_id >= query_id) {
+        if (!paths.count(match_id)) {
             continue;
         }
         if (accept_match && !accept_match(match_id)) {
-            continue;
-        }
-        const auto match_path_it = path_at.find(match_id);
-        if (match_path_it == path_at.end() ||
-            query_path - match_path_it->second < min_path) {
             continue;
         }
         const double squared_distance =
@@ -109,6 +83,7 @@ std::vector<LoopCandidate> LoopDetector::detectSpatialCandidates(
         LoopCandidate candidate;
         candidate.query_id = query_id;
         candidate.match_id = ranked[i].second;
+        candidate.path_length_m = paths.at(candidate.match_id);
         candidate.source_flags = LoopCandidate::SOURCE_SPATIAL;
         candidate.candidate_source = LoopCandidate::Source::SpatialRadius;
         candidate.fused_score = ranked[i].first / std::max(1e-6, radius);

@@ -29,6 +29,7 @@ struct LoopCandidate {
     int fused_rank = -1;
     int sc_rank = -1;
     int rhpd_rank = -1;
+    double path_length_m = 0.0;
     bool isValid() const { return query_id >= 0 && match_id >= 0; }
     bool fromSC() const { return (source_flags & SOURCE_SC) != 0u; }
     bool fromRHPD() const { return (source_flags & SOURCE_RHPD) != 0u; }

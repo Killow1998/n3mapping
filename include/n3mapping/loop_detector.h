@@ -6,6 +6,7 @@
 #include <mutex>
 #include <set>
 #include <string>
+#include <unordered_map>
 #include <utility>
 #include <vector>
 #include <cstdint>
@@ -68,7 +69,6 @@ public:
     std::pair<int, int> getDescriptorDimensions() const;
     double getHeadingSectorAngleDeg() const { return getRHPDParams().heading.sectorAngleDeg(); }
     RHPDHeadingPtr getDescriptor(int64_t keyframe_id) const;
-    int getNumExcludeRecent() const { return config_.sc_num_exclude_recent; }
     std::pair<double, int> computeDistance(const RHPDHeadingPtr& sc1, const RHPDHeadingPtr& sc2);
 
     RHPDescriptor::Features computeFeatures(const PointCloudT::Ptr& cloud) const;
@@ -79,6 +79,9 @@ public:
     const RHPDescriptor::Params& getRHPDParams() const { return rhpd_manager_.getDescriptorParams(); }
 
 private:
+    std::unordered_map<int64_t, double> eligiblePathsToQuery(
+        const std::map<int64_t, Keyframe::Ptr>& keyframes,
+        std::map<int64_t, Keyframe::Ptr>::const_iterator query) const;
     std::vector<LoopCandidate> rankLoopCandidates(
         int64_t query_id, const std::map<int64_t, Keyframe::Ptr>& keyframes,
         const MatchFilter& accept_match);

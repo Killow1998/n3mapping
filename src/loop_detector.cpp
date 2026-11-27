@@ -8,6 +8,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <iterator>
 #include <limits>
 #include <utility>
 
@@ -186,6 +187,30 @@ std::vector<LoopCandidate> LoopDetector::detectLoopCandidates(
     return candidates;
 }
 
+std::unordered_map<int64_t, double> LoopDetector::eligiblePathsToQuery(
+    const std::map<int64_t, Keyframe::Ptr>& keyframes,
+    std::map<int64_t, Keyframe::Ptr>::const_iterator query) const {
+    const auto& query_frame = *query->second;
+    Eigen::Vector3d next_position = query_frame.pose_odom.translation();
+    double path_length_m = 0.0;
+    std::unordered_map<int64_t, double> eligible;
+    for (auto it = std::make_reverse_iterator(query); it != keyframes.rend(); ++it) {
+        const auto& [id, frame] = *it;
+        if (!frame) continue;
+        if (frame->session_id != query_frame.session_id) {
+            eligible.emplace(id, 0.0);
+            continue;
+        }
+        const Eigen::Vector3d position = frame->pose_odom.translation();
+        path_length_m += (next_position - position).norm();
+        next_position = position;
+        if (path_length_m >= config_.loop_min_path_length_m) {
+            eligible.emplace(id, path_length_m);
+        }
+    }
+    return eligible;
+}
+
 std::vector<LoopCandidate> LoopDetector::rankLoopCandidates(
     int64_t query_id, const std::map<int64_t, Keyframe::Ptr>& keyframes,
     const MatchFilter& accept_match) {
@@ -193,32 +218,13 @@ std::vector<LoopCandidate> LoopDetector::rankLoopCandidates(
 
     auto it = id_to_index_.find(query_id);
     if (it == id_to_index_.end()) return candidates;
-    size_t query_index = it->second;
-
-    const int num_exclude = config_.sc_num_exclude_recent;
-    const size_t search_end = static_cast<int>(query_index) >= num_exclude
-                                  ? query_index - num_exclude
-                                  : 0;
-
-    std::vector<double> path_at(index_to_id_.size(), 0.0);
-    {
-        const Eigen::Vector3d *prev = nullptr;
-        Eigen::Vector3d prev_store;
-        double acc = 0.0;
-        for (size_t i = 0; i < index_to_id_.size(); ++i) {
-            const auto kit = keyframes.find(index_to_id_[i]);
-            if (kit != keyframes.end() && kit->second) {
-                const Eigen::Vector3d t =
-                    kit->second->pose_odom.translation();
-                if (prev)
-                    acc += (t - *prev).norm();
-                prev_store = t;
-                prev = &prev_store;
-            }
-            path_at[i] = acc;
-        }
-    }
-    const double min_path = std::max(0.0, config_.loop_min_path_length_m);
+    const auto query = keyframes.find(query_id);
+    if (query == keyframes.end() || !query->second) return candidates;
+    const size_t query_index = it->second;
+    const auto paths = eligiblePathsToQuery(keyframes, query);
+    const auto accept_candidate = [&](int64_t id) {
+        return paths.count(id) && (!accept_match || accept_match(id));
+    };
 
     const RHPDHeadingPtr& query_desc = descriptors_[query_index];
     const bool sc_query_available = static_cast<bool>(query_desc);
@@ -228,16 +234,13 @@ std::vector<LoopCandidate> LoopDetector::rankLoopCandidates(
         if (rhpd_manager_.get(query_id, &query_rhpd) && !query_rhpd.isZero()) {
             const int preselect = std::max(config_.rhpd_num_candidates * 3, config_.sc_num_candidates * 4);
 
-            auto accept_old_enough = [&](int64_t id) {
-                if (accept_match && !accept_match(id))
-                    return false;
-                const auto mit = id_to_index_.find(id);
-                if (mit == id_to_index_.end() || mit->second >= query_index)
-                    return false;
-                return path_at[query_index] - path_at[mit->second] >= min_path;
+            auto accept_rhpd = [&](int64_t id) {
+                const auto match = id_to_index_.find(id);
+                return match != id_to_index_.end() && match->second < query_index &&
+                    accept_candidate(id);
             };
             auto rhpd_hits = rhpd_manager_.searchFiltered(
-                query_rhpd, std::max(1, preselect), config_.rhpd_preselect_candidates, accept_old_enough);
+                query_rhpd, std::max(1, preselect), config_.rhpd_preselect_candidates, accept_rhpd);
             std::vector<LoopCandidate> ranked;
             ranked.reserve(rhpd_hits.size());
 
@@ -249,6 +252,7 @@ std::vector<LoopCandidate> LoopDetector::rankLoopCandidates(
                 LoopCandidate candidate;
                 candidate.query_id = query_id;
                 candidate.match_id = match_id;
+                candidate.path_length_m = paths.at(match_id);
                 candidate.rhpd_distance = rhpd_dist;
                 candidate.source_flags = LoopCandidate::SOURCE_RHPD;
                 candidate.candidate_source = LoopCandidate::Source::RhpdPrimary;
@@ -300,15 +304,15 @@ std::vector<LoopCandidate> LoopDetector::rankLoopCandidates(
         }
     }
 
-    if (search_end == 0) return candidates;
     const auto& query_ringkey_vec = descriptors_[query_index]->ring_key;
 
     KeyMat search_keys;
     std::vector<size_t> search_indices;
-    search_keys.reserve(search_end);
-    search_indices.reserve(search_end);
-    for (size_t i = 0; i < search_end; ++i) {
-        if (accept_match && !accept_match(index_to_id_[i])) {
+    const auto capacity = std::min(query_index, paths.size());
+    search_keys.reserve(capacity);
+    search_indices.reserve(capacity);
+    for (size_t i = 0; i < query_index; ++i) {
+        if (!accept_candidate(index_to_id_[i])) {
             continue;
         }
         search_keys.push_back(descriptors_[i]->ring_key);
@@ -329,7 +333,6 @@ std::vector<LoopCandidate> LoopDetector::rankLoopCandidates(
 
     if (num_search > 0) {
         VLOG(1) << "[SC] query=" << query_id
-                << " search_end=" << search_end
                 << " eligible=" << search_keys.size()
                 << " kd_top1_idx=" << index_to_id_[search_indices[knn_indices[0]]]
                 << " kd_top1_L2=" << knn_dists[0];
@@ -341,8 +344,6 @@ std::vector<LoopCandidate> LoopDetector::rankLoopCandidates(
     for (size_t k = 0; k < num_search; ++k) {
         if (knn_indices[k] >= search_indices.size()) continue;
         size_t match_index = search_indices[knn_indices[k]];
-        if (match_index >= search_end)
-          continue;
         auto [dist, yaw_shift] = computeDistance(query_desc, descriptors_[match_index]);
         refined_candidates.emplace_back(dist, yaw_shift, match_index);
     }
@@ -367,6 +368,7 @@ std::vector<LoopCandidate> LoopDetector::rankLoopCandidates(
         LoopCandidate candidate;
         candidate.query_id = query_id;
         candidate.match_id = index_to_id_[match_index];
+        candidate.path_length_m = paths.at(candidate.match_id);
         candidate.sc_distance = dist;
         candidate.rhpd_distance = std::numeric_limits<double>::max();
         candidate.yaw_diff_rad = static_cast<float>(yaw_shift) *

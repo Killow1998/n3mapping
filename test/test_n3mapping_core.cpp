@@ -54,7 +54,7 @@ Config makeCoreTestConfig()
     config.keyframe_angle_threshold = 0.2;
     config.rhpd_submap_kf_radius = 1;
     config.rhpd_submap_voxel_size = 0.0;
-    config.sc_num_exclude_recent = 0;
+    config.loop_min_path_length_m = 1.0;
     config.loop_kf_gap = 1;
 
     config.mapping_static_start_guard_enable = false;
@@ -557,7 +557,7 @@ TEST(N3MappingCoreTest, PendingLoopClosureAcceptsDescriptorGeometryWithLimitedSe
     EXPECT_EQ(result.place_candidate_count, 1U);
     EXPECT_EQ(result.edge_count, 1U);
     EXPECT_EQ(result.graph_edge_count, 1U);
-    EXPECT_FALSE(result.accepted_loops.empty());
+    ASSERT_FALSE(result.accepted_loops.empty());
     EXPECT_EQ(result.accepted_loops.front().loop_referee_reason, "descriptor_geometry_consistent");
 }
 

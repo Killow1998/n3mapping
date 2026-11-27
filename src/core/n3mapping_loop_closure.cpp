@@ -57,7 +57,7 @@ std::vector<DetectedLoopQuery> N3MappingCore::detectPendingLoopCandidates(
           [&](int64_t id) {
             const auto& match = keyframe_map.at(id);
             return !match->is_from_loaded_map && match->session_id == query_kf->session_id &&
-                query_id - id > config_.sc_num_exclude_recent && within_work_bound(id);
+                within_work_bound(id);
           });
       if (!pending.tracked_against_loaded_map) {
         auto old_map = session_->detector.detectLoopCandidates(query_id, keyframe_map,
@@ -74,8 +74,7 @@ std::vector<DetectedLoopQuery> N3MappingCore::detectPendingLoopCandidates(
             if (!map_loaded_) return true;
             const auto& match = *keyframe_map.at(id);
             if (match.is_from_loaded_map) return !pending.tracked_against_loaded_map;
-            return match.session_id == query_kf->session_id &&
-                query_id - id > config_.sc_num_exclude_recent && within_work_bound(id);
+            return match.session_id == query_kf->session_id && within_work_bound(id);
           }, true);
       for (const auto &spatial : spatial_candidates) {
         auto duplicate =

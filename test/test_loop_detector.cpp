@@ -28,13 +28,11 @@ protected:
     void SetUp() override {
 
         config_.sc_dist_threshold = 0.3;
-        config_.sc_num_exclude_recent = 10;
         config_.sc_num_candidates = 5;
         config_.num_threads = 2;
         config_.gicp_fitness_threshold = 0.5;
         config_.rhpd_enabled = true;
-        config_.loop_min_path_length_m =
-            config_.sc_num_exclude_recent * 1.0;
+        config_.loop_min_path_length_m = 10.0;
         config_.rhpd_dist_threshold = 100.0;
         config_.rhpd_num_candidates = 5;
         config_.rhpd_preselect_candidates = 12;
@@ -687,17 +685,55 @@ TEST_F(LoopDetectorTest, AddMultipleDescriptors) {
     }
 }
 
-TEST_F(LoopDetectorTest, ExcludeRecentFrames) {
+TEST_F(LoopDetectorTest, HeadingFallbackUsesArcLengthAtAShortFrameGap) {
+    Config cfg = config_;
+    cfg.rhpd_enabled = false;
+    cfg.sc_num_exclude_recent = 50;
+    cfg.loop_min_path_length_m = 5.0;
+    LoopDetector detector(cfg);
+    const auto cloud = createCircularCloud();
+    for (int id = 0; id < 5; ++id) detector.addDescriptor(id, cloud);
 
-    for (int i = 0; i < 15; ++i) {
-      auto cloud = createCircularCloud();
-      detector_->addDescriptor(i, cloud);
-    }
+    auto frames = lineOfKeyframes(5);
+    frames.at(1)->pose_odom.translation().x() = 2.5;
+    frames.at(2)->pose_odom.translation().x() = 4.0;
+    frames.at(3)->pose_odom.translation().x() = 2.0;
+    frames.at(4)->pose_odom.translation().x() = 0.5;
+    const auto candidates = detector.detectLoopCandidates(4, frames);
 
-    auto candidates = detector_->detectLoopCandidates(14, lineOfKeyframes(15));
-
+    ASSERT_EQ(candidates.size(), 2u);
     for (const auto& candidate : candidates) {
-        EXPECT_LT(candidate.match_id, 14 - config_.sc_num_exclude_recent);
+        EXPECT_LE(candidate.match_id, 1);
+        EXPECT_DOUBLE_EQ(candidate.path_length_m, candidate.match_id == 0 ? 7.5 : 5.0);
+    }
+}
+
+TEST_F(LoopDetectorTest, CrossSessionCandidatesDoNotDependOnOdometryOrigins) {
+    Config cfg = config_;
+    cfg.sc_aux_veto_enabled = false;
+    cfg.loop_min_path_length_m = 5.0;
+    cfg.loop_spatial_candidates_enable = true;
+    auto frames = lineOfKeyframes(5);
+    for (int id = 2; id < 5; ++id) {
+        frames.at(id)->session_id = 1;
+        frames.at(id)->pose_odom.translation().x() += 1000.0;
+    }
+    const auto cloud = createAsymmetricCloud();
+    for (bool rhpd : {false, true}) {
+        cfg.rhpd_enabled = rhpd;
+        LoopDetector detector(cfg);
+        for (int id = 0; id < 5; ++id) {
+            detector.addDescriptor(id, cloud);
+            if (rhpd) detector.addRHPD(id, cloud);
+        }
+        for (const auto& candidates : {detector.detectLoopCandidates(4, frames),
+                                       detector.detectSpatialCandidates(4, frames)}) {
+            ASSERT_EQ(candidates.size(), 2u);
+            for (const auto& candidate : candidates) {
+                EXPECT_LT(candidate.match_id, 2);
+                EXPECT_DOUBLE_EQ(candidate.path_length_m, 0.0);
+            }
+        }
     }
 }
 
@@ -735,7 +771,7 @@ TEST_F(LoopDetectorTest, DetectSimilarScenes) {
     }
 
     for (const auto& candidate : candidates) {
-        EXPECT_LT(candidate.match_id, 15 - config_.sc_num_exclude_recent);
+        EXPECT_GE(candidate.path_length_m, config_.loop_min_path_length_m);
         EXPECT_GE(candidate.match_id, 0);
     }
 }
@@ -745,8 +781,6 @@ TEST_F(LoopDetectorTest, DetectSimilarScenesUsesRHPDPrimary) {
     cfg.rhpd_enabled = true;
     cfg.sc_aux_veto_enabled = false;
     cfg.rhpd_dist_threshold = 100.0;
-    cfg.sc_num_exclude_recent = 10;
-    cfg.loop_min_path_length_m = 10 * 1.0;
     LoopDetector detector(cfg);
 
     for (int i = 0; i < 20; ++i) {
@@ -779,12 +813,11 @@ TEST_F(LoopDetectorTest, DetectSimilarScenesUsesRHPDPrimary) {
     EXPECT_TRUE(found);
 }
 
-TEST_F(LoopDetectorTest, RHPDPrimarySearchFiltersRecentFramesBeforePrefilter) {
+TEST_F(LoopDetectorTest, RHPDPrimarySearchFiltersShortPathsBeforePrefilter) {
     Config cfg = config_;
     cfg.rhpd_enabled = true;
     cfg.sc_aux_veto_enabled = false;
-    cfg.sc_num_exclude_recent = 50;
-    cfg.loop_min_path_length_m = 50 * 1.0;
+    cfg.loop_min_path_length_m = 50.0;
     cfg.rhpd_num_candidates = 5;
     cfg.sc_num_candidates = 3;
     cfg.rhpd_preselect_candidates = 8;
@@ -810,7 +843,7 @@ TEST_F(LoopDetectorTest, RHPDPrimarySearchFiltersRecentFramesBeforePrefilter) {
     ASSERT_FALSE(candidates.empty());
     bool found_old_loop = false;
     for (const auto& candidate : candidates) {
-        EXPECT_LT(candidate.match_id, 180 - cfg.sc_num_exclude_recent);
+        EXPECT_GE(candidate.path_length_m, cfg.loop_min_path_length_m);
         if (candidate.match_id == 20) {
             found_old_loop = true;
             EXPECT_TRUE(candidate.fromRHPD());
@@ -824,8 +857,6 @@ TEST_F(LoopDetectorTest, DetectSimilarScenesCanFallbackToScanContextWhenRHPDDisa
     Config cfg = config_;
     cfg.rhpd_enabled = false;
     cfg.sc_dist_threshold = 1.0;
-    cfg.sc_num_exclude_recent = 10;
-    cfg.loop_min_path_length_m = 10 * 1.0;
     LoopDetector detector(cfg);
 
     for (int i = 0; i < 20; ++i) {
@@ -1109,7 +1140,6 @@ TEST_F(LoopDetectorTest, DescriptorCandidatesUnaffectedBySpatialRadius) {
     base.rhpd_enabled = true;
     base.sc_aux_veto_enabled = false;
     base.rhpd_dist_threshold = 100.0;
-    base.sc_num_exclude_recent = 10;
     base.loop_min_path_length_m = 0.0;
     base.loop_spatial_candidates_enable = true;
 
@@ -1154,7 +1184,6 @@ TEST_F(LoopDetectorTest, RhpdMatchFilterAppliesBeforeTopK) {
     cfg.rhpd_num_candidates = 2;
     cfg.rhpd_preselect_candidates = 20;
     cfg.sc_aux_veto_enabled = false;
-    cfg.sc_num_exclude_recent = 0;
     cfg.loop_min_path_length_m = 0.0;
     LoopDetector detector(cfg);
 
@@ -1175,7 +1204,6 @@ TEST_F(LoopDetectorTest, RhpdMatchFilterAppliesBeforeTopK) {
 TEST_F(LoopDetectorTest, ScanContextMatchFilterAppliesBeforeKnn) {
     Config cfg = config_;
     cfg.rhpd_enabled = false;
-    cfg.sc_num_exclude_recent = 0;
     cfg.loop_min_path_length_m = 0.0;
     LoopDetector detector(cfg);
 
@@ -1198,7 +1226,6 @@ TEST_F(LoopDetectorTest, WorkBoundReplenishesWithoutDiscardingOriginalCandidates
         cfg.rhpd_num_candidates = cfg.sc_num_candidates = 2;
         cfg.rhpd_preselect_candidates = 20;
         cfg.sc_aux_veto_enabled = false;
-        cfg.sc_num_exclude_recent = 0;
         cfg.loop_min_path_length_m = 0;
         LoopDetector detector(cfg);
         const auto query = createAsymmetricCloud();

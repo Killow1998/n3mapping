@@ -1,8 +1,9 @@
 #include "n3mapping/pcl_compat.h"
 
 #include <gtest/gtest.h>
-#include <random>
 #include <chrono>
+#include <cmath>
+#include <random>
 #include "n3mapping/loop_detector.h"
 
 namespace n3mapping {
@@ -88,13 +89,11 @@ protected:
     Config generateRandomConfig() {
         Config config;
 
-        std::uniform_int_distribution<int> exclude_dist(5, 100);
+        std::uniform_int_distribution<int> path_length_dist(5, 20);
         std::uniform_int_distribution<int> candidates_dist(3, 20);
         std::uniform_real_distribution<double> threshold_dist(0.1, 0.5);
 
-        config.sc_num_exclude_recent = exclude_dist(rng_);
-        config.loop_min_path_length_m =
-            config.sc_num_exclude_recent * 1.0;
+        config.loop_min_path_length_m = path_length_dist(rng_);
         config.sc_num_candidates = candidates_dist(rng_);
         config.sc_dist_threshold = threshold_dist(rng_);
         config.num_threads = 2;
@@ -105,17 +104,18 @@ protected:
     std::mt19937 rng_;
 };
 
-TEST_F(LoopDetectorPBTTest, Property4_ExcludeRecentFrames) {
+TEST_F(LoopDetectorPBTTest, Property4_ExcludeShortPathsAcrossSamplingDensities) {
     constexpr int NUM_ITERATIONS = 100;
 
     for (int iter = 0; iter < NUM_ITERATIONS; ++iter) {
 
         Config config = generateRandomConfig();
         auto detector = std::make_unique<LoopDetector>(config);
+        const double spacing_m = std::ldexp(1.0, std::uniform_int_distribution<int>(-2, 1)(rng_));
+        const int minimum_segments = static_cast<int>(std::ceil(config.loop_min_path_length_m / spacing_m));
 
         std::uniform_int_distribution<int> num_frames_dist(
-            config.sc_num_exclude_recent + 5,
-            config.sc_num_exclude_recent + 50);
+            minimum_segments + 5, minimum_segments + 50);
         int num_frames = num_frames_dist(rng_);
 
         for (int i = 0; i < num_frames; ++i) {
@@ -124,28 +124,18 @@ TEST_F(LoopDetectorPBTTest, Property4_ExcludeRecentFrames) {
         }
 
         std::uniform_int_distribution<int> query_dist(
-            config.sc_num_exclude_recent,
-            num_frames - 1
-        );
+            minimum_segments, num_frames - 1);
         int query_id = query_dist(rng_);
 
-        auto candidates = detector->detectLoopCandidates(query_id, lineOfKeyframes(num_frames));
-
-        int max_allowed_id = query_id - config.sc_num_exclude_recent;
+        auto candidates = detector->detectLoopCandidates(
+            query_id, lineOfKeyframes(num_frames, spacing_m));
+        ASSERT_FALSE(candidates.empty()) << "Iteration: " << iter;
 
         for (const auto& candidate : candidates) {
-            EXPECT_LT(candidate.match_id, max_allowed_id)
-                << "Iteration: " << iter
-                << ", Query ID: " << query_id
-                << ", Match ID: " << candidate.match_id
-                << ", Max Allowed: " << max_allowed_id
-                << ", Num Exclude: " << config.sc_num_exclude_recent;
-
-            EXPECT_GE(candidate.match_id, 0)
-                << "Match ID should be non-negative";
-
-            EXPECT_EQ(candidate.query_id, query_id)
-                << "Query ID in candidate should match";
+            EXPECT_GE(candidate.path_length_m, config.loop_min_path_length_m);
+            EXPECT_DOUBLE_EQ(candidate.path_length_m, (query_id - candidate.match_id) * spacing_m);
+            EXPECT_GE(candidate.match_id, 0);
+            EXPECT_EQ(candidate.query_id, query_id);
         }
     }
 }
@@ -196,15 +186,15 @@ TEST_F(LoopDetectorPBTTest, Property7_DescriptorDimensionInvariance) {
     }
 }
 
-TEST_F(LoopDetectorPBTTest, InsufficientHistoryReturnsEmpty) {
+TEST_F(LoopDetectorPBTTest, InsufficientTravelReturnsEmptyEvenWithManyFrames) {
     constexpr int NUM_ITERATIONS = 50;
 
     for (int iter = 0; iter < NUM_ITERATIONS; ++iter) {
         Config config = generateRandomConfig();
         auto detector = std::make_unique<LoopDetector>(config);
 
-        std::uniform_int_distribution<int> num_frames_dist(1, config.sc_num_exclude_recent - 1);
-        int num_frames = num_frames_dist(rng_);
+        const int num_frames = std::uniform_int_distribution<int>(51, 100)(rng_);
+        const double spacing_m = config.loop_min_path_length_m / num_frames;
 
         for (int i = 0; i < num_frames; ++i) {
             auto cloud = generateCircularCloud();
@@ -212,12 +202,12 @@ TEST_F(LoopDetectorPBTTest, InsufficientHistoryReturnsEmpty) {
         }
 
         auto candidates = detector->detectLoopCandidates(num_frames - 1,
-                                                        lineOfKeyframes(num_frames));
+                                                        lineOfKeyframes(num_frames, spacing_m));
 
         EXPECT_TRUE(candidates.empty())
             << "Iteration: " << iter
             << ", Num frames: " << num_frames
-            << ", Num exclude: " << config.sc_num_exclude_recent;
+            << ", Minimum travel in metres: " << config.loop_min_path_length_m;
     }
 }
 
@@ -228,7 +218,8 @@ TEST_F(LoopDetectorPBTTest, CandidateCountLimit) {
         Config config = generateRandomConfig();
         auto detector = std::make_unique<LoopDetector>(config);
 
-        int num_frames = config.sc_num_exclude_recent + config.sc_num_candidates + 20;
+        const int num_frames = static_cast<int>(config.loop_min_path_length_m) +
+            config.sc_num_candidates + 20;
 
         for (int i = 0; i < num_frames; ++i) {
             auto cloud = generateCircularCloud();

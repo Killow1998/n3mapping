@@ -50,15 +50,15 @@ class ConfigReachesBehaviour(unittest.TestCase):
             HEADER.read_text(encoding="utf-8"))))
         self.assertTrue(self.fields, "No configuration fields were parsed")
 
-    def test_every_field_is_read_outside_the_plumbing(self) -> None:
+    def test_only_legacy_fields_are_inert(self) -> None:
         corpus = "\n".join(path.read_text(encoding="utf-8") for path in sources())
         inert = [
             name for name in self.fields
             if not re.search(r"\b" + re.escape(name) + r"\b", corpus)
         ]
         self.assertEqual(
-            inert, [],
-            "Configuration fields without production consumers: wire them up or remove them",
+            inert, ["sc_num_exclude_recent"],
+            "Only the legacy YAML field may lack a production consumer",
         )
 
     def test_shared_surface_matches_declared_fields(self) -> None:

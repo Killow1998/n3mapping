@@ -28,15 +28,13 @@ double unitScoreBelow(double value, double limit) {
 LoopFeatures makeSegmentAwareLoopFeatures(const Config& config,
                                            const LoopCandidate& candidate,
                                            const VerifiedLoop& loop,
-                                           double icp_translation_norm) {
+                                           double icp_translation_norm,
+                                           double temporal_gap) {
     LoopFeatures features;
     features.descriptor_score = candidate.descriptor_score;
     features.spatial_score = candidate.spatial_score;
     features.geometric_overlap = loop.heightmap_vertical_consistency_score;
-    features.temporal_gap = std::clamp(
-        static_cast<double>(candidate.query_id - candidate.match_id) /
-            std::max(1.0, static_cast<double>(config.sc_num_exclude_recent)),
-        0.0, 1.0);
+    features.temporal_gap = temporal_gap;
     const double fitness_score =
         unitScoreBelow(loop.fitness_score, config.loop_fitness_threshold);
     const double inlier_score =
@@ -286,13 +284,17 @@ LoopVerificationPipelineResult LoopVerificationPipeline::evaluate(
         result.pose_visibility = pose_visibility(result.verification);
     }
     result.pose_visibility_evaluated = evaluate_visibility;
+    const double temporal_gap = query->session_id != match->session_id
+        ? 1.0
+        : std::clamp(candidate.path_length_m / std::max(1.0, config_.loop_min_path_length_m),
+                     0.0, 1.0);
     auto broad_loop = loop_closure_manager_.applyEdgeModel(result.verification.loop);
     if (broad_loop.verified) {
         assignLoopSegmentConsistency(&broad_loop,
             computeLoopSegmentConsistency(config_, keyframe_manager_, broad_loop));
         broad_loop.verified = LoopReferee::evaluate(makeSegmentAwareLoopFeatures(
             config_, candidate, broad_loop,
-            result.verification.icp_translation_norm)).decision == LoopDecision::Accept;
+            result.verification.icp_translation_norm, temporal_gap)).decision == LoopDecision::Accept;
     }
     if (result.verification.loop.verified && config_.icp_refine_use_gicp) {
         const auto source = matcher_.prepareSourceCloud(query->cloud);
@@ -375,7 +377,7 @@ LoopVerificationPipelineResult LoopVerificationPipeline::evaluate(
     assignLoopSegmentConsistency(&result.loop, segment);
     const LoopFeatures features = makeSegmentAwareLoopFeatures(
         config_, candidate, result.loop,
-        result.verification.icp_translation_norm);
+        result.verification.icp_translation_norm, temporal_gap);
     const LoopRefereeDecision referee = LoopReferee::evaluate(features);
     result.loop.loop_referee_energy = referee.energy;
     result.loop.loop_referee_recommendation =

@@ -41,6 +41,14 @@ and provenance. A default-only change rebuilds its implementation; a field/type
 change changes the shared contract. Noetic retains its three parameter namespace
 forms and their existing precedence.
 
+Mapping and map continuation use `loop_min_path_length_m` for same-session
+loop candidates from RHPD, heading fallback and spatial search. The distance is
+the odometry arc along the intervening keyframes, including frames without
+descriptors. The loop referee uses the same distance for its temporal-gap
+feature. Cross-session candidates skip the arc-length cutoff and keep the
+existing cross-session verification. `sc_num_exclude_recent` is accepted for
+legacy YAML compatibility and has no effect on loop detection or scoring.
+
 `graph_types.h` exposes graph-edge data and the optimizer interface without GTSAM
 headers. `GraphOptimizer` keeps solver objects in private `graph_optimizer_state.h`.
 Its implementation files own GTSAM dependencies; unrelated consumers do not.
