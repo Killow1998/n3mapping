@@ -61,8 +61,23 @@ unqualified. Corrupted maps from before the tracking repair require regeneration
 
 ## Getting started
 
-Build with the [Humble instructions](docs/getting_started.md#ros-2-humble) or
-[Noetic instructions](docs/getting_started.md#ros-1-noetic), then source the workspace.
+The Humble and Noetic adapters share the `n3mapping` package name. Select the
+adapter for your ROS distribution from the workspace root before running
+`rosdep` or building. For ROS 2 Humble, assuming the repository is cloned at
+`src/n3mapping`:
+
+```bash
+source /opt/ros/humble/setup.bash
+src/n3mapping/scripts/select_distro_wrapper.sh humble
+colcon list
+```
+
+The selector creates local ignore markers for `noetic/`. Verify that
+`colcon list` shows `n3mapping` only once, at `src/n3mapping/humble`.
+
+Continue with the [Humble build instructions](docs/getting_started.md#ros-2-humble)
+or follow the [Noetic instructions](docs/getting_started.md#ros-1-noetic) for
+ROS 1. Source the workspace after building.
 
 Copy [the default configuration](config/n3mapping.yaml) and set your frontend's
 topics, coordinate frames, and map paths. This example uses the FAST-LIO topic
