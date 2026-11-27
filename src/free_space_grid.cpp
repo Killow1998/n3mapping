@@ -10,6 +10,10 @@
 #include <flann/util/result_set.h>
 
 namespace n3mapping {
+bool FreeSpaceGrid::Score::hasAbsoluteConflict() const {
+  return valid && known_points >= 32.0 && known_fraction >= 0.20 &&
+      free_given_known > 0.80;
+}
 
 bool FreeSpaceGrid::Score::significantlyBetterThan(const Score& other, double sigmas) const {
   return value - other.value > sigmas * std::hypot(stddev, other.stddev);

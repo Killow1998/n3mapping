@@ -96,6 +96,14 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
   const auto query_started = std::chrono::steady_clock::now();
   const PlaceObservation query_observation =
       query_builder_.buildStationary(cloud, odom_pose);
+  ++relocalization_queries_;
+  PlaceObservation motion_observation;
+  if ((relocalization_queries_ >= 2 && query_observation.frame_count == 1) ||
+      (relocalization_queries_ >= 3 && search_offset_ > 0) ||
+      (relocalization_queries_ > config_.reloc_temporal_window_size &&
+       hypothesis_manager_.empty())) {
+    motion_observation = query_builder_.buildMotionSubmap(odom_pose);
+  }
   cost.query_build_ms = std::chrono::duration<double, std::milli>(
       std::chrono::steady_clock::now() - query_started).count();
   PointCloudT::Ptr query_cloud = query_observation.cloud;
@@ -109,17 +117,8 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
     RelocQueryCloudDebugSummary query_cloud_debug;
     fillQueryCloudDebugSummary(query_observation, &query_cloud_debug);
     debug_event.query_cloud = query_cloud_debug;
-    const PlaceObservation motion_observation =
-        query_builder_.buildMotionSubmap(odom_pose);
     fillQueryCloudDebugSummary(motion_observation,
                                &debug_event.motion_query_cloud);
-    auto motion_query_cloud = motion_observation.cloud;
-    if (motion_query_cloud && !motion_query_cloud->empty()) {
-      auto motion_candidates = place_index_.search(motion_query_cloud);
-      debug_event.motion_query_cloud.candidate_count = motion_candidates.size();
-      debug_event.motion_query_cloud.top_candidates =
-          std::move(motion_candidates);
-    }
     cost.diagnostics_ms = std::chrono::duration<double, std::milli>(
         std::chrono::steady_clock::now() - diagnostics_started).count();
   }
@@ -137,7 +136,20 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
   }
   if (search_offset_ == 0) search_anchor_ = odom_pose;
   VLOG(1) << "[Reloc/Retrieval] offset=" << search_offset_;
-  const auto candidates = place_index_.search(query_cloud, &cost.descriptor, search_offset_);
+  auto candidates = place_index_.search(query_cloud, &cost.descriptor, search_offset_);
+  if (motion_observation.frame_count >= 2 && motion_observation.cloud) {
+    auto motion_candidates = place_index_.search(motion_observation.cloud, &cost.descriptor,
+                                                  search_offset_);
+    if (reloc_debug_enabled) {
+      debug_event.motion_query_cloud.candidate_count = motion_candidates.size();
+      debug_event.motion_query_cloud.top_candidates = motion_candidates;
+    }
+    for (const auto& candidate : motion_candidates) {
+      if (std::none_of(candidates.begin(), candidates.end(), [&](const auto& existing) {
+            return existing.match_id == candidate.match_id;
+          })) candidates.push_back(candidate);
+    }
+  }
 
   std::vector<const RelocHypothesis*> currently_registered;
   const bool starting = hypothesis_manager_.empty();
@@ -147,8 +159,9 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
     debug_event.candidate_count = candidates.size();
     debug_event.top_candidates = candidates;
   }
-  const auto next_search_offset = candidates.size() == static_cast<size_t>(config_.reloc_num_candidates)
-      ? search_offset_ + candidates.size() : 0;
+  const auto page_size = static_cast<std::size_t>(config_.reloc_num_candidates);
+  const auto next_search_offset = candidates.size() >= page_size
+      ? search_offset_ + page_size : 0;
   if (candidates.empty()) search_offset_ = 0;
   if (starting && candidates.empty()) {
     finish_debug("rejected", "no_candidates");
@@ -169,7 +182,7 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
     }
   } else {
     currently_registered = confirmRelocalization(
-        query_cloud, candidates, odom_pose, prepared_observation,
+        query_cloud, odom_pose, prepared_observation,
         cost, reloc_debug_enabled);
   }
 
@@ -364,6 +377,7 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
       VLOG(1) << "[Reloc/DirectionalCoverage] known_min=" << witness.planar_min_known
               << " agreement_given_known=" << witness.planar_min_support_given_known
               << " conflict_max=" << witness.planar_max_conflict
+              << " occluded_bins=" << witness.occluded_bins
               << " all_observations_conflict=" << all_observations_conflict;
 
       if (!directional_supported) {
@@ -383,22 +397,27 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
     VLOG(1) << "[Reloc/Directional] min_support=" << cost.directional_min_support
             << " passed=" << decision.accepted << " ms=" << cost.directional_check_ms;
   }
+  if (!decision.temporal_window_pending && decision.accepted) {
+    const auto started = std::chrono::steady_clock::now();
+    FreeSpaceGrid::Score ranked_score;
+    const auto *free_space_best = freeSpaceBestHypothesis(
+        query_cloud, odom_pose, *ranking.top1, ranked_score);
+    cost.free_space_ms += std::chrono::duration<double, std::milli>(
+        std::chrono::steady_clock::now() - started).count();
+    decision = decision_policy_.evaluate(
+        ranking, winner_observations, hypothesis_manager_.winnerStreak(),
+        motion_baseline, free_space_best, odom_pose, ranked_score);
+    rejected_current_geometry = ranked_score.hasAbsoluteConflict();
+    if (decision.accepted && winner_observations < config_.reloc_temporal_window_size &&
+               (!ranked_score.valid || ranked_score.known_points < 32.0)) {
+      decision.temporal_window_pending = true;
+    }
+  }
   if (rejected_current_geometry) {
-
     const auto anchor = keyframe_manager_.getKeyframe(top1->seed_match_id);
     if (anchor)
       cost.invalidated_seed_poses += candidate_evaluator_.discardSeedsNear(
           anchor->pose_optimized.translation(), kRelocBasinAssignRadius);
-  }
-  if (config_.reloc_free_space_mode != "kill" &&
-      !decision.temporal_window_pending && decision.accepted) {
-    const auto started = std::chrono::steady_clock::now();
-    const auto *free_space_best = freeSpaceBestHypothesis(query_cloud, odom_pose, *ranking.top1);
-    cost.free_space_ms = std::chrono::duration<double, std::milli>(
-        std::chrono::steady_clock::now() - started).count();
-    decision = decision_policy_.evaluate(
-        ranking, winner_observations, hypothesis_manager_.winnerStreak(),
-        motion_baseline, free_space_best, odom_pose);
   }
   if (decision.temporal_window_pending) {
     VLOG(1) << "Relocalization pending: winner observations "
@@ -446,6 +465,7 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
     relocalization_seed_id_ = best.seed_match_id;
     last_odom_pose_ = odom_pose;
     consecutive_track_failures_ = 0;
+    relocalization_queries_ = 0;
 
     result.success = true;
     result.state = RelocalizationState::FULL_6DOF_LOCKED;

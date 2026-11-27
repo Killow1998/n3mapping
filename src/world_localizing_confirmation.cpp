@@ -12,7 +12,6 @@ namespace n3mapping {
 std::vector<const WorldLocalizing::RelocHypothesis*>
 WorldLocalizing::confirmRelocalization(
     const PointCloudT::Ptr& query_cloud,
-    const std::vector<LoopCandidate>& current_candidates,
     const Eigen::Isometry3d& odom_pose, RelocalizationObservation& observation,
     RelocalizationPerformance& cost, bool reloc_debug_enabled) {
   std::vector<const RelocHypothesis*> currently_registered;
@@ -29,29 +28,6 @@ WorldLocalizing::confirmRelocalization(
     return visibility;
   };
 
-  auto descriptor_supports_keyframe =
-      [&](const std::vector<LoopCandidate> &candidates, int64_t keyframe_id) {
-        auto target = keyframe_manager_.getKeyframe(keyframe_id);
-        if (!target) {
-          return false;
-        }
-        const Eigen::Vector3d target_position =
-            target->pose_optimized.translation();
-        for (const auto &candidate : candidates) {
-          auto candidate_kf = keyframe_manager_.getKeyframe(candidate.match_id);
-          if (!candidate_kf) {
-            continue;
-          }
-          const double distance =
-              (candidate_kf->pose_optimized.translation() - target_position)
-                  .norm();
-          if (distance <= kRelocBasinAssignRadius) {
-            return true;
-          }
-        }
-        return false;
-      };
-
   hypothesis_manager_.advanceWindow();
 
   std::map<int64_t, std::vector<RelocHypothesis*>> target_groups;
@@ -61,6 +37,7 @@ WorldLocalizing::confirmRelocalization(
 
     if (hyp.first_observation == hypothesis_manager_.windowCount())
       continue;
+    if (config_.reloc_persist_hypotheses) hyp.cumulative_log_likelihood *= 0.9;
     if (reloc_debug_enabled) {
 
       hyp.last_registration_observability = {};
@@ -73,12 +50,6 @@ WorldLocalizing::confirmRelocalization(
       continue;
     }
 
-    if (!hyp.tracking_proposal &&
-        !descriptor_supports_keyframe(current_candidates, nearest_kf_id) &&
-        !descriptor_supports_keyframe(current_candidates, hyp.seed_match_id)) {
-      hyp.cumulative_log_likelihood -= config_.reloc_hypothesis_miss_penalty;
-      continue;
-    }
     target_groups[nearest_kf_id].push_back(&hyp);
   }
 
@@ -110,9 +81,12 @@ WorldLocalizing::confirmRelocalization(
       MatchResult checked_prediction;
       bool optimized = false;
       if (prepared_target.valid()) {
-
         const int observations = hypothesis_manager_.windowCount() - hyp.first_observation + 1;
-        if (observations < config_.reloc_temporal_window_size) {
+        const auto motion = hypothesis_manager_.motionBaseline(&hyp, odom_pose);
+        const bool refine_from_moving_seed =
+            motion.translation > config_.reloc_static_agg_max_translation ||
+            motion.rotation > config_.reloc_static_agg_max_rotation;
+        if (!refine_from_moving_seed && observations < std::min(3, config_.reloc_temporal_window_size)) {
           const auto started = std::chrono::steady_clock::now();
           mr = matcher_.evaluatePreparedPose(*prepared_target.registration_target,
                                              prepared_query, predicted_pose, hyp.metric);
@@ -133,7 +107,7 @@ WorldLocalizing::confirmRelocalization(
             setting.max_iterations = config_.gicp_max_iterations + config_.icp_refine_max_iterations;
           }
 
-          mr = hyp.tracking_proposal
+          mr = hyp.tracking_proposal || refine_from_moving_seed
               ? matcher_.alignPrepared(*prepared_target.registration_target,
                                        prepared_query, predicted_pose, setting)
               : matcher_.resumePrepared(*prepared_target.registration_target,
@@ -144,7 +118,7 @@ WorldLocalizing::confirmRelocalization(
           ++cost.confirmation_registrations;
           optimized = true;
           if (!hasValidRegistrationResult(mr)) ++cost.rejected_alignments;
-          if (!hyp.tracking_proposal &&
+          if (!hyp.tracking_proposal && !refine_from_moving_seed &&
               (!evaluateRelocMatchQuality(mr, config_).accepted ||
                (predicted_pose.inverse() * mr.T_target_source).translation().norm() >
                    config_.icp_refine_max_correspondence_distance ||
@@ -170,9 +144,7 @@ WorldLocalizing::confirmRelocalization(
         const auto refined_visibility =
             hypothesis_visibility(prepared_target, mr.T_target_source);
         if (refined_visibility.valid &&
-            (!selected_visibility.valid ||
-             refined_visibility.consistency_ratio >
-                 selected_visibility.consistency_ratio + 1e-9)) {
+            !registrationVisibilityRegressed(selected_visibility, refined_visibility)) {
           selected_visibility = refined_visibility;
           selected_pose = mr.T_target_source;
           selected_registration_endpoint = true;
@@ -211,8 +183,9 @@ WorldLocalizing::confirmRelocalization(
       hyp.cumulative_log_likelihood +=
           computeTrackLogLikelihood(mr, predicted_pose);
       hyp.num_updates += 1;
-      if (hasValidRegistrationResult(mr)) {
-        if (current_registration_converged && evaluateRelocMatchQuality(mr, config_).accepted)
+      const bool current_geometry_valid = evaluateRelocMatchQuality(mr, config_).accepted;
+      if (current_geometry_valid) {
+        if (current_registration_converged)
           currently_registered.push_back(&hyp);
         hyp.T_map_odom = selected_pose * odom_pose.inverse();
         hyp.metric = mr.metric;
@@ -268,8 +241,18 @@ WorldLocalizing::confirmRelocalization(
                 << " inliers=" << mr.num_inliers
                 << " fitness=" << mr.fitness_score
                 << " inlier_ratio=" << mr.inlier_ratio;
+      } else if (config_.reloc_persist_hypotheses &&
+                 hyp.cumulative_log_likelihood < -config_.reloc_hypothesis_miss_penalty) {
+        hyp.alive = false;
       }
       if (selected_visibility.valid) {
+        if (config_.reloc_persist_hypotheses &&
+            hyp.visibility_updates >= config_.reloc_temporal_window_size) {
+          const double retained_weight = 1.0 - 1.0 / hyp.visibility_updates;
+          hyp.visibility_consistency_sum *= retained_weight;
+          hyp.visibility_evidence_sum *= retained_weight;
+          --hyp.visibility_updates;
+        }
         hyp.visibility_consistency_sum += selected_visibility.consistency_ratio;
         hyp.visibility_evidence_sum += selected_visibility.evidence_log_odds;
         hyp.visibility_updates += 1;

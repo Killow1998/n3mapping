@@ -281,9 +281,12 @@ WorldLocalizing::trackLocalizationImpl(const PointCloudT::Ptr &cloud,
 
       visibility = registration_visibility;
       debug_event.visibility_selected_pose_source = "registration_endpoint";
-      if (prediction_visibility_evaluated && predicted_visibility.valid &&
-          (!visibility.valid || predicted_visibility.consistency_ratio >
-                                    visibility.consistency_ratio + 1e-9)) {
+      const bool large_correction_loses_visibility = predicted_visibility.valid &&
+          visibility.valid && registration_delta_translation > config_.global_map_voxel_size &&
+          predicted_visibility.consistency_ratio > visibility.consistency_ratio + 0.01;
+      if (prediction_visibility_evaluated &&
+          (large_correction_loses_visibility ||
+           registrationVisibilityRegressed(predicted_visibility, visibility))) {
 
         auto predicted_match = matcher_.evaluatePreparedPose(
             *prepared_target, prepared_source, predicted_pose,

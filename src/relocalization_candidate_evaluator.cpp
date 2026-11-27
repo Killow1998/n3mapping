@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <cmath>
 #include <chrono>
+#include <numeric>
 #include <glog/logging.h>
 #include <omp.h>
 #include <optional>
@@ -119,6 +120,35 @@ RelocalizationCandidateEvaluator::evaluate(
   const auto yaw_hypotheses = buildRelocalizationYawHypotheses(candidate, config_);
   std::vector<std::optional<RelocalizationCandidateEvaluation>> seed_evaluations(yaw_hypotheses.size());
   std::vector<RelocalizationPerformance> seed_costs(yaw_hypotheses.size());
+  auto seed_pose = [&](double yaw) {
+    Eigen::Isometry3d pose = match_keyframe->pose_optimized;
+    pose.linear() *= Eigen::AngleAxisd(yaw, Eigen::Vector3d::UnitZ()).toRotationMatrix();
+    return pose;
+  };
+  std::vector<std::size_t> finalists(yaw_hypotheses.size());
+  std::iota(finalists.begin(), finalists.end(), 0);
+  if (finalists.size() > 2 && config_.rhpd_yaw_hypotheses > 1) {
+    const MatchMetric coarse_metric{small_gicp::RegistrationSetting::PLANE_ICP,
+        2.0 * config_.gicp_downsampling_resolution, config_.gicp_max_correspondence_distance};
+    const auto started = std::chrono::steady_clock::now();
+    std::vector<double> scores;
+    scores.reserve(finalists.size());
+    for (const double yaw : yaw_hypotheses) {
+      const auto coarse = matcher_.evaluatePreparedPose(*prepared_target.registration_target,
+          prepared_query, seed_pose(yaw), coarse_metric);
+      scores.push_back(std::isfinite(coarse.fitness_score)
+          ? coarse.inlier_ratio / (1.0 + coarse.fitness_score) : 0.0);
+    }
+    cost.fixed_pose_evaluations += scores.size();
+    cost.fixed_pose_ms += std::chrono::duration<double, std::milli>(
+        std::chrono::steady_clock::now() - started).count();
+    std::partial_sort(finalists.begin(), finalists.begin() + 2, finalists.end(),
+        [&](std::size_t a, std::size_t b) {
+          if (scores[a] != scores[b]) return scores[a] > scores[b];
+          return a < b;
+        });
+    finalists.resize(2);
+  }
   const auto evaluate_seed = [&](std::size_t index) {
     const double yaw = yaw_hypotheses[index];
     auto& cost = seed_costs[index];
@@ -133,10 +163,7 @@ RelocalizationCandidateEvaluator::evaluate(
     };
     const auto seed = std::make_pair(candidate.match_id, yaw);
     auto stored_seed = seed;
-    Eigen::Isometry3d initial_pose = match_keyframe->pose_optimized;
-    initial_pose.linear() =
-        match_keyframe->pose_optimized.linear() *
-        Eigen::AngleAxisd(yaw, Eigen::Vector3d::UnitZ()).toRotationMatrix();
+    const Eigen::Isometry3d initial_pose = seed_pose(yaw);
     Eigen::Isometry3d prediction;
     MatchMetric previous_metric;
     bool continuing = false;
@@ -216,10 +243,7 @@ RelocalizationCandidateEvaluator::evaluate(
     const auto initial_visibility = visibility(initial_pose);
     auto selected_visibility =
         visibility(match.T_target_source);
-    if (initial_visibility.valid &&
-        (!selected_visibility.valid ||
-         initial_visibility.consistency_ratio >
-             selected_visibility.consistency_ratio + 1e-9)) {
+    if (registrationVisibilityRegressed(initial_visibility, selected_visibility)) {
 
       const auto fixed_started = std::chrono::steady_clock::now();
       match = matcher_.evaluatePreparedPose(
@@ -251,13 +275,13 @@ RelocalizationCandidateEvaluator::evaluate(
   if (omp_in_parallel()) {
 #pragma omp taskgroup
     {
-      for (std::size_t i = 0; i < yaw_hypotheses.size(); ++i) {
+      for (const auto i : finalists) {
 #pragma omp task firstprivate(i) shared(evaluate_seed)
         evaluate_seed(i);
       }
     }
   } else {
-    for (std::size_t i = 0; i < yaw_hypotheses.size(); ++i) evaluate_seed(i);
+    for (const auto i : finalists) evaluate_seed(i);
   }
   for (std::size_t i = 0; i < yaw_hypotheses.size(); ++i) {
     cost.addCandidate(seed_costs[i]);

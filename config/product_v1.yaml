@@ -106,7 +106,7 @@ n3mapping_node:
     reloc_num_candidates: 10
     reloc_heading_dist_threshold: 0.3
     reloc_min_confidence: 0.3
-    reloc_min_inlier_ratio: 0.03
+    reloc_min_inlier_ratio: 0.20
     reloc_search_radius: 20.0
     reloc_max_track_failures: 5
     reloc_track_max_translation: 3.0
@@ -151,7 +151,7 @@ n3mapping_node:
     reloc_free_space_occupied_min_points: 2
     reloc_free_space_kill_sigmas: 5.0
     reloc_free_space_map_pcd: ""
-    reloc_persist_hypotheses: false
+    reloc_persist_hypotheses: true
     reloc_persist_max_frames: 300
 
     rhpd_enabled: true

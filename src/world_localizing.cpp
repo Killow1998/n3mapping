@@ -67,6 +67,7 @@ void WorldLocalizing::resetTrackingStateLocked() {
 
 void WorldLocalizing::releaseSearchPreparation() {
   search_offset_ = 0;
+  relocalization_queries_ = 0;
   candidate_evaluator_.clear();
   target_provider_->clear();
   reloc_map_cache_ = pcl::make_shared<PointCloudT>();

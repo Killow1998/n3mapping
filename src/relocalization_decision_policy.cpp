@@ -97,10 +97,18 @@ RelocalizationDecision RelocalizationDecisionPolicy::evaluate(
     const RelocalizationRanking &ranking, int window_count, int winner_streak,
     const HypothesisMotionBaseline &motion_baseline,
     const RelocalizationHypothesis *free_space_best,
-    const Eigen::Isometry3d &odom_pose) const {
+    const Eigen::Isometry3d &odom_pose,
+    const FreeSpaceGrid::Score& winner_free_space) const {
   RelocalizationDecision decision;
   decision.effective_temporal_window =
       std::max(1, config_.reloc_temporal_window_size);
+  if (ranking.top1 && ranking.uses_visibility_evidence &&
+      motion_baseline.translation <= config_.reloc_static_agg_max_translation &&
+      motion_baseline.rotation <= config_.reloc_static_agg_max_rotation &&
+      ranking.top1_consistency >= 0.65 && ranking.top1_visibility > 0.0 &&
+      (!ranking.top2 || ranking.margin >= 2.0 * config_.reloc_lock_min_margin)) {
+    decision.effective_temporal_window = std::min(3, decision.effective_temporal_window);
+  }
   decision.effective_min_winner_streak =
       std::min(std::max(1, config_.reloc_lock_min_winner_streak),
                decision.effective_temporal_window);
@@ -152,10 +160,11 @@ RelocalizationDecision RelocalizationDecisionPolicy::evaluate(
   decision.ambiguous =
       decision.top2_viable && competing_hypothesis && separation_too_small;
 
-  decision.pass_free_space =
-      config_.reloc_free_space_mode == "kill" || !free_space_best ||
-      !ranking.top1 || free_space_best == ranking.top1 ||
-      samePhysicalPose(free_space_best, ranking.top1, odom_pose);
+  const bool absolute_free_space_conflict = winner_free_space.hasAbsoluteConflict();
+  decision.pass_free_space = !absolute_free_space_conflict &&
+      (config_.reloc_free_space_mode == "kill" || !free_space_best ||
+       !ranking.top1 || free_space_best == ranking.top1 ||
+       samePhysicalPose(free_space_best, ranking.top1, odom_pose));
   decision.accepted = !decision.ambiguous && decision.pass_log_likelihood &&
                       decision.pass_margin && decision.pass_winner_streak &&
                       decision.pass_converged_updates &&
@@ -177,7 +186,8 @@ RelocalizationDecision RelocalizationDecisionPolicy::evaluate(
   } else if (!decision.pass_converged_updates) {
     decision.reject_reason = "converged_updates";
   } else if (!decision.pass_free_space) {
-    decision.reject_reason = "free_space_veto";
+    decision.reject_reason = absolute_free_space_conflict
+        ? "absolute_free_space_conflict" : "free_space_veto";
   } else if (!decision.accepted) {
     decision.reject_reason = "stability_guard";
   }

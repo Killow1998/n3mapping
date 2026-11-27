@@ -132,7 +132,7 @@ private:
       RelocalizationPerformance& cost, RelocalizationDebugEvent* event);
 
   std::vector<const RelocHypothesis*> confirmRelocalization(
-      const PointCloudT::Ptr& cloud, const std::vector<LoopCandidate>& candidates,
+      const PointCloudT::Ptr& cloud,
       const Eigen::Isometry3d& odom_pose, RelocalizationObservation& observation,
       RelocalizationPerformance& cost, bool debug_enabled);
 
@@ -150,7 +150,8 @@ private:
   const RelocHypothesis *
   freeSpaceBestHypothesis(const PointCloudT::Ptr &query_cloud,
                           const Eigen::Isometry3d &odom_pose,
-                          const RelocHypothesis &ranked_winner);
+                          const RelocHypothesis &ranked_winner,
+                          FreeSpaceGrid::Score& ranked_score);
   PointCloudT::Ptr buildRelocTargetCloud(int64_t center_id);
   RelocTargetRequest makeRelocTargetRequest(int64_t center_id);
   void releaseSearchPreparation();
@@ -184,6 +185,7 @@ private:
   RelocalizationQueryBuilder query_builder_;
   RelocalizationPlaceIndex place_index_;
   std::size_t search_offset_ = 0;
+  int relocalization_queries_ = 0;
   Eigen::Isometry3d search_anchor_ = Eigen::Isometry3d::Identity();
   std::unique_ptr<LocalizationAtlas> localization_atlas_;
   KeyframeMapRevision loaded_atlas_revision_;

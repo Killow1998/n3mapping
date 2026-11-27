@@ -42,7 +42,8 @@ void RelocalizationPlaceIndex::prepare(
     if (performance)
       performance->indexed_keyframes += frames_.size();
   }
-  const auto submaps = loop_detector_.getRHPDManager().snapshot();
+  const auto& manager = loop_detector_.getRHPDManager();
+  const auto submaps = manager.snapshot();
   RHPDHeadingCache headings;
   for (const auto &[id, heading] : loop_detector_.getDescriptors())
     headings.emplace(id, heading);
@@ -58,10 +59,12 @@ void RelocalizationPlaceIndex::prepare(
       const auto frame = frames_.find(id);
       const auto submap = submaps.find(id);
       const auto heading = headings.find(id);
-      place.views.push_back(
-          {id, frame == frames_.end() ? nullptr : frame->second,
-           submap == submaps.end() ? nullptr : submap->second,
-           heading == headings.end() ? nullptr : heading->second});
+      View view{id, frame == frames_.end() ? nullptr : frame->second,
+                submap == submaps.end() ? nullptr : submap->second,
+                heading == headings.end() ? nullptr : heading->second, {}, {}};
+      if (view.frame) view.frame_coarse = manager.makeCoarseKey(*view.frame);
+      if (view.submap) view.submap_coarse = manager.makeCoarseKey(*view.submap);
+      place.views.push_back(std::move(view));
     }
     retrieval_view_count_ += place.views.size();
     places_.push_back(std::move(place));

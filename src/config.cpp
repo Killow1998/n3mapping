@@ -32,7 +32,7 @@ Config makeProductLocalizationConfig(const std::string& map_path,
     config.reloc_free_space_occupied_min_points = 2;
     config.reloc_free_space_kill_sigmas = 5.0;
     config.reloc_free_space_map_pcd = "";
-    config.reloc_persist_hypotheses = false;
+    config.reloc_persist_hypotheses = true;
     config.reloc_persist_max_frames = 300;
     return config;
 }

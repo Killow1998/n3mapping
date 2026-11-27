@@ -77,6 +77,18 @@ Map continuation uses both visibility viewpoints by default. The optional
 endpoint-only path reduced check time in the SpRobo comparison and raised the
 maximum position error from 4.9 cm to 13.1 cm on the same source map.
 
+Relocalization ranks places with the RHPD coarse key and its 180-degree flip
+before computing full descriptor distances. It screens yaw seeds with coarse
+point-to-plane geometry before refinement. ROS development and product profiles
+retain live hypotheses across confirmation windows with decaying evidence.
+Descriptors introduce new places. Current geometry, visibility and odometry
+confirm those already under consideration.
+
+Strong static matches can lock on the third observation after the usual
+geometric and free-space checks. New closer returns withhold directional
+support, while returns through expected surfaces count as contradictions.
+Sufficient known free-space conflict vetoes even a single remaining pose.
+
 `graph_types.h` exposes graph-edge data and the optimizer interface without GTSAM
 headers. `GraphOptimizer` keeps solver objects in private `graph_optimizer_state.h`.
 Its implementation files own GTSAM dependencies; unrelated consumers do not.

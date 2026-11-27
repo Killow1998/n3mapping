@@ -141,11 +141,39 @@ std::vector<LoopCandidate> RelocalizationPlaceIndex::searchRHPDCandidates(
   struct RankedPlace {
     std::vector<RankedView> views;
   };
+  const auto limit =
+      offset + static_cast<size_t>(std::max(1, config_.reloc_num_candidates));
+  const auto configured_budget = config_.rhpd_preselect_candidates;
+  const auto preselect = configured_budget > 0
+      ? std::min(places_.size(), std::max(limit, static_cast<std::size_t>(configured_budget)))
+      : places_.size();
+  std::vector<std::pair<double, std::size_t>> coarse_ranked;
+  coarse_ranked.reserve(places_.size());
+  if (preselect < places_.size()) {
+    DescriptorPhaseTimer coarse_timer(performance ? &performance->coarse : nullptr);
+    const auto key = loop_detector_.getRHPDManager().makeCoarseKey(query);
+    const auto flipped = RHPDManager::flipCoarseKey(key);
+    const auto distance = [&](const RHPDManager::VecD& reference) {
+      if (performance) ++performance->coarse_comparisons;
+      return std::min((key - reference).squaredNorm(), (flipped - reference).squaredNorm());
+    };
+    for (std::size_t i = 0; i < places_.size(); ++i) {
+      double best = std::numeric_limits<double>::infinity();
+      for (const auto& view : places_[i].views) {
+        if (view.frame) best = std::min(best, distance(view.frame_coarse));
+        if (view.submap) best = std::min(best, distance(view.submap_coarse));
+      }
+      coarse_ranked.emplace_back(best, i);
+    }
+    std::nth_element(coarse_ranked.begin(), coarse_ranked.begin() + preselect, coarse_ranked.end());
+    coarse_ranked.resize(preselect);
+  }
   std::vector<RankedPlace> ordered;
-  ordered.reserve(places_.size());
+  ordered.reserve(preselect);
   const auto prepared = descriptor_.prepareQuery(query);
   DescriptorPhaseTimer place_timer(performance ? &performance->place : nullptr);
-  for (const auto &place : places_) {
+  for (std::size_t i = 0; i < preselect; ++i) {
+    const auto& place = places_[coarse_ranked.empty() ? i : coarse_ranked[i].second];
     RankedPlace ranked;
     ranked.views.reserve(place.views.size());
     for (const auto &view : place.views) {
@@ -194,8 +222,6 @@ std::vector<LoopCandidate> RelocalizationPlaceIndex::searchRHPDCandidates(
       return a.rhpd_distance < b.rhpd_distance;
     return a.match_id < b.match_id;
   };
-  const auto limit =
-      offset + static_cast<size_t>(std::max(1, config_.reloc_num_candidates));
   const double weight =
       config_.rhpd_primary_weight / std::max(1e-6, config_.rhpd_dist_threshold);
   const double slack =

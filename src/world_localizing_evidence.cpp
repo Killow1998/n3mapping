@@ -79,7 +79,8 @@ void WorldLocalizing::rebuildFreeSpaceGridIfNeeded() {
 const WorldLocalizing::RelocHypothesis *
 WorldLocalizing::freeSpaceBestHypothesis(const PointCloudT::Ptr &query_cloud,
                                          const Eigen::Isometry3d &odom_pose,
-                                         const RelocHypothesis &ranked_winner) {
+                                         const RelocHypothesis &ranked_winner,
+                                         FreeSpaceGrid::Score& ranked_score) {
   if (!config_.reloc_free_space_enable || !query_cloud || query_cloud->empty())
     return nullptr;
   rebuildFreeSpaceGridIfNeeded();
@@ -89,7 +90,7 @@ WorldLocalizing::freeSpaceBestHypothesis(const PointCloudT::Ptr &query_cloud,
   if (free_space_grid_.freeCells() == 0)
     return nullptr;
   const RelocHypothesis *best = nullptr;
-  FreeSpaceGrid::Score best_score, ranked_score;
+  FreeSpaceGrid::Score best_score;
   for (const auto &hyp : hypothesis_manager_.hypotheses()) {
     if (!hyp.alive)
       continue;

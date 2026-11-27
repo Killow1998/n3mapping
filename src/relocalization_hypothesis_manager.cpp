@@ -112,6 +112,8 @@ HypothesisPersistenceResult RelocalizationHypothesisManager::finishWindow(
 
   ++persisted_frames_;
   result.persisted_frames = persisted_frames_;
+  hypotheses_.erase(std::remove_if(hypotheses_.begin(), hypotheses_.end(),
+      [](const Hypothesis& hypothesis) { return !hypothesis.alive; }), hypotheses_.end());
   result.any_alive = std::any_of(
       hypotheses_.begin(), hypotheses_.end(),
       [](const Hypothesis &hypothesis) { return hypothesis.alive; });

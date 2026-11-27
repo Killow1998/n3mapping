@@ -7,6 +7,7 @@
 #include <Eigen/Geometry>
 
 #include "n3mapping/config.h"
+#include "n3mapping/free_space_grid.h"
 #include "n3mapping/relocalization_hypothesis_manager.h"
 
 namespace n3mapping {
@@ -61,7 +62,8 @@ public:
   evaluate(const RelocalizationRanking &ranking, int window_count,
            int winner_streak, const HypothesisMotionBaseline &motion_baseline,
            const RelocalizationHypothesis *free_space_best,
-           const Eigen::Isometry3d &odom_pose) const;
+           const Eigen::Isometry3d &odom_pose,
+           const FreeSpaceGrid::Score& winner_free_space = {}) const;
 
 private:
   static double

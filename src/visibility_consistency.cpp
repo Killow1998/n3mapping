@@ -246,6 +246,7 @@ VisibilityConsistencyResult evaluatePreparedVisibilityConsistency(
   std::vector<double> residuals;
   Eigen::Matrix3d planar_support = Eigen::Matrix3d::Zero();
   Eigen::Matrix3d planar_known = Eigen::Matrix3d::Zero();
+  Eigen::Matrix3d planar_conflict = Eigen::Matrix3d::Zero();
   residuals.reserve(observed.ranges.size());
   for (std::size_t i = 0; i < observed.ranges.size(); ++i) {
     const bool has_observation = std::isfinite(observed.ranges[i]);
@@ -272,11 +273,16 @@ VisibilityConsistencyResult evaluatePreparedVisibilityConsistency(
     const bool surface_consistent = has_surfaces &&
         std::abs(observed.planar_surfaces[i].head<3>().dot(predicted.nearest_points[i]) +
                  observed.planar_surfaces[i][3]) <= options.range_tolerance_m;
+    const bool new_occlusion = signed_error > options.range_tolerance_m && !surface_consistent;
+    if (new_occlusion) ++result.occluded_bins;
     if (has_planar) {
       const auto &j = observed.planar_jacobians[i];
-      planar_known.noalias() += j * j.transpose();
-      if (range_consistent || surface_consistent)
+      if (!new_occlusion) planar_known.noalias() += j * j.transpose();
+      if (range_consistent || surface_consistent) {
         planar_support.noalias() += j * j.transpose();
+      } else if (!new_occlusion) {
+        planar_conflict.noalias() += j * j.transpose();
+      }
     }
     if (signed_error < -options.range_tolerance_m)
       ++result.foreground_conflict_bins;
@@ -313,8 +319,7 @@ VisibilityConsistencyResult evaluatePreparedVisibilityConsistency(
     if (solver.info() == Eigen::Success)
       result.planar_min_support = std::clamp(solver.eigenvalues()[0], 0.0, 1.0);
     const Eigen::SelfAdjointEigenSolver<Eigen::Matrix3d> known(planar_known);
-    const Eigen::SelfAdjointEigenSolver<Eigen::Matrix3d> conflict(
-        planar_known - planar_support);
+    const Eigen::SelfAdjointEigenSolver<Eigen::Matrix3d> conflict(planar_conflict);
     if (conflict.info() == Eigen::Success)
       result.planar_max_conflict =
           std::clamp(conflict.eigenvalues()[2], 0.0, 1.0);
@@ -346,6 +351,22 @@ VisibilityConsistencyResult evaluatePreparedVisibilityConsistency(
   result.median_abs_range_error_m = percentile(residuals, 0.5);
   result.p90_abs_range_error_m = percentile(residuals, 0.9);
   return result;
+}
+
+bool registrationVisibilityRegressed(const VisibilityConsistencyResult& prediction,
+                                     const VisibilityConsistencyResult& registration) {
+  constexpr double meaningful_conflict_increase = 0.05;
+  if (!prediction.valid || !registration.valid || prediction.consistency_ratio < 0.5)
+    return false;
+  if (registration.foreground_conflict_ratio >
+      prediction.foreground_conflict_ratio + meaningful_conflict_increase)
+    return true;
+  const bool exact_reference = prediction.consistency_ratio >= 0.90 &&
+      prediction.p90_abs_range_error_m < 1e-4;
+  return (exact_reference && registration.p90_abs_range_error_m > 0.01) ||
+      (registration.consistency_ratio + meaningful_conflict_increase <
+           prediction.consistency_ratio &&
+       registration.p90_abs_range_error_m > prediction.p90_abs_range_error_m + 0.30);
 }
 
 VisibilityConsistencyResult evaluateVisibilityConsistency(

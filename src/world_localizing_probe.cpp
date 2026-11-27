@@ -56,11 +56,8 @@ WorldLocalizing::probeRegistrationSeeds(const PointCloudT::Ptr &cloud,
       attempt.refined_visibility = evaluatePreparedVisibilityConsistency(
           *visibility_target, visibility_observation, attempt.match.T_target_source);
     }
-    attempt.production_kept_initial_pose =
-        attempt.initial_visibility.valid &&
-        (!attempt.refined_visibility.valid ||
-         attempt.initial_visibility.consistency_ratio >
-             attempt.refined_visibility.consistency_ratio + 1e-9);
+    attempt.production_kept_initial_pose = registrationVisibilityRegressed(
+        attempt.initial_visibility, attempt.refined_visibility);
     attempt.production_pose = attempt.production_kept_initial_pose
                                    ? attempt.initial_pose
                                    : attempt.match.T_target_source;

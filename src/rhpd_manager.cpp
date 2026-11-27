@@ -52,11 +52,7 @@ std::vector<std::pair<int64_t, double>> RHPDManager::searchFiltered(
     DescriptorPhaseTimer coarse_timer(performance ? &performance->coarse : nullptr);
     const VecD query_key = makeCoarseKey(query);
 
-    VecD flipped_key = query_key;
-    for (int sector = 0; sector < RHPD_NEG_SPACE_SECTORS; ++sector) {
-        flipped_key(RHPD_RINGS + sector) = query_key(
-            RHPD_RINGS + (sector + RHPD_NEG_SPACE_SECTORS / 2) % RHPD_NEG_SPACE_SECTORS);
-    }
+    const VecD flipped_key = flipCoarseKey(query_key);
     const int safe_top_k = std::max(1, top_k);
     int candidate_count = static_cast<int>(ids_.size());
     if (preselect > 0) {
@@ -159,6 +155,15 @@ RHPDManager::VecD RHPDManager::makeCoarseKey(const Place& descriptor) const {
     }
     key(out) = descriptor.auxiliary(RHPD_AUX_DIM - 1);
     return key;
+}
+
+RHPDManager::VecD RHPDManager::flipCoarseKey(const VecD& key) {
+    VecD flipped = key;
+    for (int sector = 0; sector < RHPD_NEG_SPACE_SECTORS; ++sector) {
+        flipped(RHPD_RINGS + sector) = key(
+            RHPD_RINGS + (sector + RHPD_NEG_SPACE_SECTORS / 2) % RHPD_NEG_SPACE_SECTORS);
+    }
+    return flipped;
 }
 
 RHPDescriptor::Params rhpdParamsFromConfig(const Config& config) {

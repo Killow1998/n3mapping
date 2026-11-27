@@ -36,6 +36,7 @@ private:
     int64_t id;
     std::shared_ptr<const RHPDPlace> frame, submap;
     RHPDHeadingPtr heading;
+    RHPDManager::VecD frame_coarse, submap_coarse;
   };
   struct Place { std::vector<View> views; };
   std::vector<LoopCandidate> searchRHPDCandidates(

@@ -102,7 +102,7 @@ Config::Config()
       reloc_num_candidates(10),
       reloc_heading_dist_threshold(0.3),
       reloc_min_confidence(0.3),
-      reloc_min_inlier_ratio(0.03),
+      reloc_min_inlier_ratio(0.20),
       reloc_search_radius(20.0),
       reloc_max_track_failures(5),
       reloc_track_max_translation(3.0),

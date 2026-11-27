@@ -31,6 +31,7 @@ public:
     double value = 0.0;
     double stddev = 0.0;
     bool significantlyBetterThan(const Score& other, double sigmas) const;
+    bool hasAbsoluteConflict() const;
   };
 
   bool build(const pcl::PointCloud<pcl::PointXYZI> &map_cloud,

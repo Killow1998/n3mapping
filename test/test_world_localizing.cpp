@@ -60,6 +60,36 @@ TEST(RelocalizationRankingTest, NearVisibilityScoresRemainOrdered)
   }
 }
 
+TEST(RelocalizationDecisionTest, KnownFreeSpaceVetoesEvenTheOnlyMode)
+{
+  Config config;
+  RelocalizationDecisionPolicy policy(config);
+  const auto odom_pose = Eigen::Isometry3d::Identity();
+  std::vector<RelocalizationHypothesis> hypotheses(1);
+  auto& hypothesis = hypotheses.front();
+  hypothesis.cumulative_log_likelihood = 10.0;
+  hypothesis.converged_updates = config.reloc_temporal_window_size;
+  const auto ranking = policy.rank(hypotheses, odom_pose);
+  ASSERT_EQ(ranking.top1, &hypothesis);
+  ASSERT_EQ(ranking.top2, nullptr);
+  const auto evaluate = [&](const FreeSpaceGrid::Score& score) {
+    return policy.evaluate(ranking, config.reloc_temporal_window_size,
+        config.reloc_temporal_window_size, {}, nullptr, odom_pose, score);
+  };
+  FreeSpaceGrid::Score score;
+  score.valid = true;
+  score.known_points = 80.0;
+  score.known_fraction = 0.8;
+  score.free_given_known = 0.3;
+  ASSERT_TRUE(evaluate(score).accepted);
+  score.free_given_known = 0.9;
+  const auto rejected = evaluate(score);
+  EXPECT_FALSE(rejected.accepted);
+  EXPECT_EQ(rejected.reject_reason, "absolute_free_space_conflict");
+  score.known_fraction = 0.1;
+  EXPECT_TRUE(evaluate(score).accepted);
+}
+
 TEST(RelocalizationRankingTest, EqualAndInvalidScoresHaveStableIdentityTies)
 {
   Config config;

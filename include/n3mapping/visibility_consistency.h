@@ -32,6 +32,7 @@ struct VisibilityConsistencyResult {
   std::size_t consistent_bins = 0;
 
   std::size_t foreground_conflict_bins = 0;
+  std::size_t occluded_bins = 0;
 
   std::size_t known_bins = 0;
   std::size_t unknown_bins = 0;
@@ -56,6 +57,9 @@ struct VisibilityConsistencyResult {
       std::numeric_limits<double>::quiet_NaN();
   double planar_max_conflict = std::numeric_limits<double>::quiet_NaN();
 };
+
+bool registrationVisibilityRegressed(const VisibilityConsistencyResult& prediction,
+                                     const VisibilityConsistencyResult& registration);
 
 using LoadedMapVisibilityEvaluator = std::function<VisibilityConsistencyResult(
     const pcl::PointCloud<pcl::PointXYZI>&, const Eigen::Isometry3d&)>;

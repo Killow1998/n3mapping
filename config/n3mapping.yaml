@@ -8,5 +8,6 @@ n3mapping_node:
     loop_use_icp_information: true
     map_save_path: ""
     reloc_lock_min_margin: 0.25
+    reloc_persist_hypotheses: true
     localization_tracking_target_cache_max_bytes: 134217728
     localization_tracking_target_cache_max_entries: 8

@@ -100,6 +100,7 @@ public:
     bool get(int64_t kf_id, Place* descriptor) const;
     RHPDPlaceCache snapshot() const;
     VecD makeCoarseKey(const Place& descriptor) const;
+    static VecD flipCoarseKey(const VecD& key);
 
     Place compute(const pcl::PointCloud<pcl::PointXYZI>::Ptr& cloud) const {
         return desc_.compute(cloud);
