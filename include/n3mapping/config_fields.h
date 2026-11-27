@@ -69,6 +69,11 @@ void forEachConfigField(Configuration& config, Visitor&& visit) {
     visit("loop_debug_path", config.loop_debug_path);
     visit("loop_geometry_enable", config.loop_geometry_enable);
     visit("loop_geometry_cpu_budget", config.loop_geometry_cpu_budget);
+    visit("continuation_penetration_cleaning_enable", config.continuation_penetration_cleaning_enable);
+    visit("continuation_penetration_margin_m", config.continuation_penetration_margin_m);
+    visit("continuation_penetration_min_views", config.continuation_penetration_min_views);
+    visit("continuation_penetration_resolution_deg", config.continuation_penetration_resolution_deg);
+    visit("continuation_penetration_max_range_m", config.continuation_penetration_max_range_m);
     visit("loop_spatial_candidates_enable", config.loop_spatial_candidates_enable);
     visit("loop_spatial_candidate_radius", config.loop_spatial_candidate_radius);
     visit("loop_spatial_candidate_max_candidates", config.loop_spatial_candidate_max_candidates);

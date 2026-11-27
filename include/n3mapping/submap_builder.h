@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <limits>
 #include <mutex>
+#include <set>
 #include <string>
 #include <vector>
 
@@ -66,7 +67,8 @@ public:
     bool closeActiveSubmap();
     bool loadSubmaps(const std::vector<Submap>& submaps,
                      const std::vector<Keyframe::Ptr>& keyframes,
-                     const std::vector<MapSessionInfo>& sessions);
+                     const std::vector<MapSessionInfo>& sessions,
+                     const std::set<int64_t>& changed_clouds = {});
     bool materialize(SubmapId id,
                      const std::vector<Keyframe::Ptr>& keyframes);
 

@@ -310,7 +310,8 @@ bool SubmapBuilder::closeActiveSubmapNoLock() {
 bool SubmapBuilder::loadSubmaps(
     const std::vector<Submap>& submaps,
     const std::vector<Keyframe::Ptr>& keyframes,
-    const std::vector<MapSessionInfo>& sessions) {
+    const std::vector<MapSessionInfo>& sessions,
+    const std::set<int64_t>& changed_clouds) {
     std::map<int64_t, Keyframe::Ptr> keyframe_by_id;
     for (const auto& keyframe : keyframes) {
         if (keyframe) keyframe_by_id[keyframe->id] = keyframe;
@@ -382,11 +383,18 @@ bool SubmapBuilder::loadSubmaps(
         }
     }
     for (auto& submap : loaded) {
+        const bool changed = std::any_of(submap.keyframe_ids.begin(), submap.keyframe_ids.end(),
+            [&](int64_t id) { return changed_clouds.count(id) != 0; });
         submap.registration_cloud.reset();
         submap.visualization_cloud.reset();
-        if (options_.enable &&
-            !materializeNoLock(&submap, keyframes, true)) {
+        if ((options_.enable || changed) &&
+            !materializeNoLock(&submap, keyframes, !changed)) {
             return false;
+        }
+        if (changed) ++submap.content_revision;
+        if (!options_.enable) {
+            submap.registration_cloud.reset();
+            submap.visualization_cloud.reset();
         }
     }
     const SubmapId next_id = loaded.empty() ? 0 : loaded.back().id + 1u;

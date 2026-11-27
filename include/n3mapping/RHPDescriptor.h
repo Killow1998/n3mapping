@@ -90,7 +90,7 @@ public:
         : desc_(params) {}
     RHPDManager() : desc_(RHPDescriptor::Params{}) {}
 
-    void add(int64_t kf_id, const Place& descriptor);
+    void add(int64_t kf_id, const Place& descriptor, bool replace = false);
 
     Place addCloud(int64_t kf_id, const pcl::PointCloud<pcl::PointXYZI>::Ptr& cloud);
 

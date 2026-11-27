@@ -4,6 +4,7 @@
 #include <map>
 #include <memory>
 #include <mutex>
+#include <set>
 #include <string>
 #include <utility>
 #include <vector>
@@ -41,6 +42,8 @@ public:
     void restoreMapDescriptors(const KeyframeManager& keyframes,
                                const RHPDPlaceCache& submaps = {},
                                const std::map<int64_t, RHPDHeadingPtr>& headings = {});
+    void refreshMapDescriptors(const KeyframeManager& keyframes,
+                               const std::set<int64_t>& changed_clouds);
     RHPDHeadingPtr computeHeading(const PointCloudT::Ptr& cloud);
     RHPDHeadingPtr addDescriptor(int64_t keyframe_id, const PointCloudT::Ptr& cloud);
     void addDescriptor(int64_t keyframe_id, const RHPDHeadingPtr& descriptor);
@@ -86,7 +89,7 @@ private:
     std::vector<RHPDHeadingPtr> descriptors_;
     mutable std::mutex mutex_;
 
-    void addDescriptorUnlocked(int64_t id, const RHPDHeadingPtr& descriptor);
+    void addDescriptorUnlocked(int64_t id, const RHPDHeadingPtr& descriptor, bool replace = false);
 };
 
 }

@@ -138,9 +138,14 @@ void WorldLocalizing::installOptimizedReference(
     LocalizationAtlas& atlas, const Eigen::Isometry3d& correction) {
   std::lock_guard<std::mutex> lock(mutex_);
   localization_atlas_->swapData(atlas);
-  tracking_targets_->installLoadedReference(
-      localization_atlas_->globalMap(), localization_atlas_->preparedTarget(),
-      localization_atlas_->visibilityBlocks());
+  if (localization_atlas_->loaded()) {
+    tracking_targets_->installLoadedReference(
+        localization_atlas_->globalMap(), localization_atlas_->preparedTarget(),
+        localization_atlas_->visibilityBlocks());
+  } else {
+    tracking_targets_->clearMap();
+  }
+  loaded_atlas_revision_ = keyframe_manager_.revision();
   T_map_odom_ = correction * T_map_odom_;
   remaining_map_shift_.setZero();
   directional_proposal_.reset();

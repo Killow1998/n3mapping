@@ -453,6 +453,22 @@ domains. Automatic Atlas preparation rebuilds older place caches once. Explicit
 historical Atlas files retain their geometry and refresh descriptor inputs
 at runtime.
 
+Continuation map saves use the final optimized poses and require at least three
+new keyframes by default. An old point is removed when three rays from distinct
+new keyframes provide a return behind it by more than 0.35 m and the surrounding
+angular bins contain no nearer return. A return near the old point's depth in
+another view keeps the point. The default range is 20 m and the angular
+resolution is 1 degree. Set `continuation_penetration_cleaning_enable`
+to `false` to save without this step. The other `continuation_penetration_*`
+fields control the distance, vote count, angular resolution, and range.
+
+Keyframe IDs and poses are preserved. A keyframe that would become empty keeps
+its original cloud. The saved map, Atlas, and PCD use the same surviving
+points. Successful map publication also updates the live keyframe clouds,
+affected descriptors, and reference geometry. The `[ContinuationCleaning]`
+log reports coverage, points removed, protected empty-frame cases, and
+cleaning computation time.
+
 `loop_geometry_cpu_budget` defaults to **0.5** CPU seconds per wall second for
 background extension geometry; **0** disables pacing. It leaves ordinary mapping
 loop processing unchanged. Successive extension requests coalesce while every

@@ -132,6 +132,17 @@ bool MapSerializer::saveMap(const std::string& filepath,
                             const std::vector<core::DenseTrajectoryPose>& dense_optimized_trajectory,
                             const core::DenseTrajectoryMetadata& dense_trajectory_metadata,
                             const SubmapBuilder* submap_builder) {
+    return saveMap(filepath, keyframe_manager.getAllKeyframes(), keyframe_manager.getSessions(),
+                   optimizer, dense_optimized_trajectory, dense_trajectory_metadata, submap_builder);
+}
+
+bool MapSerializer::saveMap(const std::string& filepath,
+                            const std::vector<Keyframe::Ptr>& keyframes,
+                            const std::vector<MapSessionInfo>& sessions,
+                            const GraphOptimizer& optimizer,
+                            const std::vector<core::DenseTrajectoryPose>& dense_optimized_trajectory,
+                            const core::DenseTrajectoryMetadata& dense_trajectory_metadata,
+                            const SubmapBuilder* submap_builder) {
     try {
         std::filesystem::path fp(filepath);
         if (fp.has_parent_path()) std::filesystem::create_directories(fp.parent_path());
@@ -141,7 +152,6 @@ bool MapSerializer::saveMap(const std::string& filepath,
         meta->set_creation_timestamp(std::time(nullptr));
         meta->set_map_frame(config_.world_frame);
         meta->set_body_frame(config_.body_frame);
-        auto keyframes = keyframe_manager.getAllKeyframes();
         if (keyframes.empty()) {
             LOG(ERROR) << "[MapSerializer] Refuse to save map with no keyframes.";
             return false;
@@ -150,7 +160,6 @@ bool MapSerializer::saveMap(const std::string& filepath,
         saved_keyframe_ids.reserve(keyframes.size());
         std::unordered_map<int64_t, MapSessionId> keyframe_sessions;
         keyframe_sessions.reserve(keyframes.size());
-        const auto sessions = keyframe_manager.getSessions();
         if (sessions.empty()) {
             LOG(ERROR) << "[MapSerializer] Refuse to save map with no sessions.";
             return false;

@@ -3,6 +3,7 @@
 
 #include <cmath>
 #include <iomanip>
+#include <limits>
 #include <sstream>
 
 namespace n3mapping {
@@ -96,6 +97,11 @@ std::string Config::toString() const {
     oss << "Loop candidate pipeline: descriptor + spatial proposals -> ICP consistency features -> LoopReferee -> graph commit\n";
     oss << "Joint loop geometry: " << (loop_geometry_enable ? "ON" : "OFF")
         << " extension_cpu_budget=" << loop_geometry_cpu_budget << "\n";
+    oss << "Continuation cleaning: " << (continuation_penetration_cleaning_enable ? "ON" : "OFF")
+        << " margin_m=" << continuation_penetration_margin_m
+        << " min_views=" << continuation_penetration_min_views
+        << " resolution_deg=" << continuation_penetration_resolution_deg
+        << " max_range_m=" << continuation_penetration_max_range_m << "\n";
     oss << "Loop spatial candidates: " << (loop_spatial_candidates_enable ? "ON" : "OFF")
         << " radius=" << loop_spatial_candidate_radius
         << " max_candidates=" << loop_spatial_candidate_max_candidates << "\n";
@@ -257,6 +263,14 @@ bool Config::validate(std::string* error) const {
     if (!non_negative(loop_icp_prefilter_voxel_size, "loop_icp_prefilter_voxel_size")) return false;
     if (!at_least(loop_icp_max_points, 0, "loop_icp_max_points")) return false;
     if (!non_negative(loop_geometry_cpu_budget, "loop_geometry_cpu_budget")) return false;
+    if (!positive(continuation_penetration_margin_m, "continuation_penetration_margin_m")) return false;
+    if (!at_least(continuation_penetration_min_views, 1, "continuation_penetration_min_views")) return false;
+    if (!(continuation_penetration_resolution_deg >= 360.0 / std::numeric_limits<int>::max() &&
+          continuation_penetration_resolution_deg <= 10.0))
+        return fail("continuation_penetration_resolution_deg must be > 0 and <= 10 with representable bins");
+    if (!std::isfinite(continuation_penetration_max_range_m) ||
+        continuation_penetration_max_range_m <= 0.5)
+        return fail("continuation_penetration_max_range_m must be > 0.5");
     if (!positive(loop_spatial_candidate_radius, "loop_spatial_candidate_radius")) return false;
     if (!at_least(loop_spatial_candidate_max_candidates, 1, "loop_spatial_candidate_max_candidates")) return false;
     if (!at_least(loop_kf_gap, 0, "loop_kf_gap")) return false;

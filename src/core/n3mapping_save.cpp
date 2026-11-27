@@ -1,8 +1,12 @@
 #include "n3mapping/async_log.h"
 #include "n3mapping/core/n3mapping_core.h"
 #include "n3mapping_session.h"
+#include "../continuation_cleaning.h"
+#include <chrono>
 #include <filesystem>
 #include <cstdlib>
+#include <optional>
+#include <set>
 #include <vector>
 #include <glog/logging.h>
 
@@ -38,6 +42,65 @@ bool N3MappingCore::saveMap(const std::string &map_path) {
   const bool with_atlas = config_.reloc_atlas_enable ||
                          !session_->optimizer.sharedPlanes().empty();
 
+  auto keyframes = session_->keyframes.getAllKeyframes();
+  const auto sessions = session_->keyframes.getSessions();
+  ContinuationCleaning cleaning;
+  std::set<int64_t> changed_clouds;
+  std::unique_ptr<GraphOptimizer> refreshed_graph;
+  std::unique_ptr<SubmapBuilder> refreshed_submaps;
+  std::optional<LocalizationAtlas> refreshed_reference;
+  if (map_loaded_ && config_.continuation_penetration_cleaning_enable) {
+    const auto start = std::chrono::steady_clock::now();
+    cleaning = computeContinuationCleaning(config_, keyframes);
+    const auto wall_ms = std::chrono::duration<double, std::milli>(
+        std::chrono::steady_clock::now() - start).count();
+    LOG(INFO) << "[ContinuationCleaning] inspected_keyframes=" << cleaning.inspected_keyframes
+              << " modified_keyframes=" << cleaning.clouds.size()
+              << " skipped_empty_keyframes=" << cleaning.skipped_empty_keyframes
+              << " removed_points=" << cleaning.removed_points
+              << " kept_points=" << cleaning.kept_points
+              << " wall_ms=" << wall_ms;
+  }
+  if (!cleaning.clouds.empty()) {
+    std::vector<Keyframe::Ptr> loaded_keyframes;
+    for (auto& frame : keyframes) {
+      const auto replacement = cleaning.clouds.find(frame->id);
+      if (replacement != cleaning.clouds.end()) {
+        frame = std::make_shared<Keyframe>(*frame);
+        frame->cloud = replacement->second;
+        changed_clouds.insert(frame->id);
+      }
+      if (frame->is_from_loaded_map) loaded_keyframes.push_back(frame);
+    }
+    if (config_.loop_geometry_enable && !session_->optimizer.sharedPlanes().empty()) {
+      refreshed_graph = session_->optimizer.cloneCommitted();
+      GeometryOptimizationStats stats;
+      const auto planes = buildSharedPlanes(keyframes, stats);
+      if (!refreshed_graph->replaceSharedPlanes(planes, false, stats)) return false;
+    }
+    const auto submaps = session_->submaps.getSubmaps();
+    if (!submaps.empty()) {
+      refreshed_submaps = std::make_unique<SubmapBuilder>(config_);
+      if (!refreshed_submaps->loadSubmaps(submaps, keyframes, sessions, changed_clouds))
+        return false;
+    }
+    refreshed_reference.emplace(config_, session_->matcher);
+    if (session_->localizer.localizationAtlasLoaded() &&
+        !refreshed_reference->prepare(loaded_keyframes)) {
+      refreshed_reference->clear();
+      LOG(WARNING) << "[ContinuationCleaning] cleaned loaded reference cannot form an Atlas target";
+    }
+  }
+  const auto commit_cleaning = [&] {
+    if (changed_clouds.empty()) return;
+    session_->keyframes.replaceKeyframeClouds(cleaning.clouds);
+    if (refreshed_graph) session_->optimizer.swapWith(*refreshed_graph);
+    if (refreshed_submaps) session_->submaps.swapWith(*refreshed_submaps);
+    session_->detector.refreshMapDescriptors(session_->keyframes, changed_clouds);
+    session_->localizer.installOptimizedReference(
+        *refreshed_reference, Eigen::Isometry3d::Identity());
+  };
+
   SaveDirectory stage;
   if (with_atlas) {
     auto parent = std::filesystem::path(map_path).parent_path();
@@ -52,12 +115,17 @@ bool N3MappingCore::saveMap(const std::string &map_path) {
   {
     LogOperation serialize("map_save_serialize", map_path);
     if (!session_->serializer.saveMap(
-        pending, session_->keyframes, session_->detector,
-        session_->optimizer, dense_optimized_trajectory, metadata,
-        &session_->submaps)) return false;
+        pending, keyframes, sessions,
+        refreshed_graph ? *refreshed_graph : session_->optimizer,
+        dense_optimized_trajectory, metadata,
+        refreshed_submaps ? refreshed_submaps.get() : &session_->submaps)) return false;
     serialize.succeed();
   }
-  if (!with_atlas) { operation.succeed(); return true; }
+  if (!with_atlas) {
+    commit_cleaning();
+    operation.succeed();
+    return true;
+  }
   const auto atlas_path = LocalizationAtlas::defaultAtlasPath(map_path);
   const auto pending_atlas = (stage.path / "atlas").string();
   const auto backup_atlas = (stage.path / "atlas.previous").string();
@@ -66,7 +134,7 @@ bool N3MappingCore::saveMap(const std::string &map_path) {
   std::string error;
   {
     LogOperation compile("map_save_atlas", map_path);
-    if (!atlas.compileAndSave(pending, session_->keyframes.getAllKeyframes(),
+    if (!atlas.compileAndSave(pending, keyframes,
                             pending_atlas, true, &stats, &error)) {
       LOG(ERROR) << "Map/Atlas save not published: " << error;
       return false;
@@ -93,6 +161,7 @@ bool N3MappingCore::saveMap(const std::string &map_path) {
             << " atlas_prepare_ms=" << stats.prepare_ms
             << " atlas_serialize_ms=" << stats.serialize_ms
             << " atlas_bytes=" << stats.sidecar_bytes;
+  commit_cleaning();
   operation.succeed();
   return true;
 }

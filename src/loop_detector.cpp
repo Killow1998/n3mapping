@@ -67,12 +67,24 @@ std::vector<double> buildDescriptorYawHypotheses(
 LoopDetector::LoopDetector(const Config& config)
     : config_(config), rhpd_manager_(rhpdParamsFromConfig(config)) {}
 
+namespace {
+Keyframe::PointCloudT::Ptr placeDescriptorCloud(
+    const Config& config, const KeyframeManager& manager, const Keyframe& frame) {
+    auto cloud = config.rhpd_submap_kf_radius > 0
+        ? manager.buildCausalSubmapInRootFrame(
+              frame.id, config.rhpd_submap_kf_radius, frame.id,
+              KeyframeManager::PoseSource::OptimizedWithinSession)
+        : frame.cloud;
+    if (!cloud || cloud->empty()) cloud = frame.cloud;
+    return maybeVoxelizeRhpdCloud(cloud, config.rhpd_submap_voxel_size);
+}
+}
+
 void LoopDetector::restoreMapDescriptors(
     const KeyframeManager& manager, const RHPDPlaceCache& submaps,
     const std::map<int64_t, RHPDHeadingPtr>& headings) {
     const auto started = std::chrono::steady_clock::now();
     const auto keyframes = manager.getAllKeyframes();
-    const int radius = std::max(0, config_.rhpd_submap_kf_radius);
     size_t cached = 0;
     for (const auto& kf : keyframes) {
         const auto heading = headings.find(kf->id);
@@ -83,18 +95,34 @@ void LoopDetector::restoreMapDescriptors(
             rhpd_manager_.add(kf->id, *submap->second);
             ++cached;
         } else {
-            auto cloud = radius > 0
-                ? manager.buildCausalSubmapInRootFrame(
-                      kf->id, radius, kf->id, KeyframeManager::PoseSource::OptimizedWithinSession)
-                : kf->cloud;
-            if (!cloud || cloud->empty()) cloud = kf->cloud;
-            addRHPD(kf->id, maybeVoxelizeRhpdCloud(cloud, config_.rhpd_submap_voxel_size));
+            addRHPD(kf->id, placeDescriptorCloud(config_, manager, *kf));
         }
     }
     LOG(INFO) << "[MapDescriptors] keyframes=" << keyframes.size()
               << " cached_submaps=" << cached << " cached_headings=" << headings.size()
               << " wall_ms=" << std::chrono::duration<double, std::milli>(
                      std::chrono::steady_clock::now() - started).count();
+}
+
+void LoopDetector::refreshMapDescriptors(const KeyframeManager& manager,
+                                          const std::set<int64_t>& changed_clouds) {
+    std::set<int64_t> affected = changed_clouds;
+    for (const auto id : changed_clouds) {
+        const auto session = manager.getKeyframe(id)->session_id;
+        for (int offset = 1; offset <= config_.rhpd_submap_kf_radius; ++offset) {
+            const auto frame = manager.getKeyframe(id + offset);
+            if (frame && frame->is_from_loaded_map && frame->session_id == session)
+                affected.insert(frame->id);
+        }
+    }
+    for (const auto id : affected) {
+        const auto frame = manager.getKeyframe(id);
+        const auto heading = computeHeading(frame->cloud);
+        const auto descriptor = computeRHPD(placeDescriptorCloud(config_, manager, *frame));
+        std::lock_guard<std::mutex> lock(mutex_);
+        addDescriptorUnlocked(id, heading, true);
+        rhpd_manager_.add(id, descriptor, true);
+    }
 }
 
 RHPDHeadingPtr LoopDetector::computeHeading(const PointCloudT::Ptr& cloud) {
@@ -126,10 +154,13 @@ void LoopDetector::addDescriptor(int64_t id, const RHPDHeadingPtr& descriptor) {
     addDescriptorUnlocked(id, descriptor);
 }
 
-void LoopDetector::addDescriptorUnlocked(int64_t id, const RHPDHeadingPtr& descriptor) {
-    if (id_to_index_.count(id) > 0) {
-        LOG(WARNING) << "[LoopDetector] Duplicate RHPD heading id " << id
-                     << ", keeping existing descriptor.";
+void LoopDetector::addDescriptorUnlocked(int64_t id, const RHPDHeadingPtr& descriptor,
+                                         bool replace) {
+    const auto existing = id_to_index_.find(id);
+    if (existing != id_to_index_.end()) {
+        if (replace) descriptors_[existing->second] = descriptor;
+        else LOG(WARNING) << "[LoopDetector] Duplicate RHPD heading id " << id
+                          << ", keeping existing descriptor.";
         return;
     }
     id_to_index_[id] = descriptors_.size();

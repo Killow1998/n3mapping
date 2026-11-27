@@ -5,11 +5,18 @@
 #include <glog/logging.h>
 
 namespace n3mapping {
-void RHPDManager::add(int64_t kf_id, const Place& descriptor) {
+void RHPDManager::add(int64_t kf_id, const Place& descriptor, bool replace) {
     std::lock_guard<std::mutex> lock(mutex_);
-    if (std::find(ids_.begin(), ids_.end(), kf_id) != ids_.end()) {
-        LOG(WARNING) << "[RHPDManager] Duplicate RHPD descriptor id " << kf_id
-                     << ", keeping existing descriptor.";
+    const auto existing = std::find(ids_.begin(), ids_.end(), kf_id);
+    if (existing != ids_.end()) {
+        if (replace) {
+            const auto index = std::distance(ids_.begin(), existing);
+            descriptors_[index] = std::make_shared<const Place>(descriptor);
+            coarse_keys_[index] = makeCoarseKey(descriptor);
+        } else {
+            LOG(WARNING) << "[RHPDManager] Duplicate RHPD descriptor id " << kf_id
+                         << ", keeping existing descriptor.";
+        }
         return;
     }
     ids_.push_back(kf_id);

@@ -10,6 +10,7 @@
 
 #include "n3mapping/config.h"
 #include "n3mapping/core/types.h"
+#include "n3mapping/keyframe.h"
 
 namespace n3mapping {
 class KeyframeManager;
@@ -46,6 +47,13 @@ public:
     bool saveMap(const std::string& filepath,
                  const KeyframeManager& keyframe_manager,
                  const LoopDetector& loop_detector,
+                 const GraphOptimizer& optimizer,
+                 const std::vector<core::DenseTrajectoryPose>& dense_optimized_trajectory,
+                 const core::DenseTrajectoryMetadata& dense_trajectory_metadata,
+                 const SubmapBuilder* submap_builder);
+    bool saveMap(const std::string& filepath,
+                 const std::vector<Keyframe::Ptr>& keyframes,
+                 const std::vector<MapSessionInfo>& sessions,
                  const GraphOptimizer& optimizer,
                  const std::vector<core::DenseTrajectoryPose>& dense_optimized_trajectory,
                  const core::DenseTrajectoryMetadata& dense_trajectory_metadata,

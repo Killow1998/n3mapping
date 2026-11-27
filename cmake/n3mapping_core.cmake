@@ -29,6 +29,7 @@ set(N3MAPPING_CORE_SOURCES
   ${N3MAPPING_ROOT}/src/core/realtime_output.cpp
   ${N3MAPPING_ROOT}/src/ros_output_contract.cpp
   ${N3MAPPING_ROOT}/src/causal_submap.cpp
+  ${N3MAPPING_ROOT}/src/continuation_cleaning.cpp
   ${N3MAPPING_ROOT}/src/keyframe_manager.cpp
   ${N3MAPPING_ROOT}/src/local_map_selector.cpp
   ${N3MAPPING_ROOT}/src/submap_builder.cpp

@@ -35,6 +35,7 @@ public:
     bool empty() const;
     KeyframeMapRevision revision() const;
     void updateOptimizedPoses(const std::map<int64_t, Eigen::Isometry3d>& poses);
+    void replaceKeyframeClouds(const std::map<int64_t, Keyframe::PointCloudT::Ptr>& clouds);
     bool loadKeyframes(const std::vector<Keyframe::Ptr>& keyframes);
     bool loadKeyframes(const std::vector<Keyframe::Ptr>& keyframes,
                        const std::vector<MapSessionInfo>& sessions);

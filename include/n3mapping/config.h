@@ -85,6 +85,11 @@ struct Config {
     bool loop_geometry_enable;
 
     double loop_geometry_cpu_budget;
+    bool continuation_penetration_cleaning_enable;
+    double continuation_penetration_margin_m;
+    int continuation_penetration_min_views;
+    double continuation_penetration_resolution_deg;
+    double continuation_penetration_max_range_m;
     bool loop_spatial_candidates_enable;
     double loop_spatial_candidate_radius;
     int loop_spatial_candidate_max_candidates;

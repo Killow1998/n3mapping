@@ -135,6 +135,18 @@ KeyframeMapRevision KeyframeManager::revision() const {
     return revision_;
 }
 
+void KeyframeManager::replaceKeyframeClouds(
+    const std::map<int64_t, Keyframe::PointCloudT::Ptr>& clouds) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    bool changed = false;
+    for (const auto& [id, cloud] : clouds) {
+        if (cloud->empty()) continue;
+        keyframes_.at(id)->cloud = cloud;
+        changed = true;
+    }
+    if (changed) ++revision_.structure_revision;
+}
+
 void KeyframeManager::updateOptimizedPoses(const std::map<int64_t, Eigen::Isometry3d>& poses) {
     std::lock_guard<std::mutex> lock(mutex_);
     bool changed = false;

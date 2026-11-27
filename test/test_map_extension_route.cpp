@@ -3,19 +3,23 @@
 #include "n3map.pb.h"
 #include "n3mapping/world_localizing.h"
 #include "../src/core/loop_closure_async.h"
+#include "../src/continuation_cleaning.h"
 #include <gtest/gtest.h>
+#include <pcl/io/pcd_io.h>
 #include <algorithm>
 #include <cmath>
 #include <chrono>
+#include <cstdlib>
 #include <filesystem>
 #include <fstream>
 
 namespace n3mapping {
 namespace {
 
-core::LioFrame roomFrame(int64_t stamp, double x, double y) {
+core::LioFrame roomFrame(int64_t stamp, double x, double y,
+                         bool partition = false, bool dense = false) {
   struct Face { int axis; double coordinate, low_a, high_a, low_b, high_b; };
-  const Face faces[] = {
+  std::vector<Face> faces = {
     {0,-6,-4,4,0,3.5}, {0,8,-4,4,0,3.5},
     {1,-4,0,3.5,-6,8}, {1,4,0,3.5,-6,8},
     {2,0,-6,8,-4,4}, {2,3.5,-6,8,-4,4},
@@ -24,19 +28,21 @@ core::LioFrame roomFrame(int64_t stamp, double x, double y) {
     {0,-4,-2.5,-1.5,0,2.1}, {1,-1.5,0,2.1,-5,-4},
     {0,5,1,3,0,2.7}, {1,1,0,2.7,5,7}
   };
+  if (partition) faces.push_back({0,-1.8,-0.7,0.7,0.55,1.55});
   core::LioFrame frame;
   frame.stamp.nsec = stamp;
   frame.source_frame_id = "lio_odom";
   frame.pose_valid = true;
   frame.T_world_lidar.translation() = Eigen::Vector3d(x, y, 1.0);
   auto cloud = pcl::make_shared<core::LioFrame::PointCloud>();
-  for (int v = -35; v <= 55; v += 5) {
+  for (double v = -35; v <= 55; v += dense ? .75 : 5.) {
     const double pitch = v * M_PI / 180.0;
-    for (int h = 0; h < 360; h += 2) {
+    for (double h = 0; h < 360; h += dense ? .75 : 2.) {
       const double yaw = h * M_PI / 180.0;
       const Eigen::Vector3d ray(std::cos(pitch)*std::cos(yaw),
                                 std::cos(pitch)*std::sin(yaw), std::sin(pitch));
       double nearest = 30.0;
+      float intensity = 1.0f;
       for (const auto& face : faces) {
         const int a = (face.axis + 1) % 3, b = (face.axis + 2) % 3;
         if (std::abs(ray[face.axis]) < 1e-8) continue;
@@ -44,12 +50,15 @@ core::LioFrame roomFrame(int64_t stamp, double x, double y) {
         if (t <= 0.01 || t >= nearest) continue;
         const auto hit = (frame.T_world_lidar.translation() + t*ray).eval();
         if (hit[a] >= face.low_a && hit[a] <= face.high_a &&
-            hit[b] >= face.low_b && hit[b] <= face.high_b) nearest = t;
+            hit[b] >= face.low_b && hit[b] <= face.high_b) {
+          nearest = t;
+          intensity = partition && &face == &faces.back() ? 10.0f : 1.0f;
+        }
       }
       if (nearest >= 30.0) continue;
       pcl::PointXYZI point;
       point.x = nearest*ray.x(); point.y = nearest*ray.y(); point.z = nearest*ray.z();
-      point.intensity = 1.0;
+      point.intensity = intensity;
       cloud->push_back(point);
     }
   }
@@ -92,8 +101,11 @@ TEST_P(MapExtensionRoute, ExtendsBeyondLoadedGeometryAndRecoversWithoutAnotherIn
   };
   const auto original_poses = core.getOptimizedPoses();
   std::map<int64_t, Eigen::Isometry3d> original_keyframes;
-  for (const auto& frame : core.getAllKeyframes())
+  std::map<int64_t, Keyframe::PointCloudT::Ptr> original_clouds;
+  for (const auto& frame : core.getAllKeyframes()) {
     original_keyframes.emplace(frame->id, frame->pose_optimized);
+    original_clouds.emplace(frame->id, frame->cloud);
+  }
   int64_t stamp = 10000000000LL;
   core::BackendOutput output;
   int locks = 0;
@@ -220,6 +232,7 @@ TEST_P(MapExtensionRoute, ExtendsBeyondLoadedGeometryAndRecoversWithoutAnotherIn
   for (const auto& [id, pose] : original_poses) {
     EXPECT_EQ(final_poses.at(id).matrix(), pose.matrix());
     EXPECT_EQ(core.getKeyframe(id)->pose_optimized.matrix(), original_keyframes.at(id).matrix());
+    EXPECT_EQ(core.getKeyframe(id)->cloud, original_clouds.at(id));
   }
   N3Map serialized;
   std::ifstream input(extended_path, std::ios::binary);
@@ -448,6 +461,177 @@ TEST(MapContinuation, DescriptorReturnRepairsDriftBeyondSpatialGate) {
   RecordProperty("rebased_cross_session_edges", retry.outcome.summary.edge_count);
 }
 
+TEST(ContinuationCleaning, NeedsRepeatedBackgroundAndKeepsOcclusionEdgesAndDistantFrames) {
+  const Eigen::Vector3d removed(2., .02, .01), missing(0., 3., 0.);
+  const Eigen::Vector3d seam(-3., .01, .02), transient(0., -3., 0.), foreground(0., 0., 3.);
+  const Eigen::Vector3d observed(0., -3., 3.);
+  const auto make_frame = [](int64_t id, bool loaded, const std::vector<Eigen::Vector3d>& points) {
+    auto cloud = pcl::make_shared<Keyframe::PointCloudT>();
+    for (const auto& xyz : points) {
+      pcl::PointXYZI point;
+      point.getVector3fMap() = xyz.cast<float>();
+      point.intensity = cloud->size() + 1;
+      cloud->push_back(point);
+    }
+    auto frame = Keyframe::create(id, id, Eigen::Isometry3d::Identity(), cloud);
+    frame->is_from_loaded_map = loaded;
+    return frame;
+  };
+  const auto old = make_frame(0, true, {removed, missing, seam, transient, foreground, observed});
+  const auto distant = make_frame(1, true, {removed});
+  distant->pose_optimized.translation().x() = 80.;
+  const auto extreme = make_frame(2, true, {removed});
+  std::vector<Keyframe::Ptr> frames{old, distant, extreme};
+  for (int64_t id = 3; id <= 6; ++id) {
+    std::vector<Eigen::Vector3d> rays{2. * removed, 2. * seam, {-3., -.01, .02},
+                                     2. * foreground, foreground};
+    if (id < 5) rays.push_back(2. * transient);
+    rays.push_back(id < 6 ? Eigen::Vector3d(2. * observed) : observed);
+    frames.push_back(make_frame(id, false, rays));
+  }
+  Config config;
+  const auto cleaning = computeContinuationCleaning(config, frames);
+  EXPECT_EQ(cleaning.inspected_keyframes, 2u);
+  EXPECT_EQ(cleaning.skipped_empty_keyframes, 1u);
+  EXPECT_EQ(cleaning.removed_points, 1u);
+  ASSERT_EQ(cleaning.clouds.size(), 1u);
+  ASSERT_EQ(cleaning.clouds.at(old->id)->size(), 5u);
+  for (int i = 0; i < 5; ++i) {
+    const auto& point = cleaning.clouds.at(old->id)->at(i);
+    EXPECT_EQ(point.getVector3fMap(), old->cloud->at(i + 1).getVector3fMap());
+    EXPECT_EQ(point.intensity, old->cloud->at(i + 1).intensity);
+  }
+  frames.resize(5);
+  EXPECT_EQ(computeContinuationCleaning(config, frames).removed_points, 0u);
+}
+
+class SaveContinuationCleaning : public ::testing::TestWithParam<bool> {};
+
+TEST_P(SaveContinuationCleaning, SavesAndReloadsOneConsistentMap) {
+  struct TestDirectory {
+    char path[sizeof("/tmp/n3m-cleaning-XXXXXX")] = "/tmp/n3m-cleaning-XXXXXX";
+    ~TestDirectory() { std::filesystem::remove_all(path); }
+  } directory;
+  ASSERT_NE(mkdtemp(directory.path), nullptr);
+  const std::filesystem::path root(directory.path);
+  const auto original_file = (root / "original.pbstream").string();
+  const auto clean_file = (root / "clean.pbstream").string();
+  const auto pcd_file = (root / "global_map.pcd").string();
+
+  Config config;
+  config.num_threads = 2;
+  config.mapping_static_start_guard_enable = false;
+  config.keyframe_distance_threshold = .18;
+  config.submap_shadow_enable = true;
+  config.submap_max_keyframes = 3;
+  const auto partition_points = [](const Keyframe::PointCloudT& cloud) {
+    return std::count_if(cloud.begin(), cloud.end(),
+        [](const auto& p) { return p.intensity == 10.f; });
+  };
+  N3MappingCore mapping(config, N3MappingCore::WorldCloudOutput::Disabled);
+  int64_t stamp = 1000000000LL;
+  for (int i = 0; i < 5; ++i) {
+    auto frame = roomFrame(stamp, -4.8 + .28 * i, 0, true);
+    if (GetParam() && i == 0) {
+      auto& cloud = *frame.undistorted_cloud;
+      cloud.erase(std::remove_if(cloud.begin(), cloud.end(),
+          [](const auto& point) { return point.intensity != 10.f; }), cloud.end());
+    }
+    ASSERT_TRUE(mapping.processMappingFrame(frame).accepted_keyframe);
+    stamp += 1000000000LL;
+  }
+  ASSERT_TRUE(mapping.saveMap(original_file));
+  N3MappingCore extension(config, N3MappingCore::WorldCloudOutput::Disabled);
+  ASSERT_TRUE(extension.loadMap(original_file));
+  const auto original_poses = extension.getOptimizedPoses();
+  std::map<int64_t, Keyframe::PointCloudT::Ptr> original_clouds;
+  for (const auto& frame : extension.getAllKeyframes())
+    original_clouds.emplace(frame->id, frame->cloud);
+  ASSERT_GT(partition_points(*original_clouds.at(0)), 0);
+
+  for (int i = 0; i < 24 && !extension.startMapExtension(nullptr); ++i) {
+    extension.processLocalizationFrame(roomFrame(stamp, -4.5, 0, false, true));
+    stamp += 1000000000LL;
+  }
+  ASSERT_TRUE(extension.startMapExtension(nullptr));
+  for (int i = 0; i < 7; ++i) {
+    auto output = extension.processMapExtensionFrame(
+        roomFrame(stamp, -4.5 + .23 * i, -.22 + .07 * i, false, true));
+    ASSERT_TRUE(output.accepted_keyframe) << i << " " << output.relocalization_decision;
+    stamp += 1000000000LL;
+  }
+  for (const auto& [id, cloud] : original_clouds)
+    EXPECT_EQ(extension.getKeyframe(id)->cloud, cloud);
+
+  extension.processPendingLoopClosures();
+  const auto before_save = extension.getOptimizedPoses();
+  EXPECT_FALSE(extension.saveMap((root / "unavailable" / "map.pbstream").string()));
+  for (const auto& [id, cloud] : original_clouds)
+    EXPECT_EQ(extension.getKeyframe(id)->cloud, cloud);
+  const auto before_revision = extension.mapRevision();
+  ASSERT_TRUE(extension.saveMap(clean_file));
+  ASSERT_TRUE(extension.saveGlobalMap(pcd_file));
+  EXPECT_EQ(extension.mapRevision().structure_revision, before_revision.structure_revision + 1);
+  const auto after_save = extension.getOptimizedPoses();
+  for (const auto& [id, value] : before_save)
+    EXPECT_EQ(after_save.at(id).matrix(), value.matrix());
+  for (const auto& [id, value] : original_poses)
+    EXPECT_EQ(after_save.at(id).matrix(), value.matrix());
+
+  std::size_t removed = 0;
+  for (const auto& [id, cloud] : original_clouds) {
+    const auto kept = extension.getKeyframe(id)->cloud;
+    if (GetParam() && id == 0) {
+      EXPECT_EQ(kept, cloud);
+      continue;
+    }
+    EXPECT_EQ(partition_points(*kept), 0);
+    EXPECT_EQ(kept->size(), cloud->size() - partition_points(*cloud));
+    auto actual = kept->begin();
+    for (const auto& point : *cloud) {
+      if (point.intensity == 10.f) continue;
+      ASSERT_NE(actual, kept->end());
+      EXPECT_EQ(actual->getVector3fMap(), point.getVector3fMap());
+      EXPECT_EQ(actual->intensity, point.intensity);
+      ++actual;
+    }
+    removed += cloud->size() - kept->size();
+  }
+  ASSERT_GT(removed, 0u);
+
+  Keyframe::PointCloudT pcd;
+  ASSERT_EQ(pcl::io::loadPCDFile(pcd_file, pcd), 0);
+  PointCloudMatcher matcher(config);
+  LocalizationAtlas atlas(config, matcher);
+  ASSERT_TRUE(atlas.load(clean_file, LocalizationAtlas::defaultAtlasPath(clean_file)));
+  const auto contains_partition = [](const Keyframe::PointCloudT& cloud) {
+    return std::any_of(cloud.begin(), cloud.end(), [](const auto& point) {
+      return std::abs(point.x + 1.8) < .04 && std::abs(point.y) < .73 &&
+             point.z > .52 && point.z < 1.58;
+    });
+  };
+  EXPECT_EQ(contains_partition(pcd), GetParam());
+  EXPECT_EQ(contains_partition(*atlas.globalMap()), GetParam());
+  N3MappingCore reopened(config, N3MappingCore::WorldCloudOutput::Disabled);
+  ASSERT_TRUE(reopened.loadMap(clean_file));
+  ASSERT_EQ(reopened.getAllKeyframes().size(), extension.getAllKeyframes().size());
+  for (const auto& frame : reopened.getAllKeyframes()) {
+    EXPECT_EQ(frame->cloud->size(), extension.getKeyframe(frame->id)->cloud->size());
+    EXPECT_TRUE(frame->pose_optimized.matrix().isApprox(after_save.at(frame->id).matrix(), 1e-12));
+  }
+  core::BackendOutput localized;
+  for (int i = 0; i < 24 && !localized.relocalization_locked; ++i) {
+    localized = reopened.processLocalizationFrame(roomFrame(stamp, -4.5, 0));
+    stamp += 1000000000LL;
+  }
+  ASSERT_TRUE(localized.relocalization_locked);
+  const auto tracked = reopened.processLocalizationFrame(roomFrame(stamp, -4.25, 0));
+  EXPECT_EQ(tracked.pose_source, PoseSource::GEOMETRICALLY_CORRECTED);
+  EXPECT_LT((tracked.T_world_lidar.translation() - Eigen::Vector3d(-4.25, 0., 1.)).norm(), .15);
+  RecordProperty("removed_obstacle_points", removed);
+}
+
+INSTANTIATE_TEST_SUITE_P(AssetCompatibility, SaveContinuationCleaning, ::testing::Values(false, true));
 INSTANTIATE_TEST_SUITE_P(Startup, MapExtensionRoute, ::testing::Values(false, true));
 }
 }
