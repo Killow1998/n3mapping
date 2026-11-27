@@ -108,9 +108,7 @@ WorldLocalizing::trackLocalizationImpl(const PointCloudT::Ptr &cloud,
   }
 
   const auto nearest_keyframe_started = timing_started();
-  int64_t nearest_kf_id = strict_loaded_map
-                              ? findNearestLoadedKeyframe(predicted_pose)
-                              : findNearestKeyframe(predicted_pose);
+  const int64_t nearest_kf_id = findNearestKeyframe(predicted_pose, strict_loaded_map);
   debug_event.nearest_keyframe_ms = elapsed_ms(nearest_keyframe_started);
   debug_event.nearest_kf_id = nearest_kf_id;
   if (nearest_kf_id < 0) {
@@ -190,7 +188,7 @@ WorldLocalizing::trackLocalizationImpl(const PointCloudT::Ptr &cloud,
   }
   debug_event.target_prepare_ms = tracking_target.target_prepare_ms;
   const auto source_prepare_started = timing_started();
-  const auto prepared_source = matcher_.prepareSourceCloud(cloud);
+  const auto prepared_source = matcher_.prepareSourceCloud(cloud, true);
   debug_event.source_prepare_ms = elapsed_ms(source_prepare_started);
   localization_atlas_->prefetchTarget(prepared_source, {predicted_pose});
   WeakTranslationAxes weak_axes;
@@ -338,7 +336,8 @@ WorldLocalizing::trackLocalizationImpl(const PointCloudT::Ptr &cloud,
       match_result.fitness_score < config_.gicp_fitness_threshold &&
       match_result.inlier_ratio >= config_.reloc_min_inlier_ratio &&
       (strict_loaded_map || !config_.icp_refine_use_gicp ||
-       match_result.metric.type == small_gicp::RegistrationSetting::GICP);
+       match_result.metric.type == small_gicp::RegistrationSetting::GICP ||
+       (weak_axes && weak_axes->empty()));
   const double scale = config_.gicp_fitness_threshold * 0.5;
   const double current_confidence =
       std::clamp(std::exp(-match_result.fitness_score / scale), 0.0, 1.0);

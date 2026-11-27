@@ -1,9 +1,26 @@
 #include "n3mapping/core/n3mapping_core.h"
 #include "n3mapping_session.h"
+#include "../causal_submap.h"
 #include "n3mapping/floor_attitude.h"
 #include <glog/logging.h>
 
 namespace n3mapping {
+
+void N3MappingCore::addKeyframeDescriptors(int64_t keyframe_id, const PointCloud::Ptr& cloud) {
+  auto rhpd_cloud = cloud;
+  if (config_.rhpd_submap_kf_radius > 0 && keyframe_id > 0) {
+    rhpd_cloud = session_->keyframes.buildCausalSubmapInRootFrame(
+        keyframe_id, config_.rhpd_submap_kf_radius, keyframe_id,
+        KeyframeManager::PoseSource::Odometry);
+  }
+  rhpd_cloud = maybeVoxelizeRhpdCloud(rhpd_cloud, config_.rhpd_submap_voxel_size);
+  if (rhpd_cloud == cloud) {
+    session_->detector.addFeatures(keyframe_id, cloud);
+  } else {
+    session_->detector.addDescriptor(keyframe_id, cloud);
+    session_->detector.addRHPD(keyframe_id, rhpd_cloud);
+  }
+}
 
 core::MappingBlockReason
 N3MappingCore::mappingInputBlockReason(const core::LioFrame &frame) {
@@ -63,8 +80,7 @@ N3MappingCore::processMappingFrame(const core::LioFrame &frame) {
 
   const int64_t keyframe_id = keyframes.addKeyframe(
       timestamp, frame.T_world_lidar, frame.undistorted_cloud);
-  session_->detector.addDescriptor(keyframe_id, frame.undistorted_cloud);
-  addRhpdDescriptorForKeyframe(keyframe_id, frame.undistorted_cloud);
+  addKeyframeDescriptors(keyframe_id, frame.undistorted_cloud);
 
   if (keyframe_id == 0) {
     session_->optimizer.addPriorFactor(keyframe_id, frame.T_world_lidar);

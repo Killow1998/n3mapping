@@ -2,6 +2,7 @@
 
 #include <cstddef>
 #include <memory>
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
@@ -91,19 +92,33 @@ public:
 
     struct PreparedSourceLevel {
         double resolution = 0.0;
-        SmallGicpCloud::Ptr cloud;
+        mutable SmallGicpCloud::Ptr cloud;
     };
 
     struct PreparedTarget {
         std::vector<PreparedTargetLevel> plane_levels;
         PreparedTargetLevel refine_level;
         bool has_refine_level = false;
+
+        bool sharesRefineLevel() const;
     };
 
     struct PreparedSource {
+        struct PendingRefine {
+            SmallGicpCloud::Ptr points;
+            double resolution;
+            int neighbors;
+            int threads;
+        };
+
         std::vector<PreparedSourceLevel> plane_levels;
-        SmallGicpCloud::Ptr refine_cloud;
+        mutable SmallGicpCloud::Ptr refine_cloud;
         bool has_refine_cloud = false;
+        int lazy_coarse_threads = 0;
+        mutable std::optional<PendingRefine> pending_refine;
+
+        const SmallGicpCloud* planeCloud(double resolution) const;
+        const SmallGicpCloud::Ptr& refineCloud() const;
     };
 
     explicit PointCloudMatcher(const Config& config);
@@ -122,11 +137,12 @@ public:
                            const Eigen::Isometry3d& init_guess,
                            const small_gicp::RegistrationSetting& setting);
 
-    enum class TargetFeatures { Eager, OnDemand };
+    enum class TargetFeatures { Eager, OnDemand, SharedRefine };
 
     PreparedTarget prepareTargetCloud(
         const PointCloudT::Ptr& cloud, TargetFeatures features = TargetFeatures::Eager);
-    PreparedSource prepareSourceCloud(const PointCloudT::Ptr& cloud);
+    PreparedSource prepareSourceCloud(const PointCloudT::Ptr& cloud,
+                                      bool tracking = false);
     MatchResult alignPrepared(const PreparedTarget& target,
                               const PreparedSource& source,
                               const Eigen::Isometry3d& init_guess = Eigen::Isometry3d::Identity());
@@ -144,7 +160,8 @@ public:
     MatchResult resumePrepared(const PreparedTarget& target,
                                const PreparedSource& source,
                                const Eigen::Isometry3d& init_guess,
-                               const MatchMetric& metric);
+                               const MatchMetric& metric,
+                               bool refine_with_gicp = true);
 
     MatchResult evaluatePreparedPose(const PreparedTarget& target,
                                     const PreparedSource& source,
@@ -170,9 +187,8 @@ private:
   prepareTargetGeometry(const PointCloudT &cloud, double resolution);
   SmallGicpCloud::Ptr convertToSmallGicp(const PointCloudT &pcl_cloud,
                                          double downsampling_resolution);
-  SmallGicpCloud::Ptr
-  preprocessSourcePointCloud(const PointCloudT &cloud,
-                             double downsampling_resolution);
+  SmallGicpCloud::Ptr preprocessSourcePointCloud(
+      const PointCloudT& cloud, double resolution);
   MatchResult
   alignCloudWithSetting(const PointCloudT::Ptr &target_cloud,
                         const PointCloudT::Ptr &source_cloud,
@@ -183,7 +199,7 @@ private:
       const Eigen::Isometry3d &init_guess,
       const small_gicp::RegistrationSetting &setting,
       double start_resolution = std::numeric_limits<double>::infinity(),
-      bool reciprocal = false);
+      bool reciprocal = false, bool refine_with_gicp = true);
 
   Config config_;
   small_gicp::RegistrationSetting setting_;

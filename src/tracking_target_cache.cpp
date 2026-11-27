@@ -115,6 +115,7 @@ void TrackingTargetCache::clearLocal(bool reset_statistics) {
 
 void TrackingTargetCache::rebuildLoadedMapIfNeeded() {
   const KeyframeMapRevision revision = keyframe_manager_.revision();
+  if (loaded_revision_ == revision) return;
   std::vector<Keyframe::Ptr> loaded_keyframes;
   for (const auto &keyframe : keyframe_manager_.getAllKeyframes()) {
     if (keyframe && keyframe->is_from_loaded_map) loaded_keyframes.push_back(keyframe);
@@ -122,7 +123,7 @@ void TrackingTargetCache::rebuildLoadedMapIfNeeded() {
   if (loaded_map_ && !loaded_map_->empty() &&
       loaded_revision_.generation == revision.generation &&
       loaded_keyframe_count_ == loaded_keyframes.size()) {
-
+    loaded_revision_ = revision;
     return;
   }
   loaded_entries_.clear();

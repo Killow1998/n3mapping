@@ -52,7 +52,7 @@ void WorldLocalizing::rebuildFreeSpaceGridIfNeeded() {
   std::vector<Eigen::Vector3d> origins;
   origins.reserve(keyframe_manager_.size());
   for (const auto &kf : keyframe_manager_.getAllKeyframes()) {
-    if (!kf || !kf->isValid())
+    if (!kf || (!localization_atlas_->loaded() && !kf->isValid()))
       continue;
     origins.push_back(kf->pose_optimized.translation());
   }
@@ -273,41 +273,11 @@ double WorldLocalizing::computeTrackLogLikelihood(
   return fitness_term + inlier_term + motion_term;
 }
 
-int64_t
-WorldLocalizing::findNearestKeyframe(const Eigen::Isometry3d &pose) const {
-  int64_t nearest_id = -1;
-  double min_distance = std::numeric_limits<double>::max();
-
-  for (const auto &kf : keyframe_manager_.getAllKeyframes()) {
-    if (!kf)
-      continue;
-    double distance =
-        (kf->pose_optimized.translation() - pose.translation()).norm();
-    if (distance < config_.reloc_search_radius && distance < min_distance) {
-      min_distance = distance;
-      nearest_id = kf->id;
-    }
-  }
-
-  return nearest_id;
-}
-
-int64_t WorldLocalizing::findNearestLoadedKeyframe(
-    const Eigen::Isometry3d &pose) const {
-  int64_t nearest_id = -1;
-  double min_distance = std::numeric_limits<double>::max();
-
-  for (const auto &kf : keyframe_manager_.getAllKeyframes()) {
-    if (!kf || !kf->is_from_loaded_map)
-      continue;
-    const double distance =
-        (kf->pose_optimized.translation() - pose.translation()).norm();
-    if (distance < config_.reloc_search_radius && distance < min_distance) {
-      min_distance = distance;
-      nearest_id = kf->id;
-    }
-  }
-  return nearest_id;
+int64_t WorldLocalizing::findNearestKeyframe(const Eigen::Isometry3d &pose,
+                                             bool loaded_only) const {
+  const auto nearest = keyframe_manager_.findNearestByPosition(
+      pose.translation(), config_.reloc_search_radius, loaded_only);
+  return nearest ? nearest->id : -1;
 }
 
 }

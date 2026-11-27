@@ -45,6 +45,13 @@ void setError(std::string* error, const std::string& message) {
     if (error) *error = message;
 }
 
+bool shareAtlasRefineLevel(const Config& config) {
+    const double plane_resolution = std::max(1e-3, config.gicp_downsampling_resolution);
+    return config.icp_refine_use_gicp &&
+           config.icp_refine_downsampling_resolution <= plane_resolution &&
+           std::max(1e-3, config.global_map_voxel_size) >= plane_resolution;
+}
+
 std::string freeSpaceConfig(const Config& config) {
     std::ostringstream signature;
     signature << std::setprecision(17) << "free_space_v1;"
@@ -165,7 +172,9 @@ bool LocalizationAtlas::prepare(const std::vector<Keyframe::Ptr>& keyframes,
     }
 
     start = Clock::now();
-    prepared_target_ = matcher_.prepareTargetCloud(global_map_);
+    prepared_target_ = matcher_.prepareTargetCloud(global_map_,
+        shareAtlasRefineLevel(config_) ? PointCloudMatcher::TargetFeatures::SharedRefine
+                                       : PointCloudMatcher::TargetFeatures::Eager);
     local_stats.prepare_ms = elapsedMs(start);
     if (prepared_target_.plane_levels.size() != 2 ||
         (config_.icp_refine_use_gicp && !prepared_target_.has_refine_level)) {
@@ -256,7 +265,9 @@ bool LocalizationAtlas::compileAndSave(
         local_stats.prepared_point_count += level.cloud->size();
     }
     data.set_refine_level_present(prepared_target_.has_refine_level);
-    if (prepared_target_.has_refine_level) {
+    if (prepared_target_.sharesRefineLevel()) {
+        data.set_shared_refine_resolution(prepared_target_.refine_level.resolution);
+    } else if (prepared_target_.has_refine_level) {
         if (!atlas_codec::encodeLevel(prepared_target_.refine_level,
                          *data.mutable_refine_level(), error)) {
             return false;
@@ -388,8 +399,13 @@ bool LocalizationAtlas::load(const std::string& map_path,
         setError(error, "atlas config SHA-256 mismatch");
         return false;
     }
+    const double base_res = std::max(1e-3, config_.gicp_downsampling_resolution);
+    const bool share_refine = config_.icp_refine_use_gicp &&
+        (shareAtlasRefineLevel(config_) ||
+         std::abs(config_.icp_refine_downsampling_resolution - base_res) <= 1e-9);
     if (require_current_cache &&
         (data.format_version() != kAtlasFormatVersion ||
+         (share_refine && data.shared_refine_resolution() <= 0.0) ||
          !atlasDescriptorsCurrent(config_, data) ||
          (config_.reloc_free_space_enable && config_.reloc_free_space_map_pcd.empty() &&
           data.free_space_config() != freeSpaceConfig(config_)))) {
@@ -451,7 +467,7 @@ bool LocalizationAtlas::load(const std::string& map_path,
     } else {
       for (const auto& level : prepared_target_.plane_levels)
         local_stats.prepared_point_count += level.size();
-      if (prepared_target_.has_refine_level)
+      if (prepared_target_.has_refine_level && !prepared_target_.sharesRefineLevel())
         local_stats.prepared_point_count += prepared_target_.refine_level.size();
       if (config_.icp_refine_use_gicp && !prepared_target_.has_refine_level) {
         setError(error, "atlas is missing required refine level");

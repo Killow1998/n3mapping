@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <limits>
 #include <map>
 #include <mutex>
 #include <vector>
@@ -16,6 +17,7 @@ public:
     using Ptr = std::shared_ptr<KeyframeManager>;
 
     explicit KeyframeManager(const Config& config);
+    ~KeyframeManager();
 
     bool shouldAddKeyframe(const Eigen::Isometry3d& current_pose) const;
     bool shouldAddKeyframeInSession(
@@ -35,6 +37,7 @@ public:
     bool empty() const;
     KeyframeMapRevision revision() const;
     void updateOptimizedPoses(const std::map<int64_t, Eigen::Isometry3d>& poses);
+    void releaseKeyframeClouds();
     void replaceKeyframeClouds(const std::map<int64_t, Keyframe::PointCloudT::Ptr>& clouds);
     bool loadKeyframes(const std::vector<Keyframe::Ptr>& keyframes);
     bool loadKeyframes(const std::vector<Keyframe::Ptr>& keyframes,
@@ -43,7 +46,10 @@ public:
     int64_t getNextKeyframeId() const;
     void clear();
     Keyframe::Ptr findNearestByTimestamp(double timestamp) const;
-    Keyframe::Ptr findNearestByPosition(const Eigen::Vector3d& position) const;
+    Keyframe::Ptr findNearestByPosition(
+        const Eigen::Vector3d& position,
+        double max_distance = std::numeric_limits<double>::infinity(),
+        bool loaded_only = false) const;
 
     bool addSession(const MapSessionInfo& session);
     bool removeSessionIfEmpty(MapSessionId session_id);
@@ -63,6 +69,7 @@ public:
         PoseSource poses = PoseSource::Optimized) const;
 
 private:
+    struct SpatialIndex;
     Config config_;
     std::map<int64_t, Keyframe::Ptr> keyframes_;
     std::map<MapSessionId, MapSessionInfo> sessions_;
@@ -70,6 +77,8 @@ private:
     Keyframe::Ptr last_keyframe_;
     KeyframeMapRevision revision_;
     mutable std::mutex mutex_;
+    mutable std::unique_ptr<SpatialIndex> position_index_;
+    mutable std::unique_ptr<SpatialIndex> loaded_position_index_;
 
     static double computeTranslationDistance(const Eigen::Isometry3d& pose1, const Eigen::Isometry3d& pose2);
     static double computeRotationAngle(const Eigen::Isometry3d& pose1, const Eigen::Isometry3d& pose2);

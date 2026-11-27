@@ -2,6 +2,7 @@
 #include "n3mapping_session.h"
 #include "n3mapping/async_log.h"
 #include "n3mapping/n3map_proto_utils.h"
+#include "n3map.pb.h"
 #include <limits>
 #include <utility>
 #include <glog/logging.h>
@@ -80,7 +81,13 @@ bool N3MappingCore::loadMap(const std::string &map_path) {
         loaded_dense_optimized,
         candidate->keyframes.getAllKeyframes());
 
+    std::string compact_map_path;
+    if (parseCoreRunMode(config_.mode) == CoreRunMode::LOCALIZATION &&
+        candidate->localizer.compactLoadedKeyframeClouds()) {
+      compact_map_path = map_path;
+    }
     session_.swap(candidate);
+    compact_localization_map_path_.swap(compact_map_path);
     dense_trajectory_samples_.swap(loaded_dense_samples);
     dense_trajectory_metadata_ = std::move(loaded_dense_metadata);
     {
@@ -101,6 +108,37 @@ bool N3MappingCore::loadMap(const std::string &map_path) {
     LOG(ERROR) << "Failed to prepare map transaction: " << error.what() << '\n';
     return false;
   }
+}
+
+bool N3MappingCore::restoreLocalizationKeyframeClouds() {
+  if (compact_localization_map_path_.empty()) return true;
+  std::string error;
+  const auto hash = LocalizationAtlas::fileSha256(compact_localization_map_path_, &error);
+  if (hash.empty() || hash != session_->localizer.atlasSourceMapSha256()) {
+    LOG(ERROR) << "The loaded localization map changed or became unreadable: " << error;
+    return false;
+  }
+  N3Map map;
+  if (!readN3MapProtoFromFile(compact_localization_map_path_, &map, &error)) {
+    LOG(ERROR) << "Cannot restore the localization map keyframes: " << error;
+    return false;
+  }
+  std::map<int64_t, Keyframe::PointCloudT::Ptr> clouds;
+  for (const auto& frame : map.keyframes()) {
+    Keyframe::PointCloudT::Ptr cloud;
+    if (!pointCloudFromProto(frame.cloud(), &cloud, &error)) {
+      LOG(ERROR) << "Cannot restore localization map keyframe " << frame.id() << ": " << error;
+      return false;
+    }
+    clouds.emplace(frame.id(), std::move(cloud));
+  }
+  session_->keyframes.replaceKeyframeClouds(clouds);
+  compact_localization_map_path_.clear();
+  return true;
+}
+
+core::LioFrame::PointCloud::ConstPtr N3MappingCore::compactLocalizationCloud() const {
+  return compact_localization_map_path_.empty() ? nullptr : session_->localizer.atlasGlobalMap();
 }
 
 }

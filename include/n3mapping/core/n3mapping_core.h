@@ -51,6 +51,7 @@ class N3MappingCore {
     bool saveGlobalMap(const std::string& pcd_path);
     bool saveMapSnapshot(std::string* error = nullptr);
     core::LioFrame::PointCloud::Ptr buildGlobalMap() const;
+    core::LioFrame::PointCloud::ConstPtr compactLocalizationCloud() const;
     bool mapLoaded() const;
     const StaticStartGuard& staticStartGuard() const { return static_start_guard_; }
     const OdometrySanityVerdict& odometrySanity() const {
@@ -73,6 +74,9 @@ class N3MappingCore {
                                    const Eigen::Isometry3d& pose_world_lidar);
 
   private:
+    void addKeyframeDescriptors(int64_t keyframe_id, const core::LioFrame::PointCloud::Ptr& cloud);
+    bool restoreLocalizationKeyframeClouds();
+    std::string compact_localization_map_path_;
     using PointCloud = core::LioFrame::PointCloud;
     std::vector<DetectedLoopQuery> detectPendingLoopCandidates(CoreLoopClosureResult& result);
     void publishLoopOutcome(const LoopClosureOutcome& outcome);
@@ -93,7 +97,6 @@ class N3MappingCore {
                                                      bool use_bracketing_correction = true);
     Eigen::Isometry3d interpolateDenseCorrection(
         double timestamp, const std::vector<Keyframe::Ptr>& time_index) const;
-    void addRhpdDescriptorForKeyframe(int64_t keyframe_id, const PointCloud::Ptr& fallback_cloud);
     bool addOdometryConstraint(int64_t keyframe_id, const Eigen::Isometry3d& pose);
     void refreshOptimizedPoses(const char* context = "graph_update");
     bool refreshSubmapPoses(const char* context);

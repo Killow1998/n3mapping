@@ -77,6 +77,7 @@ bool N3MappingNoeticNode::handleStartMapExtension(
     config_.mode = coreRunModeName(run_mode_);
     realtime_output_->setMode(run_mode_);
     map_artifacts_->setMode(run_mode_);
+    resetGlobalMapCache();
     initializeOptimizationLogging();
     return true;
 }

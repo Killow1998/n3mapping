@@ -20,6 +20,8 @@ bool N3MappingCore::startMapExtension(std::string* error) {
 
   if (mappingInputBlockReason(*extension_anchor_frame_) != core::MappingBlockReason::None)
     return reject("invalid_extension_anchor_input");
+  if (!restoreLocalizationKeyframeClouds())
+    return reject("map_extension_source_unavailable");
   if (!resuming.adoptCurrentLocalization(extension_anchor_frame_->source_frame_id))
     return reject("extension_anchor_unavailable");
   extension_anchor_frame_.reset();
@@ -173,8 +175,7 @@ N3MappingCore::processMapExtensionFrame(const core::LioFrame &frame) {
   }
   if (keyframe_id >= 0) {
     const auto descriptor_started = timingStarted();
-    session_->detector.addDescriptor(keyframe_id, frame.undistorted_cloud);
-    addRhpdDescriptorForKeyframe(keyframe_id, frame.undistorted_cloud);
+    addKeyframeDescriptors(keyframe_id, frame.undistorted_cloud);
     if (performance.enabled)
       performance.descriptor_update_ms += elapsedMilliseconds(descriptor_started);
     {

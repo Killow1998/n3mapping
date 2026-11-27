@@ -218,6 +218,8 @@ bool N3MappingCore::saveMapSnapshot(std::string *error) {
 }
 
 core::LioFrame::PointCloud::Ptr N3MappingCore::buildGlobalMap() const {
+  if (const auto cloud = compactLocalizationCloud())
+    return pcl::make_shared<core::LioFrame::PointCloud>(*cloud);
   return session_->serializer.buildGlobalMap(
       session_->keyframes, config_.global_map_voxel_size);
 }

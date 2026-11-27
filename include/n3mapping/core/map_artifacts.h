@@ -11,6 +11,7 @@ class N3MappingCore;
 struct MapKeyframeSnapshot {
   std::vector<Keyframe::Ptr> keyframes;
   KeyframeMapRevision revision;
+  GlobalMapCache::PointCloudConstPtr atlas_cloud;
 };
 
 MapKeyframeSnapshot snapshotMapKeyframes(const N3MappingCore &core);

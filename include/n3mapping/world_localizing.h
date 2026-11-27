@@ -106,6 +106,9 @@ public:
                              std::string *error = nullptr,
                              LoopDetector* restore_descriptors = nullptr);
   bool localizationAtlasLoaded() const;
+  bool compactLoadedKeyframeClouds();
+  PointCloudT::ConstPtr atlasGlobalMap() const;
+  std::string atlasSourceMapSha256() const;
   RegistrationSeedProbeResult
   probeRegistrationSeeds(const PointCloudT::Ptr &cloud,
                          const Eigen::Isometry3d &odom_pose,
@@ -116,6 +119,7 @@ public:
   void warmLoadedMapTrackingTarget(int64_t anchor_id);
 
 private:
+  std::map<int64_t, std::vector<std::uint32_t>> reference_atlas_indices_;
   using RelocHypothesis = RelocalizationHypothesis;
 
   void appendTrackingRecovery(
@@ -171,8 +175,8 @@ private:
       bool strict_loaded_map,
       RelocTrackingDebugEvent& diagnostics, WeakTranslationAxes& weak_axes,
       const std::optional<Eigen::Vector3d>& previous_proposal, Eigen::Vector3d& confirmed_shift);
-  int64_t findNearestKeyframe(const Eigen::Isometry3d &pose) const;
-  int64_t findNearestLoadedKeyframe(const Eigen::Isometry3d &pose) const;
+  int64_t findNearestKeyframe(const Eigen::Isometry3d &pose,
+                              bool loaded_only = false) const;
 
   Config config_;
   KeyframeManager &keyframe_manager_;

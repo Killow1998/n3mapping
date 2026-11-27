@@ -9,6 +9,7 @@
 #include <utility>
 #include <pcl/common/transforms.h>
 #include "n3mapping/pcl_compat.h"
+#include "third_party/nanoflann.hpp"
 
 namespace n3mapping {
 namespace {
@@ -26,10 +27,38 @@ bool validSessionInfo(const MapSessionInfo& session) {
 
 }
 
+struct KeyframeManager::SpatialIndex {
+    using Metric = nanoflann::L2_Simple_Adaptor<double, SpatialIndex>;
+    using Tree = nanoflann::KDTreeSingleIndexAdaptor<Metric, SpatialIndex, 3, std::size_t>;
+
+    SpatialIndex(const std::map<int64_t, Keyframe::Ptr>& keyframes,
+                 KeyframeMapRevision revision, bool loaded_only)
+        : revision(revision), tree(3, *this, nanoflann::KDTreeSingleIndexAdaptorParams(12)) {
+        entries.reserve(keyframes.size());
+        for (const auto& [id, keyframe] : keyframes)
+            if (!loaded_only || keyframe->is_from_loaded_map)
+                entries.push_back({id, keyframe->getPosition()});
+        tree.buildIndex();
+    }
+
+    std::size_t kdtree_get_point_count() const { return entries.size(); }
+    double kdtree_get_pt(std::size_t point, int axis) const {
+        return entries[point].second[axis];
+    }
+    template <typename Box>
+    bool kdtree_get_bbox(Box&) const { return false; }
+
+    KeyframeMapRevision revision;
+    std::vector<std::pair<int64_t, Eigen::Vector3d>> entries;
+    Tree tree;
+};
+
 KeyframeManager::KeyframeManager(const Config& config)
     : config_(config), next_id_(0), last_keyframe_(nullptr) {
     revision_.generation = nextMapGeneration();
 }
+
+KeyframeManager::~KeyframeManager() = default;
 
 bool KeyframeManager::shouldAddKeyframe(const Eigen::Isometry3d& current_pose) const {
     std::lock_guard<std::mutex> lock(mutex_);
@@ -133,6 +162,11 @@ bool KeyframeManager::empty() const {
 KeyframeMapRevision KeyframeManager::revision() const {
     std::lock_guard<std::mutex> lock(mutex_);
     return revision_;
+}
+
+void KeyframeManager::releaseKeyframeClouds() {
+    std::lock_guard<std::mutex> lock(mutex_);
+    for (auto& entry : keyframes_) entry.second->cloud.reset();
 }
 
 void KeyframeManager::replaceKeyframeClouds(
@@ -265,15 +299,18 @@ Keyframe::Ptr KeyframeManager::findNearestByTimestamp(double timestamp) const {
     return nearest;
 }
 
-Keyframe::Ptr KeyframeManager::findNearestByPosition(const Eigen::Vector3d& position) const {
+Keyframe::Ptr KeyframeManager::findNearestByPosition(
+    const Eigen::Vector3d& position, double max_distance, bool loaded_only) const {
     std::lock_guard<std::mutex> lock(mutex_);
-    Keyframe::Ptr nearest = nullptr;
-    double min_dist = std::numeric_limits<double>::max();
-    for (const auto& pair : keyframes_) {
-        double dist = (pair.second->getPosition() - position).norm();
-        if (dist < min_dist) { min_dist = dist; nearest = pair.second; }
-    }
-    return nearest;
+    auto& index = loaded_only ? loaded_position_index_ : position_index_;
+    if (!index || index->revision != revision_)
+        index = std::make_unique<SpatialIndex>(keyframes_, revision_, loaded_only);
+    std::size_t nearest;
+    double distance_sq;
+    if (!index->tree.knnSearch(position.data(), 1, &nearest, &distance_sq) ||
+        !(distance_sq < max_distance * max_distance))
+        return nullptr;
+    return keyframes_.at(index->entries[nearest].first);
 }
 
 bool KeyframeManager::addSession(const MapSessionInfo& session) {

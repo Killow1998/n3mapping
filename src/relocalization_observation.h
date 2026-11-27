@@ -36,7 +36,7 @@ struct RelocalizationObservation {
     }
 
     for (const auto& level : registration.plane_levels) {
-      if (level.cloud->empty()) continue;
+      if (level.cloud == registration.refine_cloud || level.cloud->empty()) continue;
       const PointCloudMatcher::SmallGicpKdTree order(level.cloud,
           registration_detail::CompactKdTreeBuilder<small_gicp::KdTreeBuilderOMP>(
               *level.cloud, false, config.num_threads));

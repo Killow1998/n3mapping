@@ -134,6 +134,14 @@ RHPDescriptor::Features LoopDetector::computeFeatures(const PointCloudT::Ptr& cl
     return rhpd_manager_.computeWithHeading(cloud);
 }
 
+void LoopDetector::addFeatures(int64_t keyframe_id, const PointCloudT::Ptr& cloud) {
+    const auto features = computeFeatures(cloud);
+    std::lock_guard<std::mutex> lock(mutex_);
+    if (isHeadingShapeValid(features.heading))
+        addDescriptorUnlocked(keyframe_id, features.heading);
+    rhpd_manager_.add(keyframe_id, features.place);
+}
+
 RHPDHeadingPtr LoopDetector::addDescriptor(int64_t id, const PointCloudT::Ptr& cloud) {
     if (!cloud || cloud->empty()) return RHPDHeadingPtr();
     std::lock_guard<std::mutex> lock(mutex_);

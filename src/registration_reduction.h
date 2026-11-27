@@ -4,6 +4,7 @@
 #pragma once
 
 #include <cstdint>
+#include <numeric>
 #include <tuple>
 #include <vector>
 #include <Eigen/Geometry>
@@ -12,10 +13,6 @@
 
 namespace n3mapping::registration_detail {
 
-// Keep each worker's sums on its own stack. Updating adjacent entries of the
-// shared error vector for every point otherwise makes workers contend for the
-// same cache line. Factors, guided scheduling and final reduction order stay
-// the same as ParallelReductionOMP; its error evaluation is reused unchanged.
 struct RegistrationReduction : small_gicp::ParallelReductionOMP {
   template <typename Target, typename Source, typename Search,
             typename Rejector, typename Factor>
@@ -32,7 +29,7 @@ struct RegistrationReduction : small_gicp::ParallelReductionOMP {
 #pragma omp parallel num_threads(num_threads)
     {
       Sum local;
-#pragma omp for schedule(guided, 8) nowait
+#pragma omp for schedule(static) nowait
       for (std::int64_t i = 0; i < static_cast<std::int64_t>(factors.size()); ++i) {
         Eigen::Matrix<double, 6, 6> H;
         Eigen::Matrix<double, 6, 1> b;
@@ -52,6 +49,21 @@ struct RegistrationReduction : small_gicp::ParallelReductionOMP {
       sums[0].error += sums[i].error;
     }
     return std::make_tuple(sums[0].H, sums[0].b, sums[0].error);
+  }
+
+  template <typename Target, typename Source, typename Factor>
+  double error(const Target& target, const Source& source,
+               const Eigen::Isometry3d& pose, std::vector<Factor>& factors) const {
+    std::vector<double> sums(num_threads);
+#pragma omp parallel num_threads(num_threads)
+    {
+      double local = 0.0;
+#pragma omp for schedule(static) nowait
+      for (std::int64_t i = 0; i < static_cast<std::int64_t>(factors.size()); ++i)
+        local += factors[i].error(target, source, pose);
+      sums[omp_get_thread_num()] = local;
+    }
+    return std::accumulate(sums.begin(), sums.end(), 0.0);
   }
 };
 

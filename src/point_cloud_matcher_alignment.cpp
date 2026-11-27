@@ -220,14 +220,12 @@ MatchResult PointCloudMatcher::evaluatePreparedPoseImpl(
       target.has_refine_level && source.has_refine_cloud &&
       std::abs(target.refine_level.resolution - resolution) <= 1e-9) {
     target_level = &target.refine_level;
-    source_cloud = source.refine_cloud.get();
+    source_cloud = source.refineCloud().get();
   } else if (metric.type == small_gicp::RegistrationSetting::PLANE_ICP) {
     for (const auto &level : target.plane_levels)
       if (std::abs(level.resolution - resolution) <= 1e-9)
         target_level = &level;
-    for (const auto &level : source.plane_levels)
-      if (std::abs(level.resolution - resolution) <= 1e-9)
-        source_cloud = level.cloud.get();
+    source_cloud = source.planeCloud(resolution);
   }
   if (!target_level || !target_level->ready() || !source_cloud ||
       target_level->size() < 10 || source_cloud->size() < 10)
@@ -267,22 +265,23 @@ MatchResult PointCloudMatcher::alignPreparedWithSetting(
     const PreparedSource& source,
     const Eigen::Isometry3d& init_guess,
     const small_gicp::RegistrationSetting& setting,
-    double start_resolution, bool reciprocal) {
+    double start_resolution, bool reciprocal, bool refine_with_gicp) {
     MatchResult result;
 
     if (setting.type == small_gicp::RegistrationSetting::GICP) {
         const auto& level = target.refine_level;
         if (!isFiniteRigidPose(init_guess) || !target.has_refine_level ||
             !source.has_refine_cloud || !level.ready() ||
-            !source.refine_cloud || level.size() < 10 ||
-            source.refine_cloud->size() < 10 ||
+            level.size() < 10 ||
             std::abs(level.resolution - setting.downsampling_resolution) > 1e-9)
             return result;
         try {
+            const auto& points = source.refineCloud();
+            if (!points || points->size() < 10) return result;
             const auto rr = registration_detail::align(
-                level, *source.refine_cloud, init_guess, setting, reciprocal);
+                level, *points, init_guess, setting, reciprocal);
             const auto stage = makeStageResult(reciprocal ? "reciprocal_gicp" : "local_gicp", level.resolution, rr,
-                source.refine_cloud->size(), setting.max_iterations);
+                points->size(), setting.max_iterations);
             result.stages.push_back(stage);
             result.T_target_source = rr.T_target_source;
             result.metric = {setting.type, level.resolution, setting.max_correspondence_distance};
@@ -310,22 +309,13 @@ MatchResult PointCloudMatcher::alignPreparedWithSetting(
             }
             return nullptr;
         };
-        auto find_source = [&source](double resolution) -> const PreparedSourceLevel* {
-            constexpr double kResolutionEps = 1e-9;
-            for (const auto& level : source.plane_levels) {
-                if (std::abs(level.resolution - resolution) <= kResolutionEps) return &level;
-            }
-            return nullptr;
-        };
-
         const std::array<double, 2> resolutions = { base_res * 2.0, base_res };
         for (double res : resolutions) {
             if (res > start_resolution + 1e-9) continue;
             const auto* target_level = find_target(res);
-            const auto* source_level = find_source(res);
+            const auto* source_level = source.planeCloud(res);
             if (!target_level || !target_level->ready() ||
-                !source_level || !source_level->cloud ||
-                target_level->size() < 10 || source_level->cloud->size() < 10) {
+                !source_level || target_level->size() < 10 || source_level->size() < 10) {
                 return result;
             }
             auto ls = setting;
@@ -333,11 +323,11 @@ MatchResult PointCloudMatcher::alignPreparedWithSetting(
             if (res > base_res * 1.01 &&
                 setting.max_correspondence_distance >= setting_.max_correspondence_distance)
                 ls.max_correspondence_distance = std::max(ls.max_correspondence_distance, res * 6.0);
-            auto rr = registration_detail::align(*target_level, *source_level->cloud, T, ls);
+            auto rr = registration_detail::align(*target_level, *source_level, T, ls);
             T = rr.T_target_source;
             const auto stage = makeStageResult(
                 res > base_res * 1.01 ? "coarse_plane_icp" : "fine_plane_icp",
-                res, rr, source_level->cloud->size(), ls.max_iterations);
+                res, rr, source_level->size(), ls.max_iterations);
             result.metric = {ls.type, res, ls.max_correspondence_distance};
             result.stages.push_back(stage);
             coarse_H = rr.H;
@@ -351,14 +341,14 @@ MatchResult PointCloudMatcher::alignPreparedWithSetting(
             result.inlier_ratio >= config_.reloc_min_inlier_ratio;
         result.success = result.converged && coarse_quality_passed;
 
-        if (config_.icp_refine_use_gicp && result.fitness_score < config_.icp_refine_fitness_gate) {
+        if (refine_with_gicp && config_.icp_refine_use_gicp && target.has_refine_level &&
+            source.has_refine_cloud && result.fitness_score < config_.icp_refine_fitness_gate) {
             const Eigen::Isometry3d delta = init_guess.inverse() * T;
             if (delta.translation().norm() <= config_.icp_refine_delta_translation_gate &&
                 Eigen::AngleAxisd(delta.rotation()).angle() <= config_.icp_refine_delta_rotation_gate) {
                 const auto& tr = target.refine_level;
-                const auto& sr = source.refine_cloud;
-                if (target.has_refine_level && source.has_refine_cloud &&
-                    tr.ready() && sr &&
+                const auto& sr = source.refineCloud();
+                if (tr.ready() && sr &&
                     tr.size() >= 10 && sr->size() >= 10) {
                     auto rs = setting;
                     rs.type = small_gicp::RegistrationSetting::GICP;

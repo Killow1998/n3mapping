@@ -27,10 +27,10 @@ void cropPoints(const Config &config, const LocalizationAtlas::PointCloudT::Ptr 
 void LocalizationAtlas::prefetchTarget(
     const PointCloudMatcher::PreparedSource& source,
     const std::vector<Eigen::Isometry3d>& poses) {
-  if (!mapping_ || source.plane_levels.empty() || source.plane_levels.front().cloud->empty())
+  if (!mapping_ || source.plane_levels.empty() || source.plane_levels.back().cloud->empty())
     return;
   Eigen::AlignedBox3d observed;
-  for (const auto& point : source.plane_levels.front().cloud->points)
+  for (const auto& point : source.plane_levels.back().cloud->points)
     observed.extend(point.head<3>());
   std::vector<Eigen::AlignedBox3d> regions;
   const double margin = config_.gicp_max_correspondence_distance *

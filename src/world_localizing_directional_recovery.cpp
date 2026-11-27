@@ -19,7 +19,7 @@ void WorldLocalizing::recoverWeakTranslation(
   using namespace registration_detail;
   const auto started = std::chrono::steady_clock::now();
   const auto &level = localization_atlas_->preparedTarget().refine_level;
-  const auto &source = *prepared_source.refine_cloud;
+  const auto &source = *prepared_source.refineCloud();
   const Eigen::Vector3d axis = weak_axes->front();
   const auto &endpoint = match_result.T_target_source;
   const Eigen::Vector3d local_axis = endpoint.rotation().transpose() * axis;

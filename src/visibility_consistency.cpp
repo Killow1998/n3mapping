@@ -13,17 +13,19 @@
 namespace n3mapping {
 namespace {
 
-double sortedPercentile(const std::vector<double>& values, double quantile) {
+double percentile(std::vector<double>& values, double quantile) {
   if (values.empty())
     return std::numeric_limits<double>::quiet_NaN();
   const double index =
       std::clamp(quantile, 0.0, 1.0) * static_cast<double>(values.size() - 1);
   const std::size_t lower = static_cast<std::size_t>(std::floor(index));
   const std::size_t upper = static_cast<std::size_t>(std::ceil(index));
+  const auto high = values.begin() + upper;
+  std::nth_element(values.begin(), high, values.end());
   if (lower == upper)
-    return values[lower];
+    return *high;
   const double alpha = index - static_cast<double>(lower);
-  return values[lower] * (1.0 - alpha) + values[upper] * alpha;
+  return *std::max_element(values.begin(), high) * (1.0 - alpha) + *high * alpha;
 }
 
 struct SphericalDepthImage {
@@ -129,8 +131,7 @@ PreparedVisibilityObservation prepareVisibilityObservation(
   if (query_ranges.empty())
     return result;
 
-  std::sort(query_ranges.begin(), query_ranges.end());
-  const double median_query_range = sortedPercentile(query_ranges, 0.5);
+  const double median_query_range = percentile(query_ranges, 0.5);
   const double inferred_resolution_deg =
       std::atan2(angular_sampling_spacing_m,
                  std::max(options.range_min_m, median_query_range)) *
@@ -342,9 +343,8 @@ VisibilityConsistencyResult evaluatePreparedVisibilityConsistency(
       (static_cast<double>(result.consistent_bins) + kJeffreysPrior) /
       (static_cast<double>(result.observed_bins - result.consistent_bins) +
        kJeffreysPrior));
-  std::sort(residuals.begin(), residuals.end());
-  result.median_abs_range_error_m = sortedPercentile(residuals, 0.5);
-  result.p90_abs_range_error_m = sortedPercentile(residuals, 0.9);
+  result.median_abs_range_error_m = percentile(residuals, 0.5);
+  result.p90_abs_range_error_m = percentile(residuals, 0.9);
   return result;
 }
 

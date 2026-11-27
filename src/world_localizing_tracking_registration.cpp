@@ -27,26 +27,41 @@ MatchResult WorldLocalizing::registerTracking(
   };
   const auto registration_started = Clock::now();
   MatchResult match_result;
+  bool tracked_with_plane = false;
   if (prepared_target) {
-    if (config_.icp_refine_use_gicp && consecutive_track_failures_ == 0) {
-      const auto coverage = matcher_.evaluatePreparedPose(
-          *prepared_target, prepared_source, predicted_pose,
-          {small_gicp::RegistrationSetting::PLANE_ICP,
-           config_.gicp_downsampling_resolution,
-           config_.gicp_max_correspondence_distance});
-      if (evaluateRelocMatchQuality(coverage, config_).accepted) {
-        auto local = matcher_.getSettings();
+    if (consecutive_track_failures_ == 0) {
+      auto local = matcher_.getSettings();
+      local.max_correspondence_distance = config_.icp_refine_max_correspondence_distance;
+      const auto accepts_local = [&](const MatchResult& proposal) {
+        const auto delta = predicted_pose.inverse() * proposal.T_target_source;
+        return evaluateRelocMatchQuality(proposal, config_).accepted &&
+               delta.translation().norm() <= config_.icp_refine_max_correspondence_distance &&
+               Eigen::AngleAxisd(delta.rotation()).angle() <= config_.reloc_track_max_rotation;
+      };
+      if (!config_.icp_refine_use_gicp ||
+          (!strict_loaded_map && localization_atlas_->loaded())) {
+        auto proposal = matcher_.resumePrepared(*prepared_target, prepared_source,
+            predicted_pose, {local.type, std::max(1e-3, local.downsampling_resolution),
+                             local.max_correspondence_distance}, false);
+        if (accepts_local(proposal)) {
+          WeakTranslationAxes plane_axes;
+          if (!config_.icp_refine_use_gicp ||
+              (supportedTrackingPose(config_.gicp_num_neighbors, predicted_pose,
+                                     proposal, plane_axes) && plane_axes &&
+               plane_axes->empty())) {
+            match_result = std::move(proposal);
+            weak_axes = std::move(plane_axes);
+            tracked_with_plane = true;
+          }
+        }
+      }
+      if (!tracked_with_plane && config_.icp_refine_use_gicp) {
         local.type = small_gicp::RegistrationSetting::GICP;
         local.downsampling_resolution = config_.icp_refine_downsampling_resolution;
-        local.max_correspondence_distance = config_.icp_refine_max_correspondence_distance;
         local.max_iterations = config_.icp_refine_max_iterations;
         auto proposal = matcher_.alignPrepared(
             *prepared_target, prepared_source, predicted_pose, local);
-        const auto delta = predicted_pose.inverse() * proposal.T_target_source;
-        if (evaluateRelocMatchQuality(proposal, config_).accepted &&
-            delta.translation().norm() <= config_.icp_refine_max_correspondence_distance &&
-            Eigen::AngleAxisd(delta.rotation()).angle() <= config_.reloc_track_max_rotation)
-          match_result = std::move(proposal);
+        if (accepts_local(proposal)) match_result = std::move(proposal);
       }
     }
     if (!hasValidRegistrationResult(match_result))
@@ -54,7 +69,18 @@ MatchResult WorldLocalizing::registerTracking(
           *prepared_target, prepared_source, predicted_pose);
   }
   debug_event.registration_ms = elapsed_ms(registration_started);
-  bool retry_used = false;
+  constexpr int retry_budget = 3;
+  int retry_count = 0;
+  const auto retry_alignment = [&](
+      const PointCloudMatcher::PreparedTarget& target,
+      const small_gicp::RegistrationSetting& setting) {
+    if (retry_count == retry_budget) return MatchResult{};
+    const auto started = Clock::now();
+    if (retry_count++ == 0) debug_event.retry_registration_ms = 0.0;
+    auto result = matcher_.alignPrepared(target, prepared_source, predicted_pose, setting);
+    debug_event.retry_registration_ms += elapsed_ms(started);
+    return result;
+  };
   bool bounded_recovery_accepted = false;
   std::shared_ptr<const PointCloudMatcher::PreparedTarget> recovery_pair_target;
   std::optional<PreparedVisibilityObservation> recovery_observation;
@@ -142,10 +168,7 @@ MatchResult WorldLocalizing::registerTracking(
       config_.icp_refine_use_gicp && localization_atlas_->loaded()) {
     auto bounded = matcher_.getSettings();
     bounded.max_correspondence_distance = config_.icp_refine_max_correspondence_distance;
-    const auto started = Clock::now();
-    auto retry = matcher_.alignPrepared(*prepared_target, prepared_source, predicted_pose, bounded);
-    debug_event.retry_registration_ms = elapsed_ms(started);
-    retry_used = true;
+    auto retry = retry_alignment(*prepared_target, bounded);
     const auto delta = predicted_pose.inverse() * retry.T_target_source;
     if (delta.translation().norm() <= config_.icp_refine_max_correspondence_distance &&
         admit_recovery(retry)) {
@@ -154,21 +177,14 @@ MatchResult WorldLocalizing::registerTracking(
       icp_failed = false;
     }
   }
-  if (icp_failed &&
+  if (icp_failed && prepared_target &&
       consecutive_track_failures_ < config_.reloc_track_retry_max_failures) {
     auto saved = matcher_.getSettings();
     auto wide = saved;
     wide.max_correspondence_distance = saved.max_correspondence_distance *
                                        config_.reloc_track_retry_corr_scale;
     wide.max_iterations = config_.reloc_track_retry_max_iterations;
-    const auto retry_started = Clock::now();
-    auto retry = prepared_target
-                     ? matcher_.alignPrepared(*prepared_target, prepared_source,
-                                              predicted_pose, wide)
-                     : MatchResult{};
-    debug_event.retry_registration_ms =
-        (retry_used ? debug_event.retry_registration_ms : 0.0) + elapsed_ms(retry_started);
-    retry_used = true;
+    auto retry = retry_alignment(*prepared_target, wide);
     if (hasValidRegistrationResult(retry) &&
         (!hasValidRegistrationResult(match_result) ||
          retry.fitness_score < match_result.fitness_score))
@@ -188,7 +204,8 @@ MatchResult WorldLocalizing::registerTracking(
       hasValidRegistrationResult(match_result) &&
       match_result.fitness_score < config_.gicp_fitness_threshold &&
       match_result.inlier_ratio >= config_.reloc_min_inlier_ratio;
-  if (!strict_loaded_map && prepared_target && config_.icp_refine_use_gicp &&
+  if (!tracked_with_plane && retry_count < retry_budget &&
+      !strict_loaded_map && prepared_target && config_.icp_refine_use_gicp &&
       proposal_has_geometry && !bounded_recovery_accepted) {
     const auto proposal_delta = predicted_pose.inverse() * match_result.T_target_source;
     if (match_result.metric.type != small_gicp::RegistrationSetting::GICP ||
@@ -206,12 +223,8 @@ MatchResult WorldLocalizing::registerTracking(
           use_atlas ? localization_atlas_->preparedTarget() : *prepared_target;
       prepared_target = &recovery_target;
       const auto recovery_started = Clock::now();
-      auto recovery = matcher_.alignPrepared(
-          recovery_target, prepared_source, predicted_pose, local);
+      auto recovery = retry_alignment(recovery_target, local);
       const double recovery_ms = elapsed_ms(recovery_started);
-      debug_event.retry_registration_ms =
-          (retry_used ? debug_event.retry_registration_ms : 0.0) + recovery_ms;
-      retry_used = true;
       VLOG(1) << "Tracking local recovery: atlas=" << use_atlas
               << " rejected_delta_t="
               << proposal_delta.translation().norm() << " rejected_delta_r="
@@ -221,7 +234,7 @@ MatchResult WorldLocalizing::registerTracking(
               << " inlier=" << recovery.inlier_ratio
               << " iterations=" << recovery.iterations
               << " wall_ms=" << recovery_ms;
-      if (use_atlas && config_.gicp_downsampling_resolution <
+      if (retry_count < retry_budget && use_atlas && config_.gicp_downsampling_resolution <
                            local.max_correspondence_distance &&
           (!hasValidRegistrationResult(recovery) ||
           recovery.fitness_score >= config_.gicp_fitness_threshold ||
@@ -229,10 +242,7 @@ MatchResult WorldLocalizing::registerTracking(
 
         auto narrow = local;
         narrow.max_correspondence_distance = config_.gicp_downsampling_resolution;
-        const auto started = Clock::now();
-        auto checked = matcher_.alignPrepared(recovery_target, prepared_source,
-                                               predicted_pose, narrow);
-        debug_event.retry_registration_ms += elapsed_ms(started);
+        auto checked = retry_alignment(recovery_target, narrow);
         if (!hasValidRegistrationResult(checked) ||
             checked.fitness_score >= config_.gicp_fitness_threshold ||
             checked.inlier_ratio < config_.loop_min_inlier_ratio) {
@@ -248,28 +258,30 @@ MatchResult WorldLocalizing::registerTracking(
         if (change.translation().norm() <= narrow.max_correspondence_distance &&
             admit_recovery(checked)) recovery = std::move(checked);
       }
-      if ((!hasValidRegistrationResult(recovery) ||
+      if (retry_count < retry_budget &&
+          (!hasValidRegistrationResult(recovery) ||
            recovery.fitness_score >= config_.gicp_fitness_threshold ||
            recovery.inlier_ratio < config_.reloc_min_inlier_ratio) &&
           debug_event.nearest_kf_id >= 0 && localization_atlas_->loaded()) {
-
-        const auto pair_started = Clock::now();
-        const auto pair_target = tracking_targets_->acquireLocal(debug_event.nearest_kf_id, 0);
-        const auto pair = pair_target.target
-            ? matcher_.alignPrepared(*pair_target.target, prepared_source, predicted_pose, local)
-            : MatchResult{};
-        debug_event.retry_registration_ms += elapsed_ms(pair_started);
-        if (admit_recovery(pair)) {
-          recovery = pair;
-          recovery_pair_target = pair_target.target;
-          prepared_target = recovery_pair_target.get();
+        const auto nearest_kf = keyframe_manager_.getKeyframe(debug_event.nearest_kf_id);
+        if (nearest_kf && nearest_kf->cloud) {
+          const auto pair_target = tracking_targets_->acquireLocal(nearest_kf->id, 0);
+          const auto pair = pair_target.target
+              ? retry_alignment(*pair_target.target, local)
+              : MatchResult{};
+          debug_event.retry_registration_ms += pair_target.submap_build_ms + pair_target.target_prepare_ms;
+          if (admit_recovery(pair)) {
+            recovery = pair;
+            recovery_pair_target = pair_target.target;
+            prepared_target = recovery_pair_target.get();
+          }
         }
       }
 
       match_result = std::move(recovery);
     }
   }
-  if (prepared_target && prepared_source.has_refine_cloud &&
+  if (!tracked_with_plane && prepared_target && prepared_source.has_refine_cloud &&
       hasValidRegistrationResult(match_result)) {
     const auto projection_started = Clock::now();
     const auto supported_pose = supportedTrackingPose(
@@ -298,7 +310,7 @@ MatchResult WorldLocalizing::registerTracking(
   debug_event.icp_converged = match_result.converged;
   debug_event.fitness_score = match_result.fitness_score;
   debug_event.inlier_ratio = match_result.inlier_ratio;
-  debug_event.retry_used = retry_used;
+  debug_event.retry_used = retry_count > 0;
   return match_result;
 }
 }

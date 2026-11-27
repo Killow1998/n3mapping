@@ -8,6 +8,7 @@
 #include <limits>
 #include <Eigen/Eigenvalues>
 #include <glog/logging.h>
+#include <pcl/common/transforms.h>
 #include "relocalization_seed_plan.h"
 #include "relocalization_observation.h"
 #include <iomanip>
@@ -307,10 +308,16 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
         const int reference_count = references[0] == references[1] ? 1 : 2;
         for (int i = 0; i < reference_count; ++i) {
           const auto reference = keyframe_manager_.getKeyframe(references[i]);
-          if (!reference || !reference->cloud) continue;
-          const auto observed_witness = evaluatePreparedVisibilityConsistency(
-              *reference->cloud, directional_observation,
-              reference->pose_optimized.inverse() * top1->T_map_odom * odom_pose);
+          if (!reference) continue;
+          auto reference_cloud = reference->cloud;
+          const auto observed_indices = reference_atlas_indices_.find(reference->id);
+          if (!reference_cloud && observed_indices == reference_atlas_indices_.end()) continue;
+          const Eigen::Isometry3d query_pose = top1->T_map_odom * odom_pose;
+          const auto observed_witness = reference_cloud
+              ? evaluatePreparedVisibilityConsistency(*reference_cloud, directional_observation,
+                    reference->pose_optimized.inverse() * query_pose)
+              : evaluatePreparedVisibilityConsistency(*localization_atlas_->globalMap(),
+                    directional_observation, query_pose, &observed_indices->second);
           VLOG(1) << "[Reloc/DirectionalReference] keyframe=" << reference->id
                   << " support=" << observed_witness.planar_min_support
                   << " known_min=" << observed_witness.planar_min_known
@@ -324,17 +331,24 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
             break;
           }
           if (observed_witness.planar_min_support_given_known > 0.5) {
-
-            auto reciprocal = prepareVisibilityObservation(*reference->cloud,
+            if (!reference_cloud) {
+              const auto& global = *localization_atlas_->globalMap();
+              const Eigen::Affine3f to_reference(reference->pose_optimized.inverse().matrix().cast<float>());
+              reference_cloud = pcl::make_shared<PointCloudT>();
+              reference_cloud->reserve(observed_indices->second.size());
+              for (const auto index : observed_indices->second)
+                reference_cloud->push_back(pcl::transformPoint(global[index], to_reference));
+            }
+            auto reciprocal = prepareVisibilityObservation(*reference_cloud,
                 visibilityOptionsFromConfig(config_),
                 std::max(config_.global_map_voxel_size, config_.gicp_downsampling_resolution));
-            prepareVisibilityPlanarSupport(reference->cloud,
+            prepareVisibilityPlanarSupport(reference_cloud,
                 reference->pose_optimized.rotation().transpose() *
                     top1->T_map_odom.rotation() * Eigen::Vector3d::UnitZ(),
                 &reciprocal);
             const auto reverse = evaluatePreparedVisibilityConsistency(
                 *query_cloud, reciprocal,
-                (top1->T_map_odom * odom_pose).inverse() * reference->pose_optimized);
+                query_pose.inverse() * reference->pose_optimized);
             VLOG(1) << "[Reloc/DirectionalReciprocal] keyframe=" << reference->id
                     << " forward_conditional=" << observed_witness.planar_min_support_given_known
                     << " reverse_support=" << reverse.planar_min_support;

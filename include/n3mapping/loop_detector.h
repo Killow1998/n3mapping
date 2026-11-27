@@ -72,6 +72,7 @@ public:
     std::pair<double, int> computeDistance(const RHPDHeadingPtr& sc1, const RHPDHeadingPtr& sc2);
 
     RHPDescriptor::Features computeFeatures(const PointCloudT::Ptr& cloud) const;
+    void addFeatures(int64_t keyframe_id, const PointCloudT::Ptr& cloud);
 
     RHPDPlace computeRHPD(const PointCloudT::Ptr& cloud) const;
     RHPDPlace addRHPD(int64_t kf_id, const PointCloudT::Ptr& cloud);

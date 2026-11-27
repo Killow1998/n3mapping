@@ -12,7 +12,6 @@
 
 #include <glog/logging.h>
 
-#include "n3mapping/cloud_utils.h"
 #include "n3mapping/pcl_compat.h"
 #include <pcl/common/transforms.h>
 
@@ -87,34 +86,6 @@ N3MappingCore::makeOutput(bool success, const Eigen::Isometry3d &pose,
                                pose.matrix().cast<float>());
   }
   return output;
-}
-
-void N3MappingCore::addRhpdDescriptorForKeyframe(
-    int64_t keyframe_id, const PointCloud::Ptr &fallback_cloud) {
-  auto kf = session_->keyframes.getKeyframe(keyframe_id);
-  if (!kf) {
-    return;
-  }
-
-  const int submap_radius = std::max(0, config_.rhpd_submap_kf_radius);
-  PointCloud::Ptr rhpd_cloud = fallback_cloud;
-  if (submap_radius > 0) {
-    rhpd_cloud = session_->keyframes.buildCausalSubmapInRootFrame(
-        keyframe_id, submap_radius, keyframe_id,
-        KeyframeManager::PoseSource::Odometry);
-  }
-
-  if (rhpd_cloud && !rhpd_cloud->empty() &&
-      config_.rhpd_submap_voxel_size > 1e-4) {
-    PointCloud::Ptr filtered;
-    if (safeVoxelGridFilter<pcl::PointXYZI>(
-            rhpd_cloud, config_.rhpd_submap_voxel_size, &filtered) &&
-        filtered && !filtered->empty()) {
-      rhpd_cloud = filtered;
-    }
-  }
-
-  session_->detector.addRHPD(keyframe_id, rhpd_cloud);
 }
 
 }

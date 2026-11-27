@@ -230,6 +230,35 @@ bool GlobalMapCache::voxelKeyForPoint(const pcl::PointXYZI& point, VoxelKey* key
            toCoord(point.z, &key->z);
 }
 
+std::map<int64_t, std::vector<std::uint32_t>> GlobalMapCache::observedVoxels(
+    const std::vector<Keyframe::Ptr>& keyframes, const PointCloud& atlas, double voxel_size)
+{
+    const GlobalMapCache grid(voxel_size);
+    std::unordered_map<VoxelKey, std::uint32_t, VoxelKeyHash> indices;
+    indices.reserve(atlas.size());
+    for (std::uint32_t i = 0; i < atlas.size(); ++i) {
+        VoxelKey cell;
+        if (grid.voxelKeyForPoint(atlas[i], &cell)) indices.emplace(cell, i);
+    }
+    std::map<int64_t, std::vector<std::uint32_t>> observed;
+    PointCloud transformed;
+    for (const auto& keyframe : keyframes) {
+        pcl::transformPointCloud(*keyframe->cloud, transformed,
+                                 keyframe->pose_optimized.matrix().cast<float>());
+        auto& points = observed[keyframe->id];
+        for (const auto& point : transformed) {
+            VoxelKey cell;
+            if (!grid.voxelKeyForPoint(point, &cell)) continue;
+            const auto index = indices.find(cell);
+            if (index != indices.end()) points.push_back(index->second);
+        }
+        std::sort(points.begin(), points.end());
+        points.erase(std::unique(points.begin(), points.end()), points.end());
+        points.shrink_to_fit();
+    }
+    return observed;
+}
+
 void GlobalMapCache::rebuildCloudFromVoxelCache()
 {
     auto cloud = pcl::make_shared<PointCloud>();

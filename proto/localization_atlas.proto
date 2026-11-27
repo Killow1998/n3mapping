@@ -36,6 +36,7 @@ message LocalizationAtlasData {
     LocalizationAtlasFreeSpaceGrid free_space_grid = 15;
     string loop_descriptor_config = 16;
     repeated LocalizationAtlasLoopDescriptor loop_descriptors = 17;
+    double shared_refine_resolution = 18;
 }
 
 message LocalizationAtlasFreeSpaceGrid {

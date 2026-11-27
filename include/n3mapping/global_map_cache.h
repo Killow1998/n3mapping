@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <functional>
+#include <map>
 #include <memory>
 #include <optional>
 #include <unordered_map>
@@ -25,6 +26,8 @@ public:
     explicit GlobalMapCache(double voxel_size = 0.0);
 
     static PointCloudPtr build(const std::vector<Keyframe::Ptr>& keyframes, double voxel_size);
+    static std::map<int64_t, std::vector<std::uint32_t>> observedVoxels(
+        const std::vector<Keyframe::Ptr>& keyframes, const PointCloud& atlas, double voxel_size);
     void setVoxelSize(double voxel_size);
     double voxelSize() const { return voxel_size_; }
 

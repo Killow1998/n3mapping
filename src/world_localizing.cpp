@@ -1,4 +1,5 @@
 #include "n3mapping/world_localizing.h"
+#include "n3mapping/global_map_cache.h"
 #include "n3mapping/tracking_target_cache.h"
 #include "n3mapping/async_log.h"
 
@@ -158,6 +159,7 @@ bool WorldLocalizing::loadLocalizationAtlas(const std::string &map_path,
                                             std::string *error,
                                             LoopDetector* restore_descriptors) {
   localization_atlas_->clear();
+  reference_atlas_indices_.clear();
   target_provider_->clear();
   if (!config_.reloc_atlas_enable) {
     if (restore_descriptors) restore_descriptors->restoreMapDescriptors(keyframe_manager_);
@@ -233,6 +235,26 @@ bool WorldLocalizing::loadLocalizationAtlas(const std::string &map_path,
 bool WorldLocalizing::localizationAtlasLoaded() const {
   std::lock_guard<std::mutex> lock(mutex_);
   return localization_atlas_->loaded();
+}
+
+bool WorldLocalizing::compactLoadedKeyframeClouds() {
+  std::lock_guard<std::mutex> lock(mutex_);
+  if (!localization_atlas_->loaded()) return false;
+  reference_atlas_indices_ = GlobalMapCache::observedVoxels(
+      keyframe_manager_.getAllKeyframes(), *localization_atlas_->globalMap(),
+      std::max(1e-3, config_.global_map_voxel_size));
+  keyframe_manager_.releaseKeyframeClouds();
+  return true;
+}
+
+WorldLocalizing::PointCloudT::ConstPtr WorldLocalizing::atlasGlobalMap() const {
+  std::lock_guard<std::mutex> lock(mutex_);
+  return localization_atlas_->globalMap();
+}
+
+std::string WorldLocalizing::atlasSourceMapSha256() const {
+  std::lock_guard<std::mutex> lock(mutex_);
+  return localization_atlas_->mapSha256();
 }
 
 void WorldLocalizing::warmLoadedMapTrackingTarget(int64_t anchor_id) {

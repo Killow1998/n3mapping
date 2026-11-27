@@ -13,6 +13,8 @@ MapArtifacts::MapArtifacts(const Config &config)
       mode_(parseCoreRunMode(config.mode)), cache_(config.global_map_voxel_size) {}
 
 MapKeyframeSnapshot snapshotMapKeyframes(const N3MappingCore &core) {
+  if (auto cloud = core.compactLocalizationCloud())
+    return {{}, core.mapRevision(), std::move(cloud)};
   const auto keyframes = core.getAllKeyframes();
   std::vector<Keyframe::Ptr> snapshots;
   snapshots.reserve(keyframes.size());
@@ -26,7 +28,7 @@ MapKeyframeSnapshot snapshotMapKeyframes(const N3MappingCore &core) {
     snapshot->is_from_loaded_map = keyframe->is_from_loaded_map;
     snapshots.push_back(std::move(snapshot));
   }
-  return {std::move(snapshots), core.mapRevision()};
+  return {std::move(snapshots), core.mapRevision(), {}};
 }
 
 bool MapArtifacts::save(N3MappingCore &core, std::string &error,
@@ -72,6 +74,10 @@ void MapArtifacts::withGlobalCloud(
     const MapKeyframeSnapshot &snapshot,
     const std::function<void(const GlobalCloud &)> &consume) {
   std::lock_guard<std::mutex> lock(mutex_);
+  if (snapshot.atlas_cloud) {
+    consume({*snapshot.atlas_cloud, snapshot.revision.generation});
+    return;
+  }
   const auto cloud = cache_.update(snapshot.keyframes, snapshot.revision);
   consume({*cloud, cache_.revision()});
 }

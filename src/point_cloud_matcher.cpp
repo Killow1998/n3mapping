@@ -65,10 +65,17 @@ std::size_t estimatePreparedTargetMemoryBytes(
     for (const auto& level : target.plane_levels) {
         bytes += preparedLevelMemoryBytes(level);
     }
-    if (target.has_refine_level) {
+    if (target.has_refine_level && !target.sharesRefineLevel()) {
         bytes += preparedLevelMemoryBytes(target.refine_level);
     }
     return bytes;
+}
+
+bool PointCloudMatcher::PreparedTarget::sharesRefineLevel() const {
+    if (!has_refine_level || plane_levels.empty()) return false;
+    const auto& fine = plane_levels.back();
+    return refine_level.mapped ? refine_level.mapped == fine.mapped
+                               : refine_level.cloud && refine_level.cloud == fine.cloud;
 }
 
 PointCloudMatcher::PointCloudMatcher(const Config& config) : config_(config) {
@@ -141,12 +148,11 @@ PointCloudMatcher::preprocessPointCloud(const PointCloudT::Ptr& cloud) {
     return { ds, kdtree };
 }
 
-PointCloudMatcher::SmallGicpCloud::Ptr PointCloudMatcher::preprocessSourcePointCloud(const PointCloudT& cloud, double downsampling_resolution) {
-    auto raw = convertToSmallGicp(cloud, downsampling_resolution);
+PointCloudMatcher::SmallGicpCloud::Ptr PointCloudMatcher::preprocessSourcePointCloud(
+    const PointCloudT& cloud, double resolution) {
+    auto raw = convertToSmallGicp(cloud, resolution);
     if (raw->empty()) return raw;
-    auto ds = registration_detail::sampleCoordinates(
-        *raw, downsampling_resolution, config_.num_threads);
-    return ds;
+    return registration_detail::sampleCoordinates(*raw, resolution, config_.num_threads);
 }
 
 PointCloudMatcher::PreparedTarget PointCloudMatcher::prepareTargetCloud(
@@ -164,7 +170,14 @@ PointCloudMatcher::PreparedTarget PointCloudMatcher::prepareTargetCloud(
                 kdtree ? std::make_shared<registration_detail::SearchBounds>(*kdtree) : nullptr });
         }
 
-        if (config_.icp_refine_use_gicp) {
+        const bool shared_refine = config_.icp_refine_use_gicp &&
+            (features == TargetFeatures::SharedRefine ||
+             std::abs(config_.icp_refine_downsampling_resolution - base_res) <= 1e-9);
+        if (shared_refine) {
+            prepared.refine_level = prepared.plane_levels.back();
+            prepared.refine_level.resolution = config_.icp_refine_downsampling_resolution;
+            prepared.has_refine_level = true;
+        } else if (config_.icp_refine_use_gicp) {
             const double resolution = config_.icp_refine_downsampling_resolution;
             auto [points, kdtree] = prepareTargetGeometry(*cloud, resolution);
             prepared.refine_level = { resolution, points, kdtree,
@@ -178,13 +191,16 @@ PointCloudMatcher::PreparedTarget PointCloudMatcher::prepareTargetCloud(
                         level.cloud, level.kdtree, config_.gicp_num_neighbors);
             };
             for (auto& level : prepared.plane_levels) defer(level);
-            if (prepared.has_refine_level) defer(prepared.refine_level);
+            if (shared_refine)
+                prepared.refine_level.lazy_normals = prepared.plane_levels.back().lazy_normals;
+            else if (prepared.has_refine_level)
+                defer(prepared.refine_level);
             return prepared;
         }
         const auto& plane = prepared.plane_levels.back();
         auto& refine = prepared.refine_level;
 
-        const bool try_reuse = plane.kdtree && refine.kdtree &&
+        const bool try_reuse = !shared_refine && plane.kdtree && refine.kdtree &&
             plane.cloud->size() >= .95 * refine.cloud->size() &&
             refine.cloud->size() >= .95 * plane.cloud->size();
         std::vector<double> support_radius;
@@ -200,7 +216,7 @@ PointCloudMatcher::PreparedTarget PointCloudMatcher::prepareTargetCloud(
                 config_.gicp_num_neighbors, config_.num_threads);
             VLOG(1) << "[PointCloudMatcher] Reused exact feature supports: "
                     << reused << "/" << refine.cloud->size();
-        } else if (refine.kdtree) {
+        } else if (!shared_refine && refine.kdtree) {
             registration_detail::estimateFeatures<small_gicp::NormalSetter<SmallGicpCloud>>(
                 *refine.cloud, refine.kdtree->kdtree, config_.gicp_num_neighbors, config_.num_threads);
         }
@@ -212,36 +228,77 @@ PointCloudMatcher::PreparedTarget PointCloudMatcher::prepareTargetCloud(
 }
 
 PointCloudMatcher::PreparedSource PointCloudMatcher::prepareSourceCloud(
-    const PointCloudT::Ptr& cloud) {
+    const PointCloudT::Ptr& cloud, bool tracking) {
     PreparedSource prepared;
     if (!cloud || cloud->empty()) return prepared;
 
     try {
         const double base_res = std::max(1e-3, config_.gicp_downsampling_resolution);
-        const std::array<double, 2> resolutions = { base_res * 2.0, base_res };
-        prepared.plane_levels.reserve(resolutions.size());
-        for (double resolution : resolutions) {
-            prepared.plane_levels.push_back(
-                { resolution, preprocessSourcePointCloud(*cloud, resolution) });
+        const double refine_res = config_.icp_refine_downsampling_resolution;
+        auto raw = convertToSmallGicp(*cloud,
+            config_.icp_refine_use_gicp ? std::min(base_res, refine_res) : base_res);
+        if (raw->empty()) return prepared;
+        const auto sample = [&](const SmallGicpCloud& points, double resolution) {
+            return registration_detail::sampleCoordinates(points, resolution, config_.num_threads);
+        };
+        SmallGicpCloud::Ptr fine;
+        prepared.has_refine_cloud = config_.icp_refine_use_gicp;
+        if (prepared.has_refine_cloud && !tracking) {
+            auto points = sample(*raw, refine_res);
+            const double ratio = base_res / refine_res;
+            if (std::abs(ratio - 1.0) <= 1e-9)
+                fine = points;
+            else if (ratio > 1.0 && std::abs(ratio - std::round(ratio)) <= 1e-9)
+                fine = sample(*points, base_res);
+            prepared.pending_refine = PreparedSource::PendingRefine{
+                std::move(points), 0.0, config_.gicp_num_neighbors, config_.num_threads};
+            prepared.refineCloud();
         }
-
-        if (config_.icp_refine_use_gicp) {
-            auto points = preprocessSourcePointCloud(
-                *cloud, config_.icp_refine_downsampling_resolution);
-            if (!points->empty()) {
-                SmallGicpKdTree tree(
-                    points, small_gicp::KdTreeBuilderOMP(config_.num_threads));
-                registration_detail::estimateFeatures<small_gicp::CovarianceSetter<SmallGicpCloud>>(*points, tree.kdtree,
-                    config_.gicp_num_neighbors, config_.num_threads);
-            }
-            prepared.refine_cloud = points;
-            prepared.has_refine_cloud = true;
+        if (!fine) fine = sample(*raw, base_res);
+        if (prepared.has_refine_cloud && tracking) {
+            const bool same_resolution = std::abs(base_res - refine_res) <= 1e-9;
+            prepared.pending_refine = PreparedSource::PendingRefine{
+                same_resolution ? fine : std::move(raw), same_resolution ? 0.0 : refine_res,
+                config_.gicp_num_neighbors, config_.num_threads};
         }
+        prepared.plane_levels = {{base_res * 2.0, tracking ? nullptr : sample(*fine, base_res * 2.0)},
+                                 {base_res, std::move(fine)}};
+        prepared.lazy_coarse_threads = tracking ? config_.num_threads : 0;
     } catch (const std::exception& e) {
         LOG(ERROR) << "[PointCloudMatcher] prepareSourceCloud exception: " << e.what();
         return {};
     }
     return prepared;
+}
+
+const PointCloudMatcher::SmallGicpCloud* PointCloudMatcher::PreparedSource::planeCloud(
+    double resolution) const {
+    for (const auto& level : plane_levels) {
+        if (std::abs(level.resolution - resolution) > 1e-9) continue;
+        if (!level.cloud && lazy_coarse_threads > 0) {
+            level.cloud = registration_detail::sampleCoordinates(
+                *plane_levels.back().cloud, level.resolution, lazy_coarse_threads);
+        }
+        return level.cloud.get();
+    }
+    return nullptr;
+}
+
+const PointCloudMatcher::SmallGicpCloud::Ptr&
+PointCloudMatcher::PreparedSource::refineCloud() const {
+    if (!pending_refine) return refine_cloud;
+    auto [input, resolution, neighbors, threads] = std::move(*pending_refine);
+    pending_refine.reset();
+    auto points = resolution > 0.0
+        ? registration_detail::sampleCoordinates(*input, resolution, threads)
+        : std::move(input);
+    if (!points->empty()) {
+        const SmallGicpKdTree tree(points, small_gicp::KdTreeBuilderOMP(threads));
+        registration_detail::estimateFeatures<small_gicp::CovarianceSetter<SmallGicpCloud>>(
+            *points, tree.kdtree, neighbors, threads);
+    }
+    refine_cloud = std::move(points);
+    return refine_cloud;
 }
 
 std::vector<MatchResult> PointCloudMatcher::alignBatch(
@@ -296,7 +353,8 @@ MatchResult PointCloudMatcher::alignPrepared(
 
 MatchResult PointCloudMatcher::resumePrepared(
     const PreparedTarget& target, const PreparedSource& source,
-    const Eigen::Isometry3d& init_guess, const MatchMetric& metric) {
+    const Eigen::Isometry3d& init_guess, const MatchMetric& metric,
+    bool refine_with_gicp) {
     if (!init_guess.matrix().allFinite() ||
         !std::isfinite(metric.resolution) || metric.resolution <= 0.0 ||
         !std::isfinite(metric.max_correspondence_distance) ||
@@ -310,7 +368,8 @@ MatchResult PointCloudMatcher::resumePrepared(
     setting.max_correspondence_distance = metric.max_correspondence_distance;
     if (metric.type == small_gicp::RegistrationSetting::GICP)
         setting.max_iterations = config_.icp_refine_max_iterations;
-    return alignPreparedWithSetting(target, source, init_guess, setting, metric.resolution);
+    return alignPreparedWithSetting(target, source, init_guess, setting,
+                                    metric.resolution, false, refine_with_gicp);
 }
 
 }

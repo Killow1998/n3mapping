@@ -193,6 +193,13 @@ bool loadMappedAtlas(const std::string& path, LocalizationAtlasData& metadata,
   if (!metadata.ParseFromCodedStream(&metadata_input) || !metadata_input.ConsumedEntireMessage())
     return fail("failed to decode mapped atlas metadata");
   file->releasePages();
+  const double shared_refine_resolution = metadata.shared_refine_resolution();
+  const bool shared_refine = shared_refine_resolution != 0.0;
+  if (shared_refine &&
+      (refine || !metadata.refine_level_present() ||
+       !std::isfinite(shared_refine_resolution) || shared_refine_resolution < 0.0))
+    return fail("invalid shared Atlas refine level");
+  if (shared_refine) refine = planes.back();
   target = {};
   const auto install = [&](const std::shared_ptr<MappedTargetLevel>& level,
                            PointCloudMatcher::PreparedTargetLevel& output,
@@ -225,7 +232,12 @@ bool loadMappedAtlas(const std::string& path, LocalizationAtlasData& metadata,
     install(level, target.plane_levels.back(), metadata.add_plane_levels());
   }
   target.has_refine_level = bool(refine);
-  if (refine) install(refine, target.refine_level, metadata.mutable_refine_level());
+  if (shared_refine) {
+    target.refine_level = target.plane_levels.back();
+    target.refine_level.resolution = shared_refine_resolution;
+  } else if (refine) {
+    install(refine, target.refine_level, metadata.mutable_refine_level());
+  }
   return true;
 }
 }

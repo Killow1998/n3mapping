@@ -56,6 +56,27 @@ local target cache otherwise. The Atlas uses `global_map_voxel_size` with a
 1 mm minimum. PCD exports use `save_global_map_voxel_size`. A joint save
 reuses the Atlas point cloud when both effective voxel sizes match.
 
+An Atlas can share the finest plane geometry with GICP when the map grid
+already limits target resolution. The sidecar records the GICP resolution
+and stores the shared points, normals and search index once. Older sidecars
+with separate geometry remain readable. A managed sidecar can be rebuilt
+from its original pbstream to use shared geometry.
+
+Localization with an Atlas releases the loaded keyframe point clouds after
+descriptor preparation. Each keyframe keeps indices for Atlas voxels it
+observed. Directional verification can still check independent observations
+and the global map publisher reuses the Atlas. Switching to map extension
+restores the original point clouds from the loaded pbstream after checking
+its identity.
+
+With an Atlas and full translation support, steady localization tracks with
+point-to-plane registration. It prepares coarse source points and GICP
+covariances on demand for the existing fallback. Initial relocalization and
+strict map-continuation tracking keep the configured GICP refinement.
+Map continuation uses both visibility viewpoints by default. The optional
+endpoint-only path reduced check time in the SpRobo comparison and raised the
+maximum position error from 4.9 cm to 13.1 cm on the same source map.
+
 `graph_types.h` exposes graph-edge data and the optimizer interface without GTSAM
 headers. `GraphOptimizer` keeps solver objects in private `graph_optimizer_state.h`.
 Its implementation files own GTSAM dependencies; unrelated consumers do not.
