@@ -1,143 +1,105 @@
 #include "localization_atlas_codec.h"
+
+#include "atlas_container.h"
 #include "localization_atlas.pb.h"
-#include "compact_kdtree_builder.h"
-#include "registration_bounds.h"
-#include "point_cloud_target_view.h"
 #include "mapped_target.h"
-#include <cmath>
-#include <limits>
+
+#include <ostream>
 
 namespace n3mapping::atlas_codec {
 namespace {
-void setError(std::string* error, const std::string& message) {
-    if (error) *error = message;
+constexpr char kPadding[8] = {};
+static_assert(sizeof(std::streamoff) >= 8);
+static_assert(sizeof(float) == 4 && sizeof(double) == 8);
+
+template<typename T, typename Fill>
+bool writeArray(std::ostream& output, std::size_t count, Fill fill) {
+  std::array<T, 1024> buffer;
+  for (std::size_t first = 0; first < count;) {
+    const auto size = std::min(buffer.size(), count - first);
+    for (std::size_t i = 0; i < size; ++i)
+      if (!fill(first + i, buffer[i])) return false;
+    output.write(reinterpret_cast<const char*>(buffer.data()), size * sizeof(T));
+    if (!output) return false;
+    first += size;
+  }
+  return output.good();
+}
+
+bool writeLevel(std::ostream& output, const PointCloudMatcher::PreparedTargetLevel& level) {
+  using namespace registration_detail;
+  const auto& cloud = *level.cloud;
+  const PointCloudMatcher::SmallGicpKdTree tree(level.cloud, small_gicp::KdTreeBuilder{});
+  const auto points = cloud.size();
+  const LevelHeader header{level.resolution, points, !cloud.covs.empty(),
+      sizeof(AtlasSearchHeader) + std::uint64_t(tree.kdtree.nodes.size()) * sizeof(AtlasSearchNode)};
+  output.write(reinterpret_cast<const char*>(&header), sizeof(header));
+  const auto padding = align8(points * kAtlasVectorBytes) - points * kAtlasVectorBytes;
+  const auto write_features = [&](bool normals) {
+    const bool written = writeArray<std::array<float, 3>>(output, points, [&](auto i, auto& out) {
+      const auto index = tree.kdtree.indices[i];
+      const auto& v = normals ? cloud.normal(index) : cloud.point(index);
+      out = {float(v.x()), float(v.y()), float(v.z())};
+      return std::isfinite(out[0]) && std::isfinite(out[1]) && std::isfinite(out[2]);
+    });
+    return written && bool(output.write(kPadding, padding));
+  };
+  if (!write_features(false) || !write_features(true)) return false;
+  if (header.explicit_covariance &&
+      !writeArray<std::array<double, 9>>(output, points, [&](auto i, auto& out) {
+        const auto& cov = cloud.cov(tree.kdtree.indices[i]);
+        for (int row = 0; row < 3; ++row)
+          for (int col = 0; col < 3; ++col)
+            out[3 * row + col] = cov(row, col);
+        return cov.allFinite();
+      }))
+    return false;
+  return writeAtlasSearchIndex(output, tree);
 }
 }
 
-bool encodeLevel(const PointCloudMatcher::PreparedTargetLevel& input,
-                 LocalizationAtlasPreparedLevel& output,
-                 std::string* error) {
-    if (!input.cloud || !input.kdtree || input.cloud->empty()) {
-        setError(error, "invalid prepared target level");
-        return false;
-    }
-    if (input.cloud->size() >
-        static_cast<std::size_t>(std::numeric_limits<int>::max() / 9)) {
-        setError(error, "prepared target level exceeds protobuf array limits");
-        return false;
-    }
-    output.set_resolution(input.resolution);
-    output.set_num_points(input.cloud->size());
-    auto* features = output.mutable_features();
-    features->resize(input.cloud->size() * 64);
-    const bool derived_covariance = input.cloud->covs.empty();
-    output.set_covariance_from_normal(derived_covariance);
-    if (!derived_covariance)
-        output.mutable_covariances()->Reserve(static_cast<int>(input.cloud->size() * 9));
-    const PointCloudMatcher::SmallGicpKdTree tree(
-        input.cloud, small_gicp::KdTreeBuilder{});
-    std::size_t packed = 0;
-    for (const auto i : tree.kdtree.indices) {
-        const auto& point = input.cloud->point(i);
-        const auto& normal = input.cloud->normal(i);
-        const Eigen::Matrix4d covariance = derived_covariance
-            ? Eigen::Matrix4d::Zero() : input.cloud->cov(i);
-        if (!point.allFinite() || !normal.allFinite() || !covariance.allFinite()) {
-            setError(error, "prepared target contains non-finite data");
-            return false;
-        }
+bool writeAtlas(std::ostream& output, const LocalizationAtlasData& metadata,
+                const PointCloudMatcher::PointCloudT& global_map,
+                const PointCloudMatcher::PreparedTarget& target,
+                const FreeSpaceGrid& grid, std::string* error) {
+  const bool explicit_refine = target.has_refine_level && !target.sharesRefineLevel();
+  const ContainerHeader header{kMagic, 4u + explicit_refine + grid.valid()};
+  std::array<SectionEntry, kMaxSections> directory{};
+  output.write(reinterpret_cast<const char*>(&header), sizeof(header));
+  output.write(reinterpret_cast<const char*>(directory.data()), header.sections * sizeof(SectionEntry));
 
-        if (point[3] != 1.0 || normal[3] != 0.0 ||
-            !covariance.row(3).isZero(0.0) || !covariance.col(3).isZero(0.0)) {
-            setError(error, "prepared target has non-canonical homogeneous padding");
-            return false;
-        }
-        std::memcpy(features->data() + packed * 32, point.data(), 32);
-        auto canonical_normal = normal;
-        canonical_normal[3] = 0;
-        std::memcpy(features->data() + (input.cloud->size() + packed) * 32,
-                    canonical_normal.data(), 32);
-        ++packed;
-        for (int row = 0; !derived_covariance && row < 3; ++row) {
-            for (int column = 0; column < 3; ++column) {
-                output.add_covariances(covariance(row, column));
-            }
-        }
-    }
-    output.set_search_index(registration_detail::encodeAtlasSearchIndex(tree));
+  std::size_t next = 0;
+  const auto section = [&](SectionTag tag, std::uint32_t flags, auto write) {
+    if (!output) return false;
+    const auto end = static_cast<std::uint64_t>(output.tellp());
+    const auto offset = align8(end);
+    output.write(kPadding, offset - end);
+    if (!write()) return false;
+    directory[next++] = {tag, flags, offset, static_cast<std::uint64_t>(output.tellp()) - offset};
     return true;
+  };
+  const bool written =
+      section(SectionTag::GlobalPoints, 0, [&] {
+        return writeArray<std::array<float, 4>>(output, global_map.size(), [&](auto i, auto& out) {
+          const auto& p = global_map[i];
+          out = {p.x, p.y, p.z, p.intensity};
+          return std::isfinite(p.x) && std::isfinite(p.y) &&
+                 std::isfinite(p.z) && std::isfinite(p.intensity);
+        });
+      }) &&
+      section(SectionTag::PlaneLevel, 0, [&] { return writeLevel(output, target.plane_levels[0]); }) &&
+      section(SectionTag::PlaneLevel, 1, [&] { return writeLevel(output, target.plane_levels[1]); }) &&
+      (!explicit_refine || section(SectionTag::RefineLevel, 0,
+          [&] { return writeLevel(output, target.refine_level); })) &&
+      (!grid.valid() || section(SectionTag::FreeSpace, 0, [&] { return grid.write(output); })) &&
+      section(SectionTag::Metadata, 0, [&] { return metadata.SerializeToOstream(&output); });
+  if (written) {
+    output.seekp(sizeof(header));
+    output.write(reinterpret_cast<const char*>(directory.data()), header.sections * sizeof(SectionEntry));
+    output.flush();
+    if (output) return true;
+  }
+  if (error) *error = "failed to write Atlas v5 sections";
+  return false;
 }
-
-namespace {
-Eigen::Matrix4d decodedCovariance(const LocalizationAtlasPreparedLevel& input,
-                                  std::size_t index) {
-    Eigen::Matrix4d covariance = Eigen::Matrix4d::Zero();
-    for (int row = 0; row < 3; ++row)
-        for (int column = 0; column < 3; ++column)
-            covariance(row, column) = input.covariances(
-                static_cast<int>(index * 9 + row * 3 + column));
-    return covariance;
-}
-
-}
-
-bool decodeLevel(LocalizationAtlasPreparedLevel& input,
-                 PointCloudMatcher::PreparedTargetLevel& output,
-                 bool with_covariances,
-                 std::string* error) {
-    if (input.num_points() == 0 || !std::isfinite(input.resolution()) ||
-        input.resolution() <= 0.0) {
-        setError(error, "invalid atlas prepared level metadata");
-        return false;
-    }
-    if (input.num_points() >
-            static_cast<std::uint64_t>(std::numeric_limits<int>::max() / 9) ||
-        input.points_size() != static_cast<int>(input.num_points() * 3) ||
-        input.normals_size() != static_cast<int>(input.num_points() * 3) ||
-        input.covariances_size() != (input.covariance_from_normal() ? 0 :
-            static_cast<int>(input.num_points() * 9))) {
-        setError(error, "atlas prepared level array size mismatch");
-        return false;
-    }
-
-    auto cloud = std::make_shared<PointCloudMatcher::SmallGicpCloud>();
-    cloud->points.resize(static_cast<std::size_t>(input.num_points()));
-    cloud->normals.resize(cloud->size());
-    bool compact_covariances = with_covariances;
-    for (std::size_t i = 0; i < cloud->size(); ++i) {
-        cloud->point(i)[3] = 1.0;
-        cloud->normal(i)[3] = 0.0;
-        const Eigen::Matrix4d covariance = input.covariance_from_normal()
-            ? Eigen::Matrix4d::Zero() : decodedCovariance(input, i);
-        for (int axis = 0; axis < 3; ++axis) {
-            cloud->point(i)[axis] = input.points(static_cast<int>(i * 3 + axis));
-            cloud->normal(i)[axis] = input.normals(static_cast<int>(i * 3 + axis));
-        }
-        if (!cloud->point(i).allFinite() || !cloud->normal(i).allFinite() ||
-            !covariance.allFinite()) {
-            setError(error, "atlas prepared level contains non-finite data");
-            return false;
-        }
-        if (with_covariances && !input.covariance_from_normal()) {
-            if (compact_covariances && !covariance.isApprox(
-                    registration_detail::covarianceFromNormal(cloud->normal(i)), 1e-12)) {
-
-                compact_covariances = false;
-                cloud->covs.resize(cloud->size());
-                for (std::size_t j = 0; j < i; ++j)
-                    cloud->cov(j) = decodedCovariance(input, j);
-            }
-            if (!compact_covariances) cloud->cov(i) = covariance;
-        }
-    }
-    output.resolution = input.resolution();
-    output.cloud = cloud;
-
-    LocalizationAtlasPreparedLevel{}.Swap(&input);
-    output.kdtree = std::make_shared<PointCloudMatcher::SmallGicpKdTree>(
-        cloud, registration_detail::CompactKdTreeBuilder<small_gicp::KdTreeBuilder>(*cloud, true));
-    output.search_bounds = std::make_shared<registration_detail::SearchBounds>(*output.kdtree);
-    return true;
-}
-
 }

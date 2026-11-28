@@ -25,9 +25,7 @@ struct MappedTreeView {
   std::size_t size() const { return count; }
   std::uint32_t root() const { return root_index; }
   Eigen::Vector4d point(std::size_t i) const {
-    Eigen::Vector4d result;
-    std::memcpy(result.data(), points + i * 32, 32);
-    return result;
+    return atlasVector(points, i, 1.0);
   }
   std::size_t index(std::size_t i) const { return i; }
   const auto& node(std::uint32_t i) const { return nodes[i]; }

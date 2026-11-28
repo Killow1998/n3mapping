@@ -1,4 +1,5 @@
 #include <gtest/gtest.h>
+#include <limits>
 
 #include "n3mapping/config.h"
 
@@ -193,8 +194,52 @@ TEST(ConfigTest, ProductFactoryFreezesLocalizationProfileAndPaths) {
     EXPECT_EQ(product.localization_tracking_target_cache_max_entries, 8);
     EXPECT_FALSE(product.loaded_map_visibility_endpoint_fast_enable);
     EXPECT_FALSE(product.save_global_map_on_shutdown);
+    EXPECT_FALSE(product.reloc_initial_prior_enabled);
     std::string error;
     EXPECT_TRUE(product.validate(&error)) << error;
+}
+
+TEST(ConfigTest, InitialRelocalizationPriorIsOptionalAndRequiresAValidWindow) {
+    Config config;
+    EXPECT_FALSE(config.reloc_initial_prior_enabled);
+    EXPECT_DOUBLE_EQ(config.reloc_initial_prior_x, 0.0);
+    EXPECT_DOUBLE_EQ(config.reloc_initial_prior_y, 0.0);
+    EXPECT_DOUBLE_EQ(config.reloc_initial_prior_z, 0.0);
+    EXPECT_DOUBLE_EQ(config.reloc_initial_prior_xy_radius, 0.0);
+    EXPECT_DOUBLE_EQ(config.reloc_initial_prior_z_radius, 0.0);
+    EXPECT_DOUBLE_EQ(config.reloc_initial_prior_yaw, 0.0);
+    EXPECT_DOUBLE_EQ(config.reloc_initial_prior_yaw_tolerance, 0.0);
+    std::string error;
+    EXPECT_TRUE(config.validate(&error)) << error;
+
+    for (auto field : {&Config::reloc_initial_prior_x, &Config::reloc_initial_prior_y,
+                       &Config::reloc_initial_prior_z, &Config::reloc_initial_prior_xy_radius,
+                       &Config::reloc_initial_prior_z_radius, &Config::reloc_initial_prior_yaw,
+                       &Config::reloc_initial_prior_yaw_tolerance}) {
+        config.*field = std::numeric_limits<double>::quiet_NaN();
+        EXPECT_FALSE(config.validate(&error));
+        config.*field = std::numeric_limits<double>::infinity();
+        EXPECT_FALSE(config.validate(&error));
+        config.*field = 0.0;
+    }
+    for (auto limit : {&Config::reloc_initial_prior_xy_radius, &Config::reloc_initial_prior_z_radius,
+                       &Config::reloc_initial_prior_yaw_tolerance}) {
+        config.*limit = -1.0;
+        EXPECT_FALSE(config.validate(&error));
+        config.*limit = 0.0;
+    }
+    config.reloc_initial_prior_enabled = true;
+    EXPECT_FALSE(config.validate(&error));
+    config.reloc_initial_prior_z = -4.0;
+    config.reloc_initial_prior_z_radius = 2.0;
+    EXPECT_TRUE(config.validate(&error)) << error;
+    config.reloc_initial_prior_z_radius = 0.0;
+    config.reloc_initial_prior_xy_radius = 2.0;
+    EXPECT_TRUE(config.validate(&error)) << error;
+    config.reloc_initial_prior_xy_radius = 0.0;
+    config.reloc_initial_prior_yaw = -3.0;
+    config.reloc_initial_prior_yaw_tolerance = 0.25;
+    EXPECT_TRUE(config.validate(&error)) << error;
 }
 
 TEST(ConfigTest, FreeSpaceAndPersistenceDefaultsMatchEnvUnsetBehaviour) {

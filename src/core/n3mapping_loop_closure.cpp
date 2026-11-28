@@ -3,6 +3,7 @@
 #include "loop_closure_processing.h"
 #include "loop_closure_async.h"
 #include <algorithm>
+#include <cmath>
 
 namespace n3mapping {
 void N3MappingCore::appendLoopDebugCandidate(
@@ -45,11 +46,18 @@ std::vector<DetectedLoopQuery> N3MappingCore::detectPendingLoopCandidates(
     if (query == keyframe_map.end()) continue;
     const auto& query_kf = query->second;
 
+    const auto within_vertical_bound = [&](int64_t match_id) {
+      const auto& match = *keyframe_map.at(match_id);
+      return std::abs(match.getPosition().z() - query_kf->getPosition().z()) <=
+          kMaxLoopVerticalSeparationM;
+    };
     const auto within_work_bound = [&](int64_t match_id) {
-      const auto match = keyframe_map.find(match_id);
-      if (match == keyframe_map.end()) return false;
-      const auto predicted = match->second->pose_optimized.inverse() * query_kf->pose_optimized;
-      return !(predicted.translation().norm() > config_.loop_max_range);
+      const auto& match = *keyframe_map.at(match_id);
+      return within_vertical_bound(match_id) &&
+          (match.getPosition() - query_kf->getPosition()).norm() <= config_.loop_max_range;
+    };
+    const auto eligible_old_map = [&](int64_t id) {
+      return eligibleOldMapLoopCandidate(*keyframe_map.at(id), *query_kf, config_.reloc_search_radius);
     };
     std::vector<LoopCandidate> candidates;
     if (map_loaded_) {
@@ -59,21 +67,26 @@ std::vector<DetectedLoopQuery> N3MappingCore::detectPendingLoopCandidates(
             return !match->is_from_loaded_map && match->session_id == query_kf->session_id &&
                 within_work_bound(id);
           });
-      if (!pending.tracked_against_loaded_map) {
-        auto old_map = session_->detector.detectLoopCandidates(query_id, keyframe_map,
-            [&](int64_t id) { return keyframe_map.at(id)->is_from_loaded_map; });
+      if (!pending.tracked_against_loaded_map &&
+          std::any_of(keyframe_map.begin(), query,
+              [&](const auto& entry) {
+                return eligibleOldMapLoopCandidate(*entry.second, *query_kf, config_.reloc_search_radius);
+              })) {
+        auto old_map = session_->detector.detectLoopCandidates(query_id, keyframe_map, eligible_old_map);
         candidates.insert(candidates.end(), old_map.begin(), old_map.end());
       }
     } else {
       candidates = session_->detector.detectLoopCandidates(
-          query_id, keyframe_map, {}, within_work_bound);
+          query_id, keyframe_map, within_vertical_bound, within_work_bound);
     }
     if (config_.loop_spatial_candidates_enable) {
       auto spatial_candidates = session_->detector.detectSpatialCandidates(
           query_id, keyframe_map, [&](int64_t id) {
-            if (!map_loaded_) return true;
+            if (!map_loaded_) return within_vertical_bound(id);
             const auto& match = *keyframe_map.at(id);
-            if (match.is_from_loaded_map) return !pending.tracked_against_loaded_map;
+            if (match.is_from_loaded_map)
+              return !pending.tracked_against_loaded_map &&
+                  eligibleOldMapLoopCandidate(match, *query_kf, config_.reloc_search_radius);
             return match.session_id == query_kf->session_id && within_work_bound(id);
           }, true);
       for (const auto &spatial : spatial_candidates) {

@@ -1,12 +1,41 @@
 #include <gtest/gtest.h>
+#include <type_traits>
 
 #include "n3mapping/RHPDescriptor.h"
 #include "n3mapping/config.h"
+#include "n3mapping/config_fields.h"
 #include "n3mapping/static_start_guard.h"
 #include "n3mapping/visibility_consistency.h"
 
 namespace n3mapping {
 namespace {
+
+TEST(ConfigWiringTest, InitialRelocalizationPriorUsesSharedParameterKeys) {
+    Config config;
+    forEachConfigField(config, [](const char* name, auto& value) {
+        using Value = std::decay_t<decltype(value)>;
+        const std::string key(name);
+        if constexpr (std::is_same_v<Value, bool>) {
+            if (key == "reloc_initial_prior_enabled") value = true;
+        } else if constexpr (std::is_same_v<Value, double>) {
+            if (key == "reloc_initial_prior_x") value = 1.0;
+            if (key == "reloc_initial_prior_y") value = 2.0;
+            if (key == "reloc_initial_prior_z") value = 3.0;
+            if (key == "reloc_initial_prior_xy_radius") value = 4.0;
+            if (key == "reloc_initial_prior_z_radius") value = 5.0;
+            if (key == "reloc_initial_prior_yaw") value = -2.8;
+            if (key == "reloc_initial_prior_yaw_tolerance") value = 0.25;
+        }
+    });
+    EXPECT_TRUE(config.reloc_initial_prior_enabled);
+    EXPECT_DOUBLE_EQ(config.reloc_initial_prior_x, 1.0);
+    EXPECT_DOUBLE_EQ(config.reloc_initial_prior_y, 2.0);
+    EXPECT_DOUBLE_EQ(config.reloc_initial_prior_z, 3.0);
+    EXPECT_DOUBLE_EQ(config.reloc_initial_prior_xy_radius, 4.0);
+    EXPECT_DOUBLE_EQ(config.reloc_initial_prior_z_radius, 5.0);
+    EXPECT_DOUBLE_EQ(config.reloc_initial_prior_yaw, -2.8);
+    EXPECT_DOUBLE_EQ(config.reloc_initial_prior_yaw_tolerance, 0.25);
+}
 
 TEST(ConfigWiringTest, StaticStartGuardOptionsCarryEveryKey) {
     Config config;

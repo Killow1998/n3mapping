@@ -32,6 +32,8 @@ const char* AtlasMapping::data() const {
   return static_cast<const char*>(impl_->region.get_address());
 }
 std::size_t AtlasMapping::size() const { return impl_->region.get_size(); }
+AtlasSectionView AtlasMapping::globalPoints() const { return impl_->global_points; }
+AtlasSectionView AtlasMapping::freeSpace() const { return impl_->free_space; }
 
 std::shared_ptr<AtlasMapping> AtlasMapping::open(const std::string& path,
                                                std::string* error) {
@@ -113,8 +115,8 @@ void AtlasMapping::prefetch(const std::vector<Eigen::AlignedBox3d>& requested) {
         } else {
           const auto first = node.node_type.lr.first;
           const auto count = node.node_type.lr.last - first;
-          mark(level.points + first * 32ULL, count * 32ULL);
-          mark(level.normals + first * 32ULL, count * 32ULL);
+          mark(level.points + first * kAtlasVectorBytes, count * kAtlasVectorBytes);
+          mark(level.normals + first * kAtlasVectorBytes, count * kAtlasVectorBytes);
           if (!level.covariance_from_normal)
             mark(level.covariances + first * 72ULL, count * 72ULL);
         }

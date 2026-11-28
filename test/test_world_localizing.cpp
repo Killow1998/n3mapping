@@ -5,6 +5,7 @@
 #include "n3mapping/pcl_compat.h"
 #include "n3mapping/point_cloud_matcher.h"
 #include "n3mapping/relocalization_hypothesis_manager.h"
+#include "n3mapping/relocalization_place_index.h"
 #include "n3mapping/relocalization_query_builder.h"
 #include "n3mapping/tracking_target_cache.h"
 #include "n3mapping/world_localizing.h"
@@ -88,6 +89,97 @@ TEST(RelocalizationDecisionTest, KnownFreeSpaceVetoesEvenTheOnlyMode)
   EXPECT_EQ(rejected.reject_reason, "absolute_free_space_conflict");
   score.known_fraction = 0.1;
   EXPECT_TRUE(evaluate(score).accepted);
+}
+
+class FreeSpaceVetoTest : public ::testing::Test {
+protected:
+  void SetUp() override {
+    WorldLocalizing::PointCloudT map;
+    std::vector<Eigen::Vector3d> origins{{0., 0., 0.}};
+    for (const auto y : {.5f, 2.5f, 4.5f, 10.5f, 20.5f, 22.5f, 24.5f,
+                         30.5f, 32.5f, 34.5f}) {
+      const bool occupied = y == .5f || y == 2.5f || y == 10.5f || y == 24.5f;
+      pcl::PointXYZI point;
+      point.x = occupied ? 6.5f : 12.5f;
+      point.y = y;
+      point.z = .5f;
+      map.push_back(point);
+      origins.emplace_back(0., y, .5);
+    }
+    ASSERT_TRUE(localizing_.free_space_grid_.build(map, origins, 1., 20., 1));
+    localizing_.free_space_grid_revision_ = keyframes_.revision();
+    for (int i = 0; i < 1000; ++i) {
+      pcl::PointXYZI point;
+      point.x = 6.5f;
+      point.y = i < 500 ? .5f : (i < 640 ? 2.5f : 4.5f);
+      point.z = .5f;
+      query_->push_back(point);
+    }
+  }
+
+  RelocalizationHypothesis& addHypothesis(double y) {
+    auto& hypothesis = localizing_.hypothesis_manager_.hypotheses().emplace_back();
+    hypothesis.T_map_odom.translation().y() = y;
+    hypothesis.cumulative_log_likelihood = config_.reloc_lock_log_likelihood_threshold;
+    hypothesis.converged_updates = 1;
+    return hypothesis;
+  }
+
+  FreeSpaceGrid::Score score(const RelocalizationHypothesis& hypothesis) const {
+    return localizing_.free_space_grid_.score(*query_, hypothesis.T_map_odom);
+  }
+
+  const RelocalizationHypothesis* best(size_t index, FreeSpaceGrid::Score& ranked_score) {
+    return localizing_.freeSpaceBestHypothesis(query_, Eigen::Isometry3d::Identity(),
+        localizing_.hypothesis_manager_.hypotheses()[index], ranked_score);
+  }
+
+  const Config config_;
+  KeyframeManager keyframes_{config_};
+  LoopDetector detector_{config_};
+  PointCloudMatcher matcher_{config_};
+  WorldLocalizing localizing_{config_, keyframes_, detector_, matcher_};
+  WorldLocalizing::PointCloudT::Ptr query_ = pcl::make_shared<WorldLocalizing::PointCloudT>();
+};
+
+TEST_F(FreeSpaceVetoTest, UnknownCellsCannotOutvoteHigherOccupiedSupport) {
+  addHypothesis(10.);
+  const auto& ranked = addHypothesis(0.);
+  FreeSpaceGrid::Score ranked_score;
+  EXPECT_EQ(best(1, ranked_score), &ranked);
+
+  RelocalizationHypothesis sparse;
+  sparse.T_map_odom.translation().y() = 10.;
+  const auto sparse_score = score(sparse);
+  ASSERT_TRUE(ranked_score.valid && sparse_score.valid);
+  EXPECT_GT(ranked_score.value, 0.);
+  EXPECT_LT(sparse_score.known_fraction, ranked_score.known_fraction);
+  EXPECT_LT(sparse_score.occupied_fraction, ranked_score.occupied_fraction);
+  EXPECT_TRUE(sparse_score.significantlyBetterThan(ranked_score,
+      config_.reloc_free_space_kill_sigmas));
+}
+
+TEST_F(FreeSpaceVetoTest, ObservedFreeSpaceStillSupportsRelativeAndAbsoluteVetoes) {
+  addHypothesis(20.);
+  addHypothesis(30.);
+  auto& alternative = addHypothesis(0.);
+  FreeSpaceGrid::Score ranked_score;
+  EXPECT_EQ(best(0, ranked_score), &alternative);
+  ASSERT_TRUE(ranked_score.valid);
+  EXPECT_LT(ranked_score.value, 0.);
+  EXPECT_FALSE(ranked_score.hasAbsoluteConflict());
+
+  --alternative.converged_updates;
+  EXPECT_NE(best(0, ranked_score), &alternative);
+  ++alternative.converged_updates;
+  alternative.cumulative_log_likelihood -= 1.;
+  EXPECT_NE(best(0, ranked_score), &alternative);
+  alternative.cumulative_log_likelihood += 1.;
+  alternative.alive = false;
+  EXPECT_NE(best(0, ranked_score), &alternative);
+
+  EXPECT_EQ(best(1, ranked_score), nullptr);
+  EXPECT_TRUE(ranked_score.hasAbsoluteConflict());
 }
 
 TEST(RelocalizationRankingTest, EqualAndInvalidScoresHaveStableIdentityTies)
@@ -219,6 +311,130 @@ protected:
   std::unique_ptr<LoopDetector> loop_detector_;
   std::unique_ptr<PointCloudMatcher> matcher_;
 };
+
+TEST_F(WorldLocalizingTest, InitialPriorFiltersBeforeCoarseBudgetAndInHeadingFallback) {
+  Eigen::Isometry3d pose = Eigen::Isometry3d::Identity();
+  const auto cloud = generateCorridorCloud(pose);
+  const auto lower = keyframe_manager_->addKeyframe(0.0, pose, cloud);
+  pose.translation() = Eigen::Vector3d(4.0, 4.0, 8.0);
+  const auto upper = keyframe_manager_->addKeyframe(1.0, pose, cloud);
+  for (const auto id : {lower, upper}) {
+    loop_detector_->addDescriptor(id, cloud);
+    loop_detector_->addRHPD(id, cloud);
+  }
+  config_.reloc_num_candidates = 1;
+  config_.rhpd_preselect_candidates = 1;
+  config_.reloc_initial_prior_enabled = true;
+  config_.reloc_initial_prior_z = 8.0;
+  config_.reloc_initial_prior_z_radius = 2.0;
+  RelocalizationPlaceIndex upper_only(config_, *keyframe_manager_, *loop_detector_);
+  DescriptorSearchPerformance perf;
+  const auto upper_candidates = upper_only.search(cloud, &perf, 0, true);
+  ASSERT_EQ(upper_candidates.size(), 1u);
+  EXPECT_EQ(upper_candidates.front().match_id, upper);
+  EXPECT_EQ(perf.coarse_comparisons, 2u);
+  const auto unrestricted = upper_only.search(cloud);
+  ASSERT_EQ(unrestricted.size(), 1u);
+  EXPECT_EQ(unrestricted.front().match_id, lower);
+
+  config_.reloc_initial_prior_z_radius = 0.0;
+  config_.reloc_initial_prior_xy_radius = 5.0;
+  config_.reloc_num_candidates = 5;
+  for (bool rhpd : {true, false}) {
+    config_.rhpd_enabled = rhpd;
+    RelocalizationPlaceIndex lower_only(config_, *keyframe_manager_, *loop_detector_);
+    const auto candidates = lower_only.search(cloud, nullptr, 0, true);
+    ASSERT_EQ(candidates.size(), 1u);
+    EXPECT_EQ(candidates.front().match_id, lower);
+    EXPECT_EQ(candidates.front().fromRHPD(), rhpd);
+  }
+}
+
+TEST_F(WorldLocalizingTest, InitialHeightPriorLocksTargetFloorAndReleasesAfterTrackingLoss) {
+  config_.reloc_free_space_enable = false;
+  config_.reloc_initial_prior_enabled = true;
+  config_.reloc_initial_prior_z = 8.0;
+  config_.reloc_initial_prior_z_radius = 2.0;
+  config_.reloc_max_track_failures = 1;
+  Eigen::Isometry3d pose = Eigen::Isometry3d::Identity();
+  pose.translation().x() = 8.0;
+  const auto cloud = generateCorridorCloud(pose);
+  const auto lower = keyframe_manager_->addKeyframe(0.0, pose, cloud);
+  Eigen::Isometry3d upper_pose = pose;
+  upper_pose.translation().z() = 8.0;
+  const auto upper = keyframe_manager_->addKeyframe(1.0, upper_pose, cloud);
+  for (const auto id : {lower, upper}) {
+    loop_detector_->addDescriptor(id, cloud);
+    loop_detector_->addRHPD(id, cloud);
+  }
+  WorldLocalizing localizing(config_, *keyframe_manager_, *loop_detector_, *matcher_);
+  RelocResult lock = localizing.relocalize(cloud, pose);
+  EXPECT_EQ(lock.performance.descriptor.returned_candidates, 1u);
+  for (int query = 1; query < config_.reloc_temporal_window_size && !lock.success; ++query)
+    lock = localizing.relocalize(cloud, pose);
+  ASSERT_TRUE(lock.success);
+  EXPECT_EQ(lock.seed_keyframe_id, upper);
+  EXPECT_NEAR(lock.pose_in_map.translation().z(), 8.0, 0.1);
+
+  Eigen::Isometry3d far = pose;
+  far.translation().x() = 100.0;
+  const auto far_cloud = generateCorridorCloud(far);
+  localizing.trackLocalization(far_cloud, far);
+  EXPECT_EQ(localizing.trackLocalization(far_cloud, far).state, RelocalizationState::LOST);
+  EXPECT_FALSE(localizing.isRelocalized());
+  const auto recovery = localizing.relocalize(cloud, pose);
+  EXPECT_EQ(recovery.performance.descriptor.returned_candidates, 2u);
+}
+
+TEST_F(WorldLocalizingTest, InitialPriorRejectsRegisteredPoseOutsideSeedWindow) {
+  config_.reloc_free_space_enable = false;
+  config_.reloc_initial_prior_enabled = true;
+  config_.reloc_initial_prior_x = 8.0;
+  config_.reloc_initial_prior_xy_radius = 0.2;
+  Eigen::Isometry3d seed_pose = Eigen::Isometry3d::Identity();
+  seed_pose.translation().x() = 8.0;
+  const auto reference = generateCorridorCloud(seed_pose);
+  const auto seed = keyframe_manager_->addKeyframe(0.0, seed_pose, reference);
+  loop_detector_->addDescriptor(seed, reference);
+  loop_detector_->addRHPD(seed, reference);
+
+  Eigen::Isometry3d query_pose = seed_pose;
+  query_pose.translation().y() += 0.7;
+  const auto query = generateCorridorCloud(query_pose);
+  WorldLocalizing localizing(config_, *keyframe_manager_, *loop_detector_, *matcher_);
+  RelocResult result = localizing.relocalize(query, seed_pose);
+  EXPECT_EQ(result.performance.descriptor.returned_candidates, 1u);
+  for (int frame = 1; frame < config_.reloc_temporal_window_size; ++frame)
+    result = localizing.relocalize(query, seed_pose);
+  EXPECT_FALSE(result.success);
+  EXPECT_EQ(result.decision, "initial_prior_pose_out_of_bounds");
+  EXPECT_FALSE(result.performance.directional_checked);
+}
+
+TEST_F(WorldLocalizingTest, InitialYawPriorRejectsOppositeHeadingAndWrapsAtPi) {
+  config_.reloc_free_space_enable = false;
+  config_.reloc_initial_prior_enabled = true;
+  config_.reloc_initial_prior_yaw = M_PI - 0.05;
+  config_.reloc_initial_prior_yaw_tolerance = 0.15;
+  Eigen::Isometry3d pose = Eigen::Isometry3d::Identity();
+  pose.translation().x() = 8.0;
+  const auto reference = generateCorridorCloud(pose);
+  const auto seed = keyframe_manager_->addKeyframe(0.0, pose, reference);
+  loop_detector_->addDescriptor(seed, reference);
+  loop_detector_->addRHPD(seed, reference);
+
+  WorldLocalizing localizing(config_, *keyframe_manager_, *loop_detector_, *matcher_);
+  RelocResult result;
+  for (int frame = 0; frame < config_.reloc_temporal_window_size; ++frame)
+    result = localizing.relocalize(reference, pose);
+  EXPECT_FALSE(result.success);
+  EXPECT_EQ(result.decision, "initial_prior_pose_out_of_bounds");
+  EXPECT_FALSE(result.performance.directional_checked);
+
+  RelocalizationPlaceIndex index(config_, *keyframe_manager_, *loop_detector_);
+  pose.linear() = Eigen::AngleAxisd(-M_PI + 0.05, Eigen::Vector3d::UnitZ()).toRotationMatrix();
+  EXPECT_TRUE(index.matchesInitialPriorPose(pose));
+}
 
 std::vector<std::string> readDebugLines(const std::filesystem::path &path) {
   std::vector<std::string> lines;

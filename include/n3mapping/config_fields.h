@@ -108,6 +108,14 @@ void forEachConfigField(Configuration& config, Visitor&& visit) {
     visit("reloc_min_confidence", config.reloc_min_confidence);
     visit("reloc_min_inlier_ratio", config.reloc_min_inlier_ratio);
     visit("reloc_search_radius", config.reloc_search_radius);
+    visit("reloc_initial_prior_enabled", config.reloc_initial_prior_enabled);
+    visit("reloc_initial_prior_x", config.reloc_initial_prior_x);
+    visit("reloc_initial_prior_y", config.reloc_initial_prior_y);
+    visit("reloc_initial_prior_z", config.reloc_initial_prior_z);
+    visit("reloc_initial_prior_xy_radius", config.reloc_initial_prior_xy_radius);
+    visit("reloc_initial_prior_z_radius", config.reloc_initial_prior_z_radius);
+    visit("reloc_initial_prior_yaw", config.reloc_initial_prior_yaw);
+    visit("reloc_initial_prior_yaw_tolerance", config.reloc_initial_prior_yaw_tolerance);
     visit("reloc_max_track_failures", config.reloc_max_track_failures);
     visit("reloc_track_max_translation", config.reloc_track_max_translation);
     visit("reloc_track_max_rotation", config.reloc_track_max_rotation);

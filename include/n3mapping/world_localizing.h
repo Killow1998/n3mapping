@@ -36,6 +36,7 @@ namespace n3mapping {
 class TrackingTargetCache;
 struct RelocalizationSeedPlan;
 struct RelocalizationObservation;
+namespace test { class FreeSpaceVetoTest; }
 
 struct RelocResult {
   RelocalizationPerformance performance;
@@ -119,6 +120,8 @@ public:
   void warmLoadedMapTrackingTarget(int64_t anchor_id);
 
 private:
+  friend class test::FreeSpaceVetoTest;
+
   std::map<int64_t, std::vector<std::uint32_t>> reference_atlas_indices_;
   using RelocHypothesis = RelocalizationHypothesis;
 

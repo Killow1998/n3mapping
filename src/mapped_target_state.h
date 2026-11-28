@@ -9,6 +9,7 @@ namespace n3mapping::registration_detail {
 struct AtlasMapping::Impl {
   boost::interprocess::file_mapping file;
   boost::interprocess::mapped_region region;
+  AtlasSectionView global_points, free_space;
   std::vector<MappedTargetLevel> levels;
   std::vector<std::array<double, 6>> active_key;
   std::vector<std::array<double, 6>> pending_key;

@@ -296,6 +296,16 @@ bool Config::validate(std::string* error) const {
     if (!non_negative(reloc_min_confidence, "reloc_min_confidence")) return false;
     if (!non_negative(reloc_min_inlier_ratio, "reloc_min_inlier_ratio")) return false;
     if (!positive(reloc_search_radius, "reloc_search_radius")) return false;
+    if (!std::isfinite(reloc_initial_prior_x)) return fail("reloc_initial_prior_x must be finite");
+    if (!std::isfinite(reloc_initial_prior_y)) return fail("reloc_initial_prior_y must be finite");
+    if (!std::isfinite(reloc_initial_prior_z)) return fail("reloc_initial_prior_z must be finite");
+    if (!non_negative(reloc_initial_prior_xy_radius, "reloc_initial_prior_xy_radius")) return false;
+    if (!non_negative(reloc_initial_prior_z_radius, "reloc_initial_prior_z_radius")) return false;
+    if (!std::isfinite(reloc_initial_prior_yaw)) return fail("reloc_initial_prior_yaw must be finite");
+    if (!non_negative(reloc_initial_prior_yaw_tolerance, "reloc_initial_prior_yaw_tolerance")) return false;
+    if (reloc_initial_prior_enabled && reloc_initial_prior_xy_radius == 0.0 &&
+        reloc_initial_prior_z_radius == 0.0 && reloc_initial_prior_yaw_tolerance == 0.0)
+        return fail("reloc_initial_prior_enabled requires a positive XY radius, Z radius, or yaw tolerance");
     if (!at_least(reloc_max_track_failures, 0, "reloc_max_track_failures")) return false;
     if (!positive(reloc_track_max_translation, "reloc_track_max_translation")) return false;
     if (!positive(reloc_track_max_rotation, "reloc_track_max_rotation")) return false;

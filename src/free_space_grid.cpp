@@ -19,16 +19,24 @@ bool FreeSpaceGrid::Score::significantlyBetterThan(const Score& other, double si
   return value - other.value > sigmas * std::hypot(stddev, other.stddev);
 }
 
+FreeSpaceGrid::Block& FreeSpaceGrid::addBlock(const BlockCoordinate& coordinate) {
+  const auto [index, inserted] = block_index_.try_emplace(coordinate, blocks_.size());
+  if (inserted) blocks_.push_back(Block{coordinate});
+  return blocks_[index->second];
+}
+
+const char* FreeSpaceGrid::findBlock(const BlockCoordinate& coordinate) const {
+  const auto index = block_index_.find(coordinate);
+  if (index == block_index_.end()) return nullptr;
+  return mapped_blocks_ ? mapped_blocks_ + index->second * sizeof(Block)
+                        : reinterpret_cast<const char*>(&blocks_[index->second]);
+}
+
 bool FreeSpaceGrid::build(const pcl::PointCloud<pcl::PointXYZI> &map_cloud,
                           const std::vector<Eigen::Vector3d> &observation_origins,
                           double resolution, double max_ray_length,
                           int occupied_min_points) {
-  valid_ = false;
-  occupied_.clear();
-  free_.clear();
-  occupied_cells_ = 0;
-  free_cells_ = 0;
-  build_seconds_ = 0.0;
+  *this = FreeSpaceGrid{};
   if (map_cloud.empty() || observation_origins.empty() || resolution <= 0.0)
     return false;
   const auto started = std::chrono::steady_clock::now();
@@ -55,33 +63,26 @@ bool FreeSpaceGrid::build(const pcl::PointCloud<pcl::PointXYZI> &map_cloud,
   const Eigen::Vector3d extent =
       hi + Eigen::Vector3d::Constant(2.0 * resolution_) - origin_;
   for (int axis = 0; axis < 3; ++axis) {
-    dims_[axis] =
-        static_cast<int>(std::ceil(extent[axis] / resolution_)) + 1;
-    if (dims_[axis] <= 0)
+    const double dimension = std::ceil(extent[axis] / resolution_) + 1;
+    if (!std::isfinite(dimension) || dimension < 1 ||
+        dimension > std::numeric_limits<int>::max())
       return false;
+    dims_[axis] = static_cast<int>(dimension);
   }
-  const std::size_t cells = static_cast<std::size_t>(dims_.x()) *
-                            static_cast<std::size_t>(dims_.y()) *
-                            static_cast<std::size_t>(dims_.z());
 
   {
-    std::vector<std::uint8_t> counts(cells, 0);
+    std::unordered_map<BlockCoordinate, std::array<std::uint8_t, 512>, BlockHash> counts;
+    const auto min_points = static_cast<std::uint8_t>(std::max(1, occupied_min_points));
     for (const auto &pt : map_cloud.points) {
       if (!std::isfinite(pt.x) || !std::isfinite(pt.y) || !std::isfinite(pt.z))
         continue;
       const Eigen::Vector3i c = cellOf(Eigen::Vector3d(pt.x, pt.y, pt.z));
-      if (!inside(c))
-        continue;
-      std::uint8_t &n = counts[indexOf(c)];
-      if (n < 255)
-        ++n;
-    }
-    const std::uint8_t min_points =
-        static_cast<std::uint8_t>(std::max(1, occupied_min_points));
-    occupied_.assign(cells, false);
-    for (std::size_t i = 0; i < cells; ++i) {
-      if (counts[i] >= min_points) {
-        occupied_[i] = true;
+      if (!inside(c)) continue;
+      const auto coordinate = blockOf(c);
+      const int bit = bitOf(c);
+      auto& count = counts[coordinate][bit];
+      if (count < min_points && ++count == min_points) {
+        addBlock(coordinate).occupied[bit / 8] |= std::uint8_t(1u << (bit % 8));
         ++occupied_cells_;
       }
     }
@@ -105,7 +106,6 @@ bool FreeSpaceGrid::build(const pcl::PointCloud<pcl::PointXYZI> &map_cloud,
   flann::KNNSimpleResultSet<float> nearest(1);
   const flann::SearchParams search(-1, 0.0f);
 
-  free_.assign(cells, false);
   for (const auto &pt : map_cloud.points) {
     if (!std::isfinite(pt.x) || !std::isfinite(pt.y) || !std::isfinite(pt.z))
       continue;
@@ -125,16 +125,20 @@ bool FreeSpaceGrid::build(const pcl::PointCloud<pcl::PointXYZI> &map_cloud,
       continue;
     const Eigen::Vector3d dir = delta / length;
     const int steps = static_cast<int>(length / resolution_);
+    Block* block = nullptr;
     for (int s = 1; s < steps; ++s) {
       const Eigen::Vector3i c =
           cellOf(start + dir * (static_cast<double>(s) * resolution_));
       if (!inside(c))
         break;
-      const std::size_t idx = indexOf(c);
-      if (occupied_[idx])
-        break;
-      if (!free_[idx]) {
-        free_[idx] = true;
+      const auto coordinate = blockOf(c);
+      if (!block || block->coordinate != coordinate) block = &addBlock(coordinate);
+      const int bit = bitOf(c);
+      const auto mask = std::uint8_t(1u << (bit % 8));
+      if (block->occupied[bit / 8] & mask) break;
+      auto& byte = block->free[bit / 8];
+      if ((byte & mask) == 0) {
+        byte |= mask;
         ++free_cells_;
       }
     }
@@ -176,9 +180,12 @@ FreeSpaceGrid::score(const pcl::PointCloud<pcl::PointXYZI> &cloud_in_sensor,
           const Eigen::Vector3i cell = lower + Eigen::Vector3i(x, y, z);
           if (!inside(cell)) continue;
           const double weight = wxy * (z ? fraction.z() : 1.0 - fraction.z());
-          const std::size_t idx = indexOf(cell);
-          if (occupied_[idx]) occupied_hits += weight;
-          else if (free_[idx]) free_hits += weight;
+          const auto* bits = findBlock(blockOf(cell));
+          if (!bits) continue;
+          const int bit = bitOf(cell);
+          const auto mask = std::uint8_t(1u << (bit % 8));
+          if (bits[offsetof(Block, occupied) + bit / 8] & mask) occupied_hits += weight;
+          else if (bits[offsetof(Block, free) + bit / 8] & mask) free_hits += weight;
         }
       }
     }

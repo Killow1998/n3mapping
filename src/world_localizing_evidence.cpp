@@ -89,36 +89,48 @@ WorldLocalizing::freeSpaceBestHypothesis(const PointCloudT::Ptr &query_cloud,
 
   if (free_space_grid_.freeCells() == 0)
     return nullptr;
+  const auto score_hypothesis = [&](const RelocHypothesis& hyp) {
+    const auto score =
+        free_space_grid_.score(*query_cloud, hyp.T_map_odom * odom_pose);
+    if (score.valid) {
+      VLOG(1) << "[Reloc/FreeSpaceCov] seed=" << hyp.seed_match_id
+              << " value=" << score.value << " known_frac=" << score.known_fraction
+              << " occ|known=" << score.occupied_given_known
+              << " free|known=" << score.free_given_known << " n=" << score.scored_points
+              << " known=" << score.known_points;
+    }
+    return score;
+  };
+  ranked_score = score_hypothesis(ranked_winner);
+  if (ranked_score.hasAbsoluteConflict())
+    return nullptr;
+
   const RelocHypothesis *best = nullptr;
   FreeSpaceGrid::Score best_score;
   for (const auto &hyp : hypothesis_manager_.hypotheses()) {
-    if (!hyp.alive)
+    if (&hyp == &ranked_winner || !hyp.alive || hyp.converged_updates < 1 ||
+        !(hyp.cumulative_log_likelihood >= config_.reloc_lock_log_likelihood_threshold))
       continue;
-    const auto s =
-        free_space_grid_.score(*query_cloud, hyp.T_map_odom * odom_pose);
-    if (!s.valid)
+    const auto score = score_hypothesis(hyp);
+    if (!score.valid || (ranked_score.valid && ranked_score.value > 0.0 &&
+                         score.occupied_fraction < ranked_score.occupied_fraction))
       continue;
-    if (&hyp == &ranked_winner) ranked_score = s;
-    VLOG(1) << "[Reloc/FreeSpaceCov] seed=" << hyp.seed_match_id
-            << " value=" << s.value << " known_frac=" << s.known_fraction
-            << " occ|known=" << s.occupied_given_known
-            << " free|known=" << s.free_given_known << " n=" << s.scored_points
-            << " known=" << s.known_points;
-    if (!best || s.value > best_score.value) {
+    if (!best || score.value > best_score.value) {
       best = &hyp;
-      best_score = s;
+      best_score = score;
     }
   }
 
-  if (best && best != &ranked_winner && ranked_score.valid &&
-      !best_score.significantlyBetterThan(ranked_score, config_.reloc_free_space_kill_sigmas)) {
+  if (best && (!ranked_score.valid ||
+      best_score.significantlyBetterThan(ranked_score, config_.reloc_free_space_kill_sigmas)))
+    return best;
+  if (best) {
     VLOG(1) << "[Reloc/FreeSpace] inconclusive delta="
             << best_score.value - ranked_score.value
             << " required=" << config_.reloc_free_space_kill_sigmas *
                 std::hypot(best_score.stddev, ranked_score.stddev);
-    return nullptr;
   }
-  return best;
+  return ranked_score.valid ? &ranked_winner : nullptr;
 }
 
 void WorldLocalizing::killFreeSpaceDominatedHypotheses(
@@ -277,7 +289,7 @@ double WorldLocalizing::computeTrackLogLikelihood(
 int64_t WorldLocalizing::findNearestKeyframe(const Eigen::Isometry3d &pose,
                                              bool loaded_only) const {
   const auto nearest = keyframe_manager_.findNearestByPosition(
-      pose.translation(), config_.reloc_search_radius, loaded_only);
+      pose.translation(), config_.reloc_search_radius, loaded_only, 2.0);
   return nearest ? nearest->id : -1;
 }
 

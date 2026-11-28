@@ -14,7 +14,7 @@
 #include <pcl/io/pcd_io.h>
 #include "n3mapping/localization_atlas.h"
 #include "n3map.pb.h"
-#include "localization_atlas.pb.h"
+#include "atlas_test_file.h"
 
 namespace n3mapping {
 namespace test {
@@ -581,6 +581,30 @@ TEST(N3MappingCoreTest, PendingLoopClosureRejectsCandidateBeyondPredictionRange)
     EXPECT_TRUE(result.accepted_loops.empty());
 }
 
+TEST(N3MappingCoreTest, SameSessionLoopSearchExcludesStackedLandings)
+{
+    for (const double height : {2.0, 3.9}) {
+        for (const bool spatial : {false, true}) {
+            Config config = makeCoreTestConfig();
+            config.loop_geometry_enable = false;
+            config.loop_spatial_candidates_enable = spatial;
+            config.loop_spatial_candidate_radius = 5.0;
+            config.loop_max_range = 5.0;
+            N3MappingCore core(config);
+
+            auto pose = Eigen::Isometry3d::Identity();
+            ASSERT_TRUE(core.processMappingFrame(makeFrame(1000000000, pose)).accepted_keyframe);
+            pose.translation().z() = height;
+            ASSERT_TRUE(core.processMappingFrame(makeFrame(2000000000, pose)).accepted_keyframe);
+            ASSERT_NEAR(core.getAllKeyframes().back()->getPosition().z(), height, 1e-9);
+
+            const auto result = core.processPendingLoopClosures();
+            EXPECT_EQ(result.detected_candidate_count, height == 2.0 ? 1U : 0U)
+                << "height=" << height << " spatial=" << spatial;
+        }
+    }
+}
+
 TEST(N3MappingCoreTest, AsyncLoopCommitRetainsKeyframesAppendedDuringGeometry)
 {
     N3MappingCore core(makeCoreTestConfig());
@@ -677,17 +701,19 @@ TEST(N3MappingCoreTest, SavingDrainsAsyncLoopsAndPreservesCorrectedDenseTrajecto
     ASSERT_TRUE(error.empty()) << error;
     core::LioFrame::PointCloud saved_cloud;
     ASSERT_EQ(pcl::io::loadPCDFile((dir / "global_map.pcd").string(), saved_cloud), 0);
+    AtlasTestFile file(LocalizationAtlas::defaultAtlasPath(map_path.string()));
     LocalizationAtlasData atlas;
-    std::ifstream atlas_input(LocalizationAtlas::defaultAtlasPath(map_path.string()),
-                             std::ios::binary);
-    ASSERT_TRUE(atlas.ParseFromIstream(&atlas_input));
+    ASSERT_TRUE(file.readMetadata(atlas));
+    const auto& global = file.section(atlas_codec::SectionTag::GlobalPoints);
     ASSERT_EQ(saved_cloud.size(), atlas.global_point_count());
-    ASSERT_EQ(4 * saved_cloud.size(), atlas.global_points_size());
+    ASSERT_EQ(global.size, 16 * saved_cloud.size());
     for (size_t i = 0; i < saved_cloud.size(); ++i) {
-        EXPECT_EQ(saved_cloud[i].x, atlas.global_points(4 * i));
-        EXPECT_EQ(saved_cloud[i].y, atlas.global_points(4 * i + 1));
-        EXPECT_EQ(saved_cloud[i].z, atlas.global_points(4 * i + 2));
-        EXPECT_EQ(saved_cloud[i].intensity, atlas.global_points(4 * i + 3));
+        float xyzi[4];
+        std::memcpy(xyzi, file.bytes.data() + global.offset + 16 * i, sizeof(xyzi));
+        EXPECT_EQ(saved_cloud[i].x, xyzi[0]);
+        EXPECT_EQ(saved_cloud[i].y, xyzi[1]);
+        EXPECT_EQ(saved_cloud[i].z, xyzi[2]);
+        EXPECT_EQ(saved_cloud[i].intensity, xyzi[3]);
     }
     const auto final_kf = core.getKeyframe(1);
     ASSERT_NE(final_kf, nullptr);
@@ -1119,11 +1145,12 @@ TEST(N3MappingCoreTest, AtlasAutoUpdatePreservesSessionWhenPublicationFails)
     const auto current_sha = LocalizationAtlas::fileSha256(atlas_a);
     for (int stale = 0; stale < 3; ++stale) {
         LocalizationAtlasData data;
-        { std::ifstream input(atlas_a, std::ios::binary); ASSERT_TRUE(data.ParseFromIstream(&input)); }
+        AtlasTestFile file(atlas_a);
+        ASSERT_TRUE(file.readMetadata(data));
         if (stale == 0) data.set_format_version("n3mapping_localization_atlas_v2");
         if (stale == 1) data.clear_loop_descriptor_config();
         if (stale == 2) data.set_map_sha256("stale");
-        { std::ofstream output(atlas_a, std::ios::binary); ASSERT_TRUE(data.SerializeToOstream(&output)); }
+        ASSERT_TRUE(file.writeMetadata(atlas_a, data));
         if (stale == 2) {
             auto managed_config = config;
             managed_config.reloc_atlas_path = atlas_a;

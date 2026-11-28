@@ -1,5 +1,7 @@
 #pragma once
 #include <chrono>
+#include <cmath>
+#include "n3mapping/keyframe.h"
 #include "n3mapping/visibility_consistency.h"
 #include "n3mapping/core/loop_closure_result.h"
 #include "n3mapping/loop_closure_manager.h"
@@ -8,6 +10,15 @@ namespace n3mapping {
 class GraphOptimizer;
 class KeyframeManager;
 class PointCloudMatcher;
+inline constexpr double kMaxLoopVerticalSeparationM = 2.0;
+
+inline bool eligibleOldMapLoopCandidate(const Keyframe& match, const Keyframe& query,
+                                        double horizontal_radius) {
+  if (!match.is_from_loaded_map) return false;
+  const Eigen::Vector3d delta = match.getPosition() - query.getPosition();
+  return std::abs(delta.z()) <= kMaxLoopVerticalSeparationM &&
+      delta.head<2>().squaredNorm() <= horizontal_radius * horizontal_radius;
+}
 struct DetectedLoopQuery {
   int64_t id = -1;
   std::vector<LoopCandidate> candidates;

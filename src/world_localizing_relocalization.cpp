@@ -136,10 +136,12 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
   }
   if (search_offset_ == 0) search_anchor_ = odom_pose;
   VLOG(1) << "[Reloc/Retrieval] offset=" << search_offset_;
-  auto candidates = place_index_.search(query_cloud, &cost.descriptor, search_offset_);
+  const bool apply_initial_prior = config_.reloc_initial_prior_enabled && !has_ever_relocalized_;
+  auto candidates = place_index_.search(query_cloud, &cost.descriptor, search_offset_,
+                                        apply_initial_prior);
   if (motion_observation.frame_count >= 2 && motion_observation.cloud) {
     auto motion_candidates = place_index_.search(motion_observation.cloud, &cost.descriptor,
-                                                  search_offset_);
+                                                  search_offset_, apply_initial_prior);
     if (reloc_debug_enabled) {
       debug_event.motion_query_cloud.candidate_count = motion_candidates.size();
       debug_event.motion_query_cloud.top_candidates = motion_candidates;
@@ -266,6 +268,11 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
     decision.accepted = false;
     decision.reject_reason = "current_registration_unverified";
     rejected_current_geometry = true;
+  }
+  if (apply_initial_prior && !decision.temporal_window_pending && decision.accepted &&
+      !place_index_.matchesInitialPriorPose(top1->T_map_odom * odom_pose)) {
+    decision.accepted = false;
+    decision.reject_reason = "initial_prior_pose_out_of_bounds";
   }
   if (!decision.temporal_window_pending && decision.accepted) {
     const auto started = std::chrono::steady_clock::now();

@@ -51,6 +51,9 @@ void RelocalizationPlaceIndex::prepare(
       cached_catalog ? *cached_catalog
                      : compileRelocalizationPlaceCatalog(
                            config_, keyframes, frames_, submaps, headings);
+  std::map<int64_t, Eigen::Vector3d> positions;
+  for (const auto& keyframe : keyframes)
+    positions.emplace(keyframe->id, keyframe->pose_optimized.translation());
   places_.clear();
   retrieval_view_count_ = 0;
   for (const auto &members : catalog) {
@@ -59,7 +62,7 @@ void RelocalizationPlaceIndex::prepare(
       const auto frame = frames_.find(id);
       const auto submap = submaps.find(id);
       const auto heading = headings.find(id);
-      View view{id, frame == frames_.end() ? nullptr : frame->second,
+      View view{id, positions.at(id), frame == frames_.end() ? nullptr : frame->second,
                 submap == submaps.end() ? nullptr : submap->second,
                 heading == headings.end() ? nullptr : heading->second, {}, {}};
       if (view.frame) view.frame_coarse = manager.makeCoarseKey(*view.frame);

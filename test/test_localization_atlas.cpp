@@ -4,6 +4,7 @@
 #include <filesystem>
 #include <fstream>
 #include <limits>
+#include <sstream>
 #include <string>
 #include <vector>
 
@@ -13,7 +14,7 @@
 #include "n3mapping/RHPDescriptor.h"
 #include "n3mapping/loop_detector.h"
 #include "n3mapping/keyframe_manager.h"
-#include "localization_atlas.pb.h"
+#include "atlas_test_file.h"
 #include "../src/point_cloud_target_view.h"
 
 namespace n3mapping {
@@ -123,10 +124,12 @@ void expectPreparedLevelExact(
     std::vector<std::size_t> indices(view.size());
     for (std::size_t i = 0; i < indices.size(); ++i) indices[i] = i;
     std::sort(indices.begin(), indices.end(), [&](auto i, auto j) {
-      const auto pi = view.point(i), pj = view.point(j);
-      const auto ni = view.normal(i), nj = view.normal(j);
-      int order = std::memcmp(pi.data(), pj.data(), 4 * sizeof(double));
-      if (order == 0) order = std::memcmp(ni.data(), nj.data(), 3 * sizeof(double));
+      const Eigen::Vector4f pi = view.point(i).template cast<float>(),
+                            pj = view.point(j).template cast<float>(),
+                            ni = view.normal(i).template cast<float>(),
+                            nj = view.normal(j).template cast<float>();
+      int order = std::memcmp(pi.data(), pj.data(), 4 * sizeof(float));
+      if (order == 0) order = std::memcmp(ni.data(), nj.data(), 3 * sizeof(float));
       if (order == 0 && view.hasExplicitCovariance()) {
         const auto ci = view.covariance(i), cj = view.covariance(j);
         order = std::memcmp(ci.data(), cj.data(), 16 * sizeof(double));
@@ -137,8 +140,8 @@ void expectPreparedLevelExact(
   };
   const auto ei = ordered(e), ai = ordered(a);
   for (std::size_t i = 0; i < e.size(); ++i) {
-    const auto ep = e.point(ei[i]), ap = a.point(ai[i]);
-    const auto en = e.normal(ei[i]), an = a.normal(ai[i]);
+    const Eigen::Vector4d ep = e.point(ei[i]).cast<float>().cast<double>(), ap = a.point(ai[i]);
+    const Eigen::Vector4d en = e.normal(ei[i]).cast<float>().cast<double>(), an = a.normal(ai[i]);
     EXPECT_EQ(ep, ap);
     EXPECT_EQ(en, an);
     EXPECT_EQ(std::memcmp(ep.data(), ap.data(), 3 * sizeof(double)), 0);
@@ -152,6 +155,98 @@ void expectPreparedLevelExact(
   }
 }
 
+}
+
+TEST(FreeSpaceGridTest, SparseAndMappedScoresMatchDenseReferenceAcrossBlocks) {
+  constexpr double resolution = 0.5;
+  constexpr int side = 24;
+  const Eigen::Vector3d origin(-1, -1, -1);
+  const Eigen::Vector3d sensor(0.37, 0.63, 0.89);
+  const auto cell = [&](const Eigen::Vector3d& p) {
+    return Eigen::Vector3i(((p - origin) / resolution).array().floor().cast<int>());
+  };
+  const auto inside = [=](const Eigen::Vector3i& c) {
+    return (c.array() >= 0).all() && (c.array() < side).all();
+  };
+  const auto index = [](const Eigen::Vector3i& c) {
+    return (c.x() * side + c.y()) * side + c.z();
+  };
+
+  pcl::PointCloud<pcl::PointXYZI> cloud;
+  std::vector<unsigned> hits(side * side * side);
+  const auto add_point = [&](float x, float y, float z) {
+    pcl::PointXYZI p;
+    p.x = x; p.y = y; p.z = z;
+    cloud.push_back(p);
+    ++hits[index(cell(Eigen::Vector3d(x, y, z)))];
+  };
+  add_point(0, 0, 0);
+  add_point(9.5, 9.5, 9.5);
+  for (int i = 1; i < 9; ++i) {
+    for (int j = 1; j < 9; ++j) {
+      add_point(i + .125f, j + .125f, 4.125f);
+      if ((i + j) % 3) add_point(i + .375f, j + .375f, 4.375f);
+    }
+  }
+  std::vector<bool> free(hits.size());
+  for (const auto& p : cloud) {
+    const Eigen::Vector3d delta = Eigen::Vector3d(p.x, p.y, p.z) - sensor;
+    const double length = delta.norm();
+    const Eigen::Vector3d direction = delta / length;
+    for (int step = 1; step < static_cast<int>(length / resolution); ++step) {
+      const auto c = cell(sensor + direction * (static_cast<double>(step) * resolution));
+      if (!inside(c) || hits[index(c)] >= 2) break;
+      free[index(c)] = true;
+    }
+  }
+
+  FreeSpaceGrid built, mapped;
+  ASSERT_TRUE(built.build(cloud, {sensor}, resolution, 30, 2));
+  EXPECT_EQ(built.occupiedCells(), std::count_if(hits.begin(), hits.end(), [](unsigned n) { return n >= 2; }));
+  EXPECT_EQ(built.freeCells(), std::count(free.begin(), free.end(), true));
+  std::ostringstream output;
+  ASSERT_TRUE(built.write(output));
+  auto bytes = std::make_shared<std::string>(output.str());
+  ASSERT_TRUE(mapped.map(bytes->data(), bytes->size(), bytes));
+  EXPECT_EQ(mapped.occupiedCells(), built.occupiedCells());
+  EXPECT_EQ(mapped.freeCells(), built.freeCells());
+  for (int x = -1; x < 40; ++x) {
+    for (int y = 0; y < 19; ++y) {
+      for (int z = 0; z < 19; ++z) {
+        pcl::PointXYZI p;
+        p.x = x * .25f - .81875f; p.y = y * .53125f; p.z = z * .28125f;
+        const Eigen::Vector3d point(p.x, p.y, p.z);
+        const Eigen::Vector3d local = (point - origin) / resolution - Eigen::Vector3d::Constant(0.5);
+        const Eigen::Vector3i lower = local.array().floor().cast<int>();
+        const Eigen::Vector3d fraction = local - lower.cast<double>();
+        double occupied = 0, known_free = 0;
+        for (int i = 0; i < 2; ++i) {
+          for (int j = 0; j < 2; ++j) {
+            for (int k = 0; k < 2; ++k) {
+              const Eigen::Vector3i c = lower + Eigen::Vector3i(i, j, k);
+              if (!inside(c)) continue;
+              const double weight = (i ? fraction.x() : 1 - fraction.x()) *
+                                    (j ? fraction.y() : 1 - fraction.y()) *
+                                    (k ? fraction.z() : 1 - fraction.z());
+              if (hits[index(c)] >= 2) occupied += weight;
+              else if (free[index(c)]) known_free += weight;
+            }
+          }
+        }
+        pcl::PointCloud<pcl::PointXYZI> query;
+        query.push_back(p);
+        for (const auto* grid : {&built, &mapped}) {
+          const auto score = grid->score(query, Eigen::Isometry3d::Identity());
+          ASSERT_EQ(score.valid, inside(cell(point)));
+          if (!score.valid) continue;
+          ASSERT_EQ(score.occupied_points, occupied);
+          ASSERT_EQ(score.free_points, known_free);
+          ASSERT_EQ(score.value, occupied - known_free);
+          ASSERT_EQ(score.known_points, occupied + known_free);
+        }
+      }
+    }
+  }
 }
 
 TEST(FreeSpaceGridTest, SurfaceBoundaryIsContinuousAndObservedFreeSpaceStillContradicts) {
@@ -329,6 +424,23 @@ TEST(LocalizationAtlasTest, MappedGeometryKeepsOtherFloorsAndSurvivesReferenceRe
   for (std::size_t i = 0; i < native.plane_levels.size(); ++i)
     expectPreparedLevelExact(native.plane_levels[i], retained.plane_levels[i]);
   expectPreparedLevelExact(native.refine_level, retained.refine_level);
+  const auto& level = *retained.plane_levels.front().mapped;
+  const auto check_tree = [&](auto&& self, std::uint32_t id) -> Eigen::AlignedBox3d {
+    Eigen::AlignedBox3d bounds;
+    const auto& node = level.node(id);
+    if (node.left == UINT32_MAX) {
+      for (auto i = node.node_type.lr.first; i < node.node_type.lr.last; ++i)
+        bounds.extend(level.point(i).head<3>());
+      return bounds;
+    }
+    const auto left = self(self, node.left);
+    const auto right = self(self, node.right);
+    const auto axis = node.node_type.sub.proj.axis;
+    EXPECT_LE(left.max()[axis], node.node_type.sub.thresh);
+    EXPECT_EQ(right.min()[axis], node.node_type.sub.thresh);
+    return bounds.extend(left).extend(right);
+  };
+  check_tree(check_tree, level.header.root);
   const auto query = matcher.prepareSourceCloud(makeStructuredCloud());
   atlas.prefetchTarget(query, {Eigen::Isometry3d::Identity()});
   for (const auto& frame : frames) {
@@ -345,8 +457,8 @@ TEST(LocalizationAtlasTest, MappedGeometryKeepsOtherFloorsAndSurvivesReferenceRe
     ASSERT_TRUE(expected.success);
     ASSERT_TRUE(actual.success);
     EXPECT_EQ(expected.num_inliers, actual.num_inliers);
-    EXPECT_TRUE(expected.T_target_source.matrix().isApprox(actual.T_target_source.matrix(), 1e-10));
-    EXPECT_NEAR(expected.fitness_score, actual.fitness_score, 1e-12);
+    EXPECT_TRUE(expected.T_target_source.matrix().isApprox(actual.T_target_source.matrix(), 1e-6));
+    EXPECT_NEAR(expected.fitness_score, actual.fitness_score, 1e-8);
   }
   atlas.clear();
   ASSERT_TRUE(atlas.compileAndSave(files.map().string(), frames, files.atlas().string(),
@@ -354,7 +466,7 @@ TEST(LocalizationAtlasTest, MappedGeometryKeepsOtherFloorsAndSurvivesReferenceRe
   const auto expected = matcher.alignPrepared(native, query, frames.back()->pose_optimized);
   const auto actual = matcher.alignPrepared(retained, query, frames.back()->pose_optimized);
   ASSERT_TRUE(actual.success);
-  EXPECT_TRUE(expected.T_target_source.matrix().isApprox(actual.T_target_source.matrix(), 1e-10));
+  EXPECT_TRUE(expected.T_target_source.matrix().isApprox(actual.T_target_source.matrix(), 1e-6));
 }
 
 TEST(LocalizationAtlasTest, FreeSpaceCacheMissFallsBackAndMalformedMatchingCacheIsRejected) {
@@ -376,16 +488,18 @@ TEST(LocalizationAtlasTest, FreeSpaceCacheMissFallsBackAndMalformedMatchingCache
     ASSERT_TRUE(other.load(files.map().string(), files.atlas().string(), nullptr, &error)) << error;
     EXPECT_FALSE(other.takeFreeSpaceGrid().valid());
   }
-  LocalizationAtlasData data;
-  { std::ifstream in(files.atlas(), std::ios::binary); ASSERT_TRUE(data.ParseFromIstream(&in)); }
-  ASSERT_TRUE(data.has_free_space_grid());
-  data.mutable_free_space_grid()->mutable_occupied()->pop_back();
-  { std::ofstream out(files.atlas(), std::ios::binary); ASSERT_TRUE(data.SerializeToOstream(&out)); }
+  AtlasTestFile file(files.atlas());
+  auto& section = file.section(atlas_codec::SectionTag::FreeSpace);
+  --section.size;
+  ASSERT_TRUE(file.write(files.atlas()));
   EXPECT_FALSE(atlas.load(files.map().string(), files.atlas().string(), nullptr, &error));
   EXPECT_NE(error.find("free-space"), std::string::npos);
-  data.clear_free_space_grid();
+
+  ++section.size;
+  LocalizationAtlasData data;
+  ASSERT_TRUE(file.readMetadata(data));
   data.clear_free_space_config();
-  { std::ofstream out(files.atlas(), std::ios::binary); ASSERT_TRUE(data.SerializeToOstream(&out)); }
+  ASSERT_TRUE(file.writeMetadata(files.atlas(), data));
   ASSERT_TRUE(atlas.load(files.map().string(), files.atlas().string(), nullptr, &error)) << error;
   EXPECT_FALSE(atlas.takeFreeSpaceGrid().valid());
 }
@@ -404,10 +518,11 @@ TEST(LocalizationAtlasTest, DescriptorConfigMissRebuildsButMalformedMatchingCach
   ASSERT_TRUE(changed_atlas.load(files.map().string(), files.atlas().string(), nullptr, &error)) << error;
   EXPECT_TRUE(changed_atlas.frameDescriptors().empty());
   LocalizationAtlasData data;
-  { std::ifstream in(files.atlas(), std::ios::binary); ASSERT_TRUE(data.ParseFromIstream(&in)); }
+  AtlasTestFile file(files.atlas());
+  ASSERT_TRUE(file.readMetadata(data));
   ASSERT_GT(data.frame_descriptors_size(), 0);
   data.mutable_frame_descriptors(0)->mutable_ring_height()->add_indices(999);
-  { std::ofstream out(files.atlas(), std::ios::binary); ASSERT_TRUE(data.SerializeToOstream(&out)); }
+  ASSERT_TRUE(file.writeMetadata(files.atlas(), data));
   EXPECT_FALSE(atlas.load(files.map().string(), files.atlas().string(), nullptr, &error));
   EXPECT_NE(error.find("descriptor cache"), std::string::npos);
 }
@@ -427,16 +542,17 @@ TEST(LocalizationAtlasTest, LoopDescriptorFallbackAndMalformedHeading) {
   EXPECT_TRUE(changed_atlas.submapDescriptors().empty());
   EXPECT_TRUE(changed_atlas.headingDescriptors().empty());
   LocalizationAtlasData data;
-  { std::ifstream in(files.atlas(), std::ios::binary); ASSERT_TRUE(data.ParseFromIstream(&in)); }
+  AtlasTestFile file(files.atlas());
+  ASSERT_TRUE(file.readMetadata(data));
   const auto original = data;
   data.clear_loop_descriptor_config();
   data.clear_loop_descriptors();
-  { std::ofstream out(files.atlas(), std::ios::binary); ASSERT_TRUE(data.SerializeToOstream(&out)); }
+  ASSERT_TRUE(file.writeMetadata(files.atlas(), data));
   ASSERT_TRUE(atlas.load(files.map().string(), files.atlas().string(), nullptr, &error));
   EXPECT_TRUE(atlas.submapDescriptors().empty());
   data = original;
   data.mutable_loop_descriptors(0)->set_heading_offsets(1, 99999999);
-  { std::ofstream out(files.atlas(), std::ios::binary); ASSERT_TRUE(data.SerializeToOstream(&out)); }
+  ASSERT_TRUE(file.writeMetadata(files.atlas(), data));
   EXPECT_FALSE(atlas.load(files.map().string(), files.atlas().string(), nullptr, &error));
   EXPECT_NE(error.find("loop descriptor cache"), std::string::npos);
 }
@@ -464,9 +580,10 @@ TEST(LocalizationAtlasTest, CompiledPlaceViewsMatchLoadedMapPreparation) {
   EXPECT_EQ(frames.size(), 6u);
   EXPECT_FALSE(frames[0]->is_from_loaded_map);
   LocalizationAtlasData data;
-  { std::ifstream in(files.atlas(), std::ios::binary); ASSERT_TRUE(data.ParseFromIstream(&in)); }
+  AtlasTestFile file(files.atlas());
+  ASSERT_TRUE(file.readMetadata(data));
   data.mutable_places(1)->add_view_ids(0);
-  { std::ofstream out(files.atlas(), std::ios::binary); ASSERT_TRUE(data.SerializeToOstream(&out)); }
+  ASSERT_TRUE(file.writeMetadata(files.atlas(), data));
   EXPECT_FALSE(atlas.load(files.map().string(), files.atlas().string(), nullptr, &error));
   EXPECT_NE(error.find("place catalog"), std::string::npos);
 }
@@ -508,29 +625,31 @@ TEST(LocalizationAtlasTest, KeepsExplicitCovarianceWhenItIsNotTheFixedNormalMode
   ASSERT_TRUE(atlas.compileAndSave(files.map().string(), makeKeyframes(),
                                   files.atlas().string(), false, nullptr, &error));
   ASSERT_FALSE(AtlasLevelFeatures(atlas.preparedTarget().refine_level).hasExplicitCovariance());
-  LocalizationAtlasData data;
-  {
-    std::ifstream stream(files.atlas(), std::ios::binary);
-    ASSERT_TRUE(data.ParseFromIstream(&stream));
-  }
-  auto* level = data.mutable_refine_level();
-  ASSERT_TRUE(level->covariance_from_normal());
-  level->set_covariance_from_normal(false);
-  for (uint64_t i = 0; i < level->num_points(); ++i) {
-    Eigen::Vector4d stored_normal;
-    std::memcpy(stored_normal.data(), level->features().data() +
-                (level->num_points() + i) * 32, 32);
-    const Eigen::Vector3d normal = stored_normal.head<3>();
-    const Eigen::Matrix3d covariance = Eigen::Matrix3d::Identity() - .999 * normal * normal.transpose();
+  using namespace atlas_codec;
+  AtlasTestFile file(files.atlas());
+  const auto section = file.section(SectionTag::RefineLevel);
+  auto content = file.bytes.substr(section.offset, section.size);
+  LevelHeader level;
+  std::memcpy(&level, content.data(), sizeof(level));
+  ASSERT_EQ(level.explicit_covariance, 0u);
+  const auto stride = align8(12 * level.points);
+  std::vector<double> covariance;
+  for (std::uint64_t i = 0; i < level.points; ++i) {
+    float normal_xyz[3];
+    std::memcpy(normal_xyz, content.data() + sizeof(level) + stride + i * 12, 12);
+    Eigen::Vector3d normal(normal_xyz[0], normal_xyz[1], normal_xyz[2]);
+    normal.normalize();
+    Eigen::Matrix3d cov = Eigen::Matrix3d::Identity() - .999 * normal * normal.transpose();
+    if (i + 1 == level.points) cov *= 2;
     for (int row = 0; row < 3; ++row)
-      for (int col = 0; col < 3; ++col) level->add_covariances(covariance(row, col));
+      for (int col = 0; col < 3; ++col) covariance.push_back(cov(row, col));
   }
-  for (int i = level->covariances_size() - 9; i < level->covariances_size(); ++i)
-    level->set_covariances(i, 2 * level->covariances(i));
-  {
-    std::ofstream stream(files.atlas(), std::ios::binary | std::ios::trunc);
-    ASSERT_TRUE(data.SerializeToOstream(&stream));
-  }
+  level.explicit_covariance = 1;
+  std::memcpy(content.data(), &level, sizeof(level));
+  content.insert(sizeof(level) + 2 * stride, reinterpret_cast<const char*>(covariance.data()),
+                 covariance.size() * sizeof(double));
+  file.replaceSection(SectionTag::RefineLevel, content);
+  ASSERT_TRUE(file.write(files.atlas()));
   ASSERT_TRUE(atlas.load(files.map().string(), files.atlas().string(), nullptr, &error));
   const AtlasLevelFeatures loaded(atlas.preparedTarget().refine_level);
   ASSERT_TRUE(loaded.hasExplicitCovariance());
@@ -552,47 +671,65 @@ TEST(LocalizationAtlasTest, RejectsOldFormatAndTruncatedPreparedArrays) {
   ASSERT_TRUE(atlas.compileAndSave(files.map().string(), makeKeyframes(),
                                   files.atlas().string(), false, nullptr, &error))
       << error;
+  using namespace atlas_codec;
+  AtlasTestFile file(files.atlas());
   LocalizationAtlasData data;
+  ASSERT_TRUE(file.readMetadata(data));
+  data.set_format_version("n3mapping_localization_atlas_v4");
   {
-    std::ifstream stream(files.atlas(), std::ios::binary);
-    ASSERT_TRUE(data.ParseFromIstream(&stream));
-  }
-  const auto current_version = data.format_version();
-  data.set_format_version("n3mapping_localization_atlas_v1");
-  {
-    std::ofstream stream(files.atlas(), std::ios::binary | std::ios::trunc);
+    std::ofstream stream(files.atlas(), std::ios::binary);
     ASSERT_TRUE(data.SerializeToOstream(&stream));
   }
   EXPECT_FALSE(atlas.load(files.map().string(), files.atlas().string(), nullptr, &error));
   EXPECT_FALSE(atlas.loaded());
   EXPECT_NE(error.find("rebuild from the source map"), std::string::npos);
+  ASSERT_TRUE(file.writeMetadata(files.atlas(), data));
+  EXPECT_FALSE(atlas.load(files.map().string(), files.atlas().string(), nullptr, &error));
+  EXPECT_NE(error.find("rebuild from the source map"), std::string::npos);
+}
 
-  data.set_format_version(current_version);
-  const auto last_feature = data.plane_levels(0).features().back();
-  data.mutable_plane_levels(0)->mutable_features()->pop_back();
-  {
-    std::ofstream stream(files.atlas(), std::ios::binary | std::ios::trunc);
-    ASSERT_TRUE(data.SerializeToOstream(&stream));
+TEST(LocalizationAtlasTest, ValidatesSectionDirectoryAndReadsOffsetsBeyond32Bits) {
+  using namespace atlas_codec;
+  TemporaryAtlasFiles files;
+  const Config config = makeConfig();
+  PointCloudMatcher matcher(config);
+  LocalizationAtlas atlas(config, matcher);
+  std::string error;
+  ASSERT_TRUE(atlas.compileAndSave(files.map().string(), makeKeyframes(),
+                                  files.atlas().string(), false, nullptr, &error)) << error;
+  const auto point_count = atlas.globalMap()->size();
+  const AtlasTestFile original(files.atlas());
+  for (int corruption = 0; corruption < 8; ++corruption) {
+    SCOPED_TRACE(corruption);
+    auto file = original;
+    auto& first_plane = file.section(SectionTag::PlaneLevel, 0);
+    auto& second_plane = file.section(SectionTag::PlaneLevel, 1);
+    if (corruption == 0) first_plane.size = UINT64_MAX;
+    if (corruption == 1) second_plane.offset = first_plane.offset;
+    if (corruption == 2) ++second_plane.offset;
+    if (corruption == 3) second_plane.flags = 0;
+    if (corruption == 4) second_plane.flags = 2;
+    if (corruption == 5) --second_plane.size;
+    if (corruption == 6) file.bytes.pop_back();
+    if (corruption == 7) --file.section(SectionTag::GlobalPoints).size;
+    ASSERT_TRUE(file.write(files.atlas()));
+    EXPECT_FALSE(atlas.load(files.map().string(), files.atlas().string(), nullptr, &error));
+    EXPECT_FALSE(atlas.loaded());
   }
-  EXPECT_FALSE(atlas.load(files.map().string(), files.atlas().string(), nullptr, &error));
-  EXPECT_FALSE(atlas.loaded());
-  EXPECT_NE(error.find("array size mismatch"), std::string::npos);
-  data.mutable_plane_levels(0)->mutable_features()->push_back(last_feature);
-  data.mutable_plane_levels(0)->mutable_search_index()->pop_back();
+
+  auto large = original;
+  auto& metadata = large.section(SectionTag::Metadata);
+  const auto contents = large.bytes.substr(metadata.offset, metadata.size);
+  large.bytes.resize(metadata.offset);
+  metadata.offset = (std::uint64_t{1} << 32) + 16;
+  ASSERT_TRUE(large.write(files.atlas()));
   {
-    std::ofstream stream(files.atlas(), std::ios::binary | std::ios::trunc);
-    ASSERT_TRUE(data.SerializeToOstream(&stream));
+    std::fstream stream(files.atlas(), std::ios::binary | std::ios::in | std::ios::out);
+    stream.seekp(metadata.offset);
+    ASSERT_TRUE(stream.write(contents.data(), contents.size()));
   }
-  EXPECT_FALSE(atlas.load(files.map().string(), files.atlas().string(), nullptr, &error));
-  EXPECT_FALSE(atlas.loaded());
-  EXPECT_NE(error.find("invalid search index"), std::string::npos);
-  {
-    std::ofstream stream(files.atlas(), std::ios::binary | std::ios::trunc);
-    const unsigned char invalid_length[] = {10, 255, 255, 255, 255, 15};
-    stream.write(reinterpret_cast<const char*>(invalid_length), sizeof(invalid_length));
-  }
-  EXPECT_FALSE(atlas.load(files.map().string(), files.atlas().string(), nullptr, &error));
-  EXPECT_FALSE(atlas.loaded());
+  ASSERT_TRUE(atlas.load(files.map().string(), files.atlas().string(), nullptr, &error)) << error;
+  EXPECT_EQ(atlas.globalMap()->size(), point_count);
 }
 
 }

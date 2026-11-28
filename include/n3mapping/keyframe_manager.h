@@ -49,7 +49,7 @@ public:
     Keyframe::Ptr findNearestByPosition(
         const Eigen::Vector3d& position,
         double max_distance = std::numeric_limits<double>::infinity(),
-        bool loaded_only = false) const;
+        bool loaded_only = false, double max_vertical_distance = 0.0) const;
 
     bool addSession(const MapSessionInfo& session);
     bool removeSessionIfEmpty(MapSessionId session_id);

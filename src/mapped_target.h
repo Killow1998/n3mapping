@@ -2,6 +2,7 @@
 #include <array>
 #include <cstdint>
 #include <cstring>
+#include <iosfwd>
 #include <memory>
 #include <string>
 #include <vector>
@@ -11,9 +12,21 @@
 
 namespace n3mapping {
 class LocalizationAtlasData;
-class LocalizationAtlasPreparedLevel;
 namespace registration_detail {
-inline constexpr const char* kMappedAtlasFormat = "n3mapping_localization_atlas_v4";
+inline constexpr const char* kMappedAtlasFormat = "n3mapping_localization_atlas_v5";
+
+inline constexpr std::size_t kAtlasVectorBytes = 3 * sizeof(float);
+
+inline Eigen::Vector4d atlasVector(const char* data, std::size_t index, double w) {
+  float xyz[3];
+  std::memcpy(xyz, data + index * kAtlasVectorBytes, sizeof(xyz));
+  return {xyz[0], xyz[1], xyz[2], w};
+}
+
+struct AtlasSectionView {
+  const char* data = nullptr;
+  std::size_t size = 0;
+};
 
 struct AtlasSearchHeader {
   std::uint64_t magic = 0x31584449334eULL;
@@ -51,14 +64,10 @@ struct MappedTargetLevel {
   bool covariance_from_normal = true;
 
   Eigen::Vector4d point(std::size_t index) const {
-    Eigen::Vector4d result;
-    std::memcpy(result.data(), points + index * 32, 32);
-    return result;
+    return atlasVector(points, index, 1.0);
   }
   Eigen::Vector4d normal(std::size_t index) const {
-    Eigen::Vector4d result;
-    std::memcpy(result.data(), normals + index * 32, 32);
-    return result;
+    return atlasVector(normals, index, 0.0);
   }
   Eigen::Matrix4d covariance(std::size_t index) const;
   const MappedSearchIndex::Node& node(std::size_t index) const {
@@ -71,6 +80,8 @@ public:
   ~AtlasMapping();
   const char* data() const;
   std::size_t size() const;
+  AtlasSectionView globalPoints() const;
+  AtlasSectionView freeSpace() const;
   void releasePages();
   void prefetch(const std::vector<Eigen::AlignedBox3d>& regions);
   static std::shared_ptr<AtlasMapping> open(const std::string& path,
@@ -87,7 +98,7 @@ private:
 bool loadMappedAtlas(const std::string& path, LocalizationAtlasData& metadata,
     PointCloudMatcher::PreparedTarget& target,
     std::shared_ptr<AtlasMapping>& mapping, std::string* error);
-std::string encodeAtlasSearchIndex(
+bool writeAtlasSearchIndex(std::ostream& output,
     const PointCloudMatcher::SmallGicpKdTree& tree);
 
 }

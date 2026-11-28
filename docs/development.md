@@ -44,23 +44,32 @@ forms and their existing precedence.
 Mapping and map continuation use `loop_min_path_length_m` for same-session
 loop candidates from RHPD, heading fallback and spatial search. The distance is
 the odometry arc along the intervening keyframes, including frames without
-descriptors. The loop referee uses the same distance for its temporal-gap
-feature. Cross-session candidates skip the arc-length cutoff and keep the
-existing cross-session verification. Use the `heading_*` settings for the
+descriptors. Descriptor and spatial candidates within a session must be within
+2.0 m vertically, matching the loaded-map proposal limit. The loop referee uses
+the arc length for its temporal-gap feature. Cross-session candidates skip the
+arc-length cutoff and keep the existing cross-session verification. Use the `heading_*` settings for the
 heading descriptor and `rhpd_use_heading_yaw` to use it in RHPD matching.
 The saved descriptor signature and protobuf field numbers remain compatible
 with existing maps.
 
 Relocalization uses the prepared global Atlas when available and a bounded
-local target cache otherwise. The Atlas uses `global_map_voxel_size` with a
+local target cache otherwise. The optional `reloc_initial_prior_*` parameters
+apply until the first localization lock. XY and Z radii filter retrieval seeds
+and the final registered sensor position in map coordinates. Optional
+`reloc_initial_prior_yaw` and `reloc_initial_prior_yaw_tolerance` (radians) also
+limit the final registered heading, with wraparound at ±π. A zero radius or
+tolerance leaves that dimension unrestricted. Enabling the prior requires at
+least one positive bound. It is disabled by default. A subsequent recovery
+after tracking loss searches without the initial prior.
+
+The Atlas uses `global_map_voxel_size` with a
 1 mm minimum. PCD exports use `save_global_map_voxel_size`. A joint save
 reuses the Atlas point cloud when both effective voxel sizes match.
 
 An Atlas can share the finest plane geometry with GICP when the map grid
 already limits target resolution. The sidecar records the GICP resolution
-and stores the shared points, normals and search index once. Older sidecars
-with separate geometry remain readable. A managed sidecar can be rebuilt
-from its original pbstream to use shared geometry.
+and stores the shared points, normals and search index once. V5 also supports
+a separate refinement level when the configured resolution needs one.
 
 Localization with an Atlas releases the loaded keyframe point clouds after
 descriptor preparation. Each keyframe keeps indices for Atlas voxels it
@@ -100,15 +109,27 @@ validates clouds before encoding; its private encoder trusts those validated
 points. Atlas identity/cache orchestration belongs to `localization_atlas.cpp`,
 and prepared-level wire conversion to `localization_atlas_codec.cpp`.
 
-Atlas v4 persists the serial search topology and canonical double-precision point
-and normal vectors. `mapped_atlas.cpp` validates persisted geometry once and
-restores its index without rebuilding or sorting it. Coarse geometry remains in
-native storage for global retrieval; fine geometry uses a read-only mapping.
-`mapped_target.cpp` warms fine geometry for three-dimensional observation bounds
-on the shared background-worker implementation. Unselected regions remain
-available to exact global search. Page advice controls residency, not candidate
-acceptance or a strict process-memory limit. A missed prefetch can still cause a
-page fault on a registration thread.
+Atlas V5 keeps the `.localization_atlas.pb` suffix and binds the cache to its
+source pbstream and configuration by SHA-256. Its little-endian binary
+container starts with `N3ATLAS5`, a 64-bit section count, and entries containing
+a 32-bit tag, 32-bit flags, 64-bit offset and 64-bit size. Sections start on
+8-byte boundaries. Tags 1–5 identify metadata protobuf, global XYZI float
+points, plane levels (flags 0 and 1), optional refine level and optional
+free-space blocks. Each prepared level stores contiguous float XYZ points and
+float XYZ normals at 12 bytes per point per array. The two arrays have
+8-byte-aligned starts. Covariance derived from the normal needs no array.
+Explicit covariance uses nine row-major doubles per point. Search splits use
+the same rounded coordinates as the persisted points.
+
+The writer streams each section to a temporary file, maps the prepared levels
+to check the result and atomically publishes it. The reader addresses the large
+sections with 64-bit offsets and maps their payloads read-only. The global
+cloud is converted once to PCL's public XYZI type for existing callers. The
+reader restores the search index once. Free-space scoring reads only populated
+8×8×8 blocks through an in-memory directory. Its interpolation and occupancy
+rules are unchanged. The existing background worker warms mapped search
+geometry for observation bounds. Page advice controls residency and a missed
+prefetch can still cause a page fault during registration.
 
 `SpatialPointBlocks` rejects raw visibility blocks while preserving the existing
 point order and spherical crop. Native and mapped targets share the registration
@@ -126,17 +147,12 @@ owns their common factor/rejector implementation. This keeps the hot traversal
 and factor code from competing within one large template compilation unit.
 Changing storage adapters must be checked against generated hot code and CPU;
 unchanged geometry and call counts alone do not establish unchanged compute.
-The [online CPU audit](evidence/online_cpu_20261114.json) records the controlled
-ablations and complete four-core replay. Atlas v4 artifacts are unchanged by
-this follow-up; no new tuning parameter or runtime state is required.
+The [online CPU audit](evidence/online_cpu_20261114.json) records the earlier
+controlled ablations and four-core replay for the previous Atlas format.
 
-The default cache path rebuilds v2/v3 artifacts once into v4. Explicit historical
-caches remain readable for comparison. Compilation immediately installs the
-mapped representation, so first use and reload have the same storage behavior.
-The [active-map audit](evidence/active_map_20261114.json) records the loading and
-RAM gains, larger cache files, one-time compilation cost and initial online
-CPU regression. Raw map/descriptor metadata and global indices remain resident;
-this is not a bound on total RAM or a reduction of geometric solver iterations.
+The default cache path rebuilds pre-V5 sidecars from the source pbstream
+when needed. An explicit `reloc_atlas_path` requires a matching V5 sidecar.
+The pbstream format and the TGW navigation resource reader are unaffected.
 
 `RelocalizationDebugEmitter` owns sequencing, hypothesis snapshots and persistence.
 Its header forward-declares event payloads. Localization implementations include

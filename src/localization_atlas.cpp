@@ -12,6 +12,7 @@
 #include <array>
 #include <chrono>
 #include <cmath>
+#include <cstring>
 #include <filesystem>
 #include <fstream>
 #include <iomanip>
@@ -21,9 +22,6 @@
 #include <utility>
 
 #include <openssl/evp.h>
-#include <pcl/common/point_tests.h>
-#include <google/protobuf/io/coded_stream.h>
-#include <google/protobuf/io/zero_copy_stream_impl.h>
 
 #include "n3mapping/pcl_compat.h"
 
@@ -32,8 +30,6 @@ namespace {
 
 constexpr const char* kAtlasFormatVersion = registration_detail::kMappedAtlasFormat;
 
-constexpr const char* kAtlasGeometryVersion = "n3mapping_localization_atlas_v2";
-constexpr std::uintmax_t kMaxAtlasBytes = std::uintmax_t{1} << 30;
 
 using Clock = std::chrono::steady_clock;
 
@@ -136,7 +132,7 @@ std::string LocalizationAtlas::fileSha256(const std::string& path, std::string* 
 std::string LocalizationAtlas::configSha256(const Config& config) {
     std::ostringstream signature;
     signature << std::setprecision(17)
-              << "format=" << kAtlasGeometryVersion
+              << "format=" << kAtlasFormatVersion
               << ";global_map_voxel_size=" << config.global_map_voxel_size
               << ";rhpd_max_range=" << config.rhpd_max_range
               << ";gicp_max_correspondence_distance="
@@ -165,19 +161,14 @@ bool LocalizationAtlas::prepare(const std::vector<Keyframe::Ptr>& keyframes,
     }
     local_stats.global_point_count = global_map_->size();
     blocks_ = std::make_shared<SpatialPointBlocks>(*global_map_);
-    if (global_map_->size() >
-        static_cast<std::size_t>(std::numeric_limits<int>::max() / 4)) {
-
-        return false;
-    }
-
     start = Clock::now();
     prepared_target_ = matcher_.prepareTargetCloud(global_map_,
         shareAtlasRefineLevel(config_) ? PointCloudMatcher::TargetFeatures::SharedRefine
                                        : PointCloudMatcher::TargetFeatures::Eager);
     local_stats.prepare_ms = elapsedMs(start);
     if (prepared_target_.plane_levels.size() != 2 ||
-        (config_.icp_refine_use_gicp && !prepared_target_.has_refine_level)) {
+        !prepared_target_.plane_levels[0].ready() || !prepared_target_.plane_levels[1].ready() ||
+        (config_.icp_refine_use_gicp && !prepared_target_.refine_level.ready())) {
 
         return false;
     }
@@ -241,38 +232,18 @@ bool LocalizationAtlas::compileAndSave(
         return false;
     }
     map_sha256_ = std::move(map_sha256);
-    auto start = Clock::now();
-
     LocalizationAtlasData data;
     data.set_format_version(kAtlasFormatVersion);
     data.set_map_sha256(map_sha256_);
     data.set_config_sha256(config_sha256_);
     data.set_keyframe_count(keyframes.size());
     data.set_global_point_count(global_map_->size());
-    data.mutable_global_points()->Reserve(static_cast<int>(global_map_->size() * 4));
-    for (const auto& point : *global_map_) {
-        if (!pcl::isFinite(point) || !std::isfinite(point.intensity)) {
-            setError(error, "global atlas map contains non-finite data");
-            return false;
-        }
-        data.add_global_points(point.x);
-        data.add_global_points(point.y);
-        data.add_global_points(point.z);
-        data.add_global_points(point.intensity);
-    }
-    for (const auto& level : prepared_target_.plane_levels) {
-        if (!atlas_codec::encodeLevel(level, *data.add_plane_levels(), error)) return false;
-        local_stats.prepared_point_count += level.cloud->size();
-    }
-    data.set_refine_level_present(prepared_target_.has_refine_level);
+    for (const auto& level : prepared_target_.plane_levels)
+        local_stats.prepared_point_count += level.size();
     if (prepared_target_.sharesRefineLevel()) {
         data.set_shared_refine_resolution(prepared_target_.refine_level.resolution);
     } else if (prepared_target_.has_refine_level) {
-        if (!atlas_codec::encodeLevel(prepared_target_.refine_level,
-                         *data.mutable_refine_level(), error)) {
-            return false;
-        }
-        local_stats.prepared_point_count += prepared_target_.refine_level.cloud->size();
+        local_stats.prepared_point_count += prepared_target_.refine_level.size();
     }
 
     const auto descriptor_start = Clock::now();
@@ -289,23 +260,12 @@ bool LocalizationAtlas::compileAndSave(
         origins.reserve(keyframes.size());
         for (const auto& frame : keyframes)
             if (frame && frame->isValid()) origins.push_back(frame->pose_optimized.translation());
-        if (free_space_grid_.build(*global_map_, origins, config_.reloc_free_space_resolution,
-                config_.reloc_free_space_max_ray_length, config_.reloc_free_space_occupied_min_points)) {
-            free_space_grid_.encode(*data.mutable_free_space_grid());
-        }
+        free_space_grid_.build(*global_map_, origins, config_.reloc_free_space_resolution,
+            config_.reloc_free_space_max_ray_length, config_.reloc_free_space_occupied_min_points);
         local_stats.free_space_prepare_ms = elapsedMs(grid_start);
     }
 
-    const auto serialized_bytes =
-        static_cast<std::uintmax_t>(data.ByteSizeLong());
-    if (serialized_bytes == 0 || serialized_bytes > kMaxAtlasBytes) {
-        setError(error,
-                 "compiled atlas exceeds the 1 GiB load limit; use a smaller "
-                 "or more strongly downsampled map");
-        return false;
-    }
-
-    start = Clock::now();
+    const auto start = Clock::now();
     const std::filesystem::path output(atlas_path);
     if (!output.parent_path().empty()) {
         std::filesystem::create_directories(output.parent_path(), ec);
@@ -317,29 +277,34 @@ bool LocalizationAtlas::compileAndSave(
     const std::filesystem::path temporary = output.string() + ".tmp";
     {
         std::ofstream stream(temporary, std::ios::binary | std::ios::trunc);
-        if (!stream.is_open() || !data.SerializeToOstream(&stream) || !stream.good()) {
-            stream.close();
+        const bool written = atlas_codec::writeAtlas(
+            stream, data, *global_map_, prepared_target_, free_space_grid_, error);
+        stream.close();
+        if (!written || !stream) {
             std::filesystem::remove(temporary, ec);
-            setError(error, "failed to serialize atlas sidecar");
+            if (written) setError(error, "failed to close atlas sidecar");
             return false;
         }
     }
-    std::filesystem::rename(temporary, output, ec);
-    if (ec) {
+    local_stats.serialize_ms = elapsedMs(start);
+
+    prepared_target_ = {};
+    data.Clear();
+    const auto mapped_started = Clock::now();
+    if (!registration_detail::loadMappedAtlas(temporary.string(), data,
+            prepared_target_, mapping_, error)) {
         std::filesystem::remove(temporary, ec);
-        setError(error, "failed to publish atlas sidecar: " + ec.message());
         return false;
     }
-    local_stats.serialize_ms = elapsedMs(start);
-    local_stats.sidecar_bytes = std::filesystem::file_size(output, ec);
-    { LocalizationAtlasData released; data.Swap(&released); }
-    const auto mapped_started = Clock::now();
-    PointCloudMatcher::PreparedTarget persisted;
-    if (!registration_detail::loadMappedAtlas(atlas_path, data, persisted, mapping_, error))
+    std::filesystem::rename(temporary, output, ec);
+    if (ec) {
+        setError(error, "failed to publish atlas sidecar: " + ec.message());
+        std::filesystem::remove(temporary, ec);
         return false;
-    prepared_target_ = std::move(persisted);
+    }
+    local_stats.sidecar_bytes = mapping_->size();
     mapping_->releasePages();
-    local_stats.paged_geometry = bool(prepared_target_.refine_level.mapped);
+    local_stats.paged_geometry = true;
     local_stats.mapped_load_ms = elapsedMs(mapped_started);
     loaded_ = true;
     if (stats) *stats = local_stats;
@@ -355,39 +320,10 @@ bool LocalizationAtlas::load(const std::string& map_path,
     LocalizationAtlasStats local_stats;
     auto start = Clock::now();
     LocalizationAtlasData data;
-    std::error_code file_error;
-    const auto atlas_bytes = std::filesystem::file_size(atlas_path, file_error);
-    if (file_error || atlas_bytes == 0 || atlas_bytes > kMaxAtlasBytes) {
-        setError(error, "atlas sidecar size is invalid or exceeds 1 GiB");
-        return false;
-    }
-    const bool mapped = registration_detail::loadMappedAtlas(
-        atlas_path, data, prepared_target_, mapping_, error);
-    if (!mapped && mapping_) return false;
-    local_stats.paged_geometry = bool(prepared_target_.refine_level.mapped);
-    local_stats.mapped_load_ms = mapped ? elapsedMs(start) : 0.0;
-    if (!mapped) {
-    std::ifstream stream(atlas_path, std::ios::binary);
-    if (!stream.is_open()) {
-        setError(error, "failed to open atlas sidecar");
-        return false;
-    }
-    google::protobuf::io::IstreamInputStream zero_copy_stream(&stream);
-    google::protobuf::io::CodedInputStream coded_stream(&zero_copy_stream);
-    coded_stream.SetTotalBytesLimit(static_cast<int>(kMaxAtlasBytes));
-    if (!data.ParseFromCodedStream(&coded_stream) ||
-        !coded_stream.ConsumedEntireMessage()) {
-        setError(error, "failed to parse atlas sidecar");
-        return false;
-    }
-    }
-    if (data.format_version() != kAtlasFormatVersion &&
-        data.format_version() != "n3mapping_localization_atlas_v3" &&
-        data.format_version() != kAtlasGeometryVersion) {
-        setError(error, "atlas format version mismatch; rebuild from the source map "
-                        "with n3mapping_localization_atlas_compile");
-        return false;
-    }
+    if (!registration_detail::loadMappedAtlas(atlas_path, data,
+            prepared_target_, mapping_, error)) return false;
+    local_stats.paged_geometry = true;
+    local_stats.mapped_load_ms = elapsedMs(start);
     map_sha256_ = fileSha256(map_path, error);
     if (map_sha256_.empty()) return false;
     config_sha256_ = configSha256(config_);
@@ -404,84 +340,52 @@ bool LocalizationAtlas::load(const std::string& map_path,
         (shareAtlasRefineLevel(config_) ||
          std::abs(config_.icp_refine_downsampling_resolution - base_res) <= 1e-9);
     if (require_current_cache &&
-        (data.format_version() != kAtlasFormatVersion ||
-         (share_refine && data.shared_refine_resolution() <= 0.0) ||
+        ((share_refine && data.shared_refine_resolution() <= 0.0) ||
          !atlasDescriptorsCurrent(config_, data) ||
          (config_.reloc_free_space_enable && config_.reloc_free_space_map_pcd.empty() &&
           data.free_space_config() != freeSpaceConfig(config_)))) {
         setError(error, "atlas precomputation is outdated");
         return false;
     }
-    if (data.global_point_count() == 0 ||
-        data.global_point_count() >
-            static_cast<std::uint64_t>(std::numeric_limits<int>::max() / 4) ||
-        data.global_points_size() != static_cast<int>(data.global_point_count() * 4) ||
-        data.plane_levels_size() != 2) {
-        setError(error, "atlas global or level metadata is malformed");
+    if (config_.icp_refine_use_gicp && !prepared_target_.has_refine_level) {
+        setError(error, "atlas is missing required refine level");
         return false;
     }
+    for (const auto& level : prepared_target_.plane_levels)
+        local_stats.prepared_point_count += level.size();
+    if (prepared_target_.has_refine_level && !prepared_target_.sharesRefineLevel())
+        local_stats.prepared_point_count += prepared_target_.refine_level.size();
 
-    global_map_ = pcl::make_shared<PointCloudT>();
-    global_map_->resize(static_cast<std::size_t>(data.global_point_count()));
+    const auto points = mapping_->globalPoints();
+    global_map_->resize(data.global_point_count());
     for (std::size_t i = 0; i < global_map_->size(); ++i) {
-        auto& point = global_map_->points[i];
-        point.x = data.global_points(static_cast<int>(i * 4));
-        point.y = data.global_points(static_cast<int>(i * 4 + 1));
-        point.z = data.global_points(static_cast<int>(i * 4 + 2));
-        point.intensity = data.global_points(static_cast<int>(i * 4 + 3));
-        if (!pcl::isFinite(point) || !std::isfinite(point.intensity)) {
-            setError(error, "atlas global map contains non-finite data");
+        float xyzi[4];
+        std::memcpy(xyzi, points.data + i * sizeof(xyzi), sizeof(xyzi));
+        if (!std::isfinite(xyzi[0]) || !std::isfinite(xyzi[1]) ||
+            !std::isfinite(xyzi[2]) || !std::isfinite(xyzi[3])) {
+            setError(error, "global atlas map contains non-finite data");
             return false;
         }
+        auto& point = global_map_->points[i];
+        point.x = xyzi[0];
+        point.y = xyzi[1];
+        point.z = xyzi[2];
+        point.intensity = xyzi[3];
     }
     global_map_->width = static_cast<std::uint32_t>(global_map_->size());
     global_map_->height = 1;
     global_map_->is_dense = true;
     blocks_ = std::make_shared<SpatialPointBlocks>(*global_map_);
 
-    google::protobuf::RepeatedField<float>{}.Swap(data.mutable_global_points());
-
-    if (!mapped) {
-    const auto kdtree_start = Clock::now();
-    prepared_target_.plane_levels.resize(2);
-    for (int i = 0; i < data.plane_levels_size(); ++i) {
-        if (!atlas_codec::decodeLevel(*data.mutable_plane_levels(i),
-                         prepared_target_.plane_levels[static_cast<std::size_t>(i)],
-                         false, error)) {
-            return false;
-        }
-        local_stats.prepared_point_count +=
-            prepared_target_.plane_levels[static_cast<std::size_t>(i)].cloud->size();
-    }
-    prepared_target_.has_refine_level = data.refine_level_present();
-    if (data.refine_level_present()) {
-        if (!atlas_codec::decodeLevel(*data.mutable_refine_level(), prepared_target_.refine_level, true, error)) {
-            return false;
-        }
-        local_stats.prepared_point_count += prepared_target_.refine_level.cloud->size();
-    } else if (config_.icp_refine_use_gicp) {
-        setError(error, "atlas is missing required refine level");
-        return false;
-    }
-    local_stats.kdtree_ms = elapsedMs(kdtree_start);
-    } else {
-      for (const auto& level : prepared_target_.plane_levels)
-        local_stats.prepared_point_count += level.size();
-      if (prepared_target_.has_refine_level && !prepared_target_.sharesRefineLevel())
-        local_stats.prepared_point_count += prepared_target_.refine_level.size();
-      if (config_.icp_refine_use_gicp && !prepared_target_.has_refine_level) {
-        setError(error, "atlas is missing required refine level");
-        return false;
-      }
-    }
     const auto descriptor_start = Clock::now();
     if (!decodeAtlasDescriptors(config_, data, frame_descriptors_, submap_descriptors_, heading_descriptors_, place_catalog_, place_catalog_ready_, error)) return false;
     local_stats.descriptor_load_ms = elapsedMs(descriptor_start);
+    const auto free_space = mapping_->freeSpace();
     if (config_.reloc_free_space_enable && config_.reloc_free_space_map_pcd.empty() &&
-        data.has_free_space_grid() && data.free_space_config() == freeSpaceConfig(config_)) {
+        free_space.data && data.free_space_config() == freeSpaceConfig(config_)) {
         const auto grid_start = Clock::now();
-        if (data.free_space_grid().resolution() != config_.reloc_free_space_resolution ||
-            !free_space_grid_.decode(data.free_space_grid())) {
+        if (!free_space_grid_.map(free_space.data, free_space.size, mapping_) ||
+            free_space_grid_.resolution() != config_.reloc_free_space_resolution) {
             setError(error, "atlas free-space grid is malformed");
             return false;
         }
@@ -490,10 +394,9 @@ bool LocalizationAtlas::load(const std::string& map_path,
     local_stats.load_ms = elapsedMs(start);
     local_stats.keyframe_count = static_cast<std::size_t>(data.keyframe_count());
     local_stats.global_point_count = global_map_->size();
-    std::error_code ec;
-    local_stats.sidecar_bytes = std::filesystem::file_size(atlas_path, ec);
+    local_stats.sidecar_bytes = mapping_->size();
     loaded_ = true;
-    if (mapping_) mapping_->releasePages();
+    mapping_->releasePages();
     if (stats) *stats = local_stats;
     return true;
 }

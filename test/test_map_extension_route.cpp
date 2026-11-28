@@ -3,6 +3,7 @@
 #include "n3map.pb.h"
 #include "n3mapping/world_localizing.h"
 #include "../src/core/loop_closure_async.h"
+#include "../src/core/loop_closure_processing.h"
 #include "../src/continuation_cleaning.h"
 #include <gtest/gtest.h>
 #include <pcl/io/pcd_io.h>
@@ -288,6 +289,45 @@ TEST_P(MapExtensionRoute, ExtendsBeyondLoadedGeometryAndRecoversWithoutAnotherIn
   }
   if (!HasFailure()) std::filesystem::remove_all(dir);
 }
+TEST(MapContinuation, OldMapLoopCandidatesStayOnTheSameFloorAndWithinHorizontalRange) {
+  Config config;
+  config.loop_spatial_candidates_enable = true;
+  config.loop_spatial_candidate_radius = 30.;
+  config.reloc_search_radius = 10.;
+  const auto scan = roomFrame(0, -3., 0.);
+  LoopDetector detector(config);
+  std::map<int64_t, Keyframe::Ptr> frames;
+  const Eigen::Vector3d positions[] = {
+      {0., 0., -3.9}, {5., 0., 0.}, {10.01, 0., 0.}, {0., 0., 0.}};
+  constexpr int64_t query_id = 3;
+  for (int64_t id = 0; id <= query_id; ++id) {
+    auto pose = Eigen::Isometry3d::Identity();
+    pose.translation() = positions[id];
+    auto keyframe = Keyframe::create(id, id, pose, scan.undistorted_cloud);
+    keyframe->session_id = id == query_id ? 1 : 0;
+    keyframe->is_from_loaded_map = id != query_id;
+    frames.emplace(id, keyframe);
+    detector.addDescriptor(id, scan.undistorted_cloud);
+    detector.addRHPD(id, scan.undistorted_cloud);
+  }
+  const auto& query = *frames.at(query_id);
+  const auto accept = [&](int64_t id) {
+    return eligibleOldMapLoopCandidate(*frames.at(id), query, config.reloc_search_radius);
+  };
+  const auto descriptors = detector.detectLoopCandidates(query_id, frames, accept);
+  ASSERT_EQ(descriptors.size(), 1u);
+  EXPECT_EQ(descriptors.front().match_id, 1);
+  const auto spatial = detector.detectSpatialCandidates(query_id, frames, accept);
+  ASSERT_EQ(spatial.size(), 1u);
+  EXPECT_EQ(spatial.front().match_id, 1);
+
+  frames.at(1)->pose_optimized.translation() = Eigen::Vector3d(10., 0., 2.);
+  EXPECT_TRUE(accept(1));
+  frames.at(1)->pose_optimized.translation().z() = 2.01;
+  EXPECT_TRUE(detector.detectLoopCandidates(query_id, frames, accept).empty());
+  EXPECT_TRUE(detector.detectSpatialCandidates(query_id, frames, accept).empty());
+}
+
 TEST(MapContinuation, DescriptorReturnRepairsDriftBeyondSpatialGate) {
   Config config;
   config.num_threads = 2;

@@ -23,17 +23,20 @@ public:
                            LoopDetector &loop_detector);
 
   std::vector<LoopCandidate> search(const PointCloudT::Ptr &cloud,
-      DescriptorSearchPerformance *performance = nullptr, std::size_t offset = 0);
+      DescriptorSearchPerformance *performance = nullptr, std::size_t offset = 0,
+      bool apply_initial_prior = false);
   void prepare(const RHPDPlaceCache &cached_frames = {},
                DescriptorSearchPerformance *performance = nullptr,
                const RelocalizationPlaceCatalog *cached_catalog = nullptr);
   void resetMapDerivedState();
   std::size_t indexedKeyframes() const;
   std::size_t indexedViews() const { return retrieval_view_count_; }
+  bool matchesInitialPriorPose(const Eigen::Isometry3d& pose) const;
 
 private:
   struct View {
     int64_t id;
+    Eigen::Vector3d position;
     std::shared_ptr<const RHPDPlace> frame, submap;
     RHPDHeadingPtr heading;
     RHPDManager::VecD frame_coarse, submap_coarse;
@@ -41,7 +44,8 @@ private:
   struct Place { std::vector<View> views; };
   std::vector<LoopCandidate> searchRHPDCandidates(
       const RHPDPlace &query, const RHPDHeadingPtr &heading,
-      DescriptorSearchPerformance *performance, std::size_t offset);
+      DescriptorSearchPerformance *performance, std::size_t offset, bool apply_initial_prior);
+  bool matchesInitialPrior(const Eigen::Vector3d& position) const;
 
   Config config_;
   KeyframeManager &keyframe_manager_;

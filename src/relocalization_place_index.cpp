@@ -1,8 +1,10 @@
 #include "n3mapping/relocalization_place_index.h"
+#include "n3mapping/rotation_utils.h"
 
 #include <algorithm>
 #include <cmath>
 #include <map>
+#include <unordered_set>
 
 #include <glog/logging.h>
 
@@ -14,9 +16,28 @@ RelocalizationPlaceIndex::RelocalizationPlaceIndex(
       loop_detector_(loop_detector),
       descriptor_(loop_detector.getRHPDManager().getDescriptorParams()) {}
 
+bool RelocalizationPlaceIndex::matchesInitialPrior(const Eigen::Vector3d& position) const {
+  return (config_.reloc_initial_prior_z_radius == 0.0 ||
+          std::abs(position.z() - config_.reloc_initial_prior_z) <=
+              config_.reloc_initial_prior_z_radius) &&
+         (config_.reloc_initial_prior_xy_radius == 0.0 ||
+          std::hypot(position.x() - config_.reloc_initial_prior_x,
+                     position.y() - config_.reloc_initial_prior_y) <=
+              config_.reloc_initial_prior_xy_radius);
+}
+
+bool RelocalizationPlaceIndex::matchesInitialPriorPose(const Eigen::Isometry3d& pose) const {
+  if (!matchesInitialPrior(pose.translation())) return false;
+  const double yaw_tolerance = config_.reloc_initial_prior_yaw_tolerance;
+  if (yaw_tolerance == 0.0) return true;
+  const double yaw_delta = canonicalRollPitchYaw(pose).z() - config_.reloc_initial_prior_yaw;
+  return std::abs(std::remainder(yaw_delta, 2.0 * M_PI)) <= yaw_tolerance;
+}
+
 std::vector<LoopCandidate>
 RelocalizationPlaceIndex::search(const PointCloudT::Ptr &cloud,
-                                 DescriptorSearchPerformance *performance, std::size_t offset) {
+                                 DescriptorSearchPerformance *performance, std::size_t offset,
+                                 bool apply_initial_prior) {
   DescriptorPhaseTimer search_timer(performance ? &performance->total
                                                 : nullptr);
   std::vector<LoopCandidate> candidates;
@@ -52,7 +73,8 @@ RelocalizationPlaceIndex::search(const PointCloudT::Ptr &cloud,
     if (query_rhpd.isZero()) {
       LOG(WARNING) << "[Reloc/RHPD] query descriptor is zero.";
     } else {
-      candidates = searchRHPDCandidates(query_rhpd, query_sc, performance, offset);
+      candidates = searchRHPDCandidates(query_rhpd, query_sc, performance, offset,
+                                       apply_initial_prior);
     }
 
     VLOG(1) << "[Reloc/RHPDPrimary] kept=" << candidates.size()
@@ -80,9 +102,16 @@ RelocalizationPlaceIndex::search(const PointCloudT::Ptr &cloud,
   std::vector<LoopCandidate> heading_ranked;
   auto descriptors = loop_detector_.getDescriptors();
   heading_ranked.reserve(descriptors.size());
+  std::unordered_set<int64_t> eligible_keyframes;
+  if (apply_initial_prior) {
+    for (const auto& keyframe : keyframe_manager_.getAllKeyframes()) {
+      if (matchesInitialPrior(keyframe->pose_optimized.translation()))
+        eligible_keyframes.insert(keyframe->id);
+    }
+  }
   for (int i = 0; i < static_cast<int>(descriptors.size()); ++i) {
     const auto &[keyframe_id, descriptor] = descriptors[i];
-    if (!descriptor) {
+    if (!descriptor || (apply_initial_prior && !eligible_keyframes.count(keyframe_id))) {
       continue;
     }
     DescriptorPhaseTimer heading_timer(performance ? &performance->heading
@@ -128,7 +157,7 @@ RelocalizationPlaceIndex::search(const PointCloudT::Ptr &cloud,
 
 std::vector<LoopCandidate> RelocalizationPlaceIndex::searchRHPDCandidates(
     const RHPDPlace &query, const RHPDHeadingPtr &heading,
-    DescriptorSearchPerformance *performance, std::size_t offset) {
+    DescriptorSearchPerformance *performance, std::size_t offset, bool apply_initial_prior) {
   prepare({}, performance);
   if (performance) {
     performance->retrieval_views += retrieval_view_count_;
@@ -144,7 +173,7 @@ std::vector<LoopCandidate> RelocalizationPlaceIndex::searchRHPDCandidates(
   const auto limit =
       offset + static_cast<size_t>(std::max(1, config_.reloc_num_candidates));
   const auto configured_budget = config_.rhpd_preselect_candidates;
-  const auto preselect = configured_budget > 0
+  auto preselect = configured_budget > 0
       ? std::min(places_.size(), std::max(limit, static_cast<std::size_t>(configured_budget)))
       : places_.size();
   std::vector<std::pair<double, std::size_t>> coarse_ranked;
@@ -159,14 +188,20 @@ std::vector<LoopCandidate> RelocalizationPlaceIndex::searchRHPDCandidates(
     };
     for (std::size_t i = 0; i < places_.size(); ++i) {
       double best = std::numeric_limits<double>::infinity();
+      bool eligible = false;
       for (const auto& view : places_[i].views) {
+        if (apply_initial_prior && !matchesInitialPrior(view.position)) continue;
+        eligible = true;
         if (view.frame) best = std::min(best, distance(view.frame_coarse));
         if (view.submap) best = std::min(best, distance(view.submap_coarse));
       }
-      coarse_ranked.emplace_back(best, i);
+      if (eligible || !apply_initial_prior) coarse_ranked.emplace_back(best, i);
     }
-    std::nth_element(coarse_ranked.begin(), coarse_ranked.begin() + preselect, coarse_ranked.end());
-    coarse_ranked.resize(preselect);
+    if (coarse_ranked.size() > preselect) {
+      std::nth_element(coarse_ranked.begin(), coarse_ranked.begin() + preselect, coarse_ranked.end());
+      coarse_ranked.resize(preselect);
+    }
+    preselect = coarse_ranked.size();
   }
   std::vector<RankedPlace> ordered;
   ordered.reserve(preselect);
@@ -177,6 +212,7 @@ std::vector<LoopCandidate> RelocalizationPlaceIndex::searchRHPDCandidates(
     RankedPlace ranked;
     ranked.views.reserve(place.views.size());
     for (const auto &view : place.views) {
+      if (apply_initial_prior && !matchesInitialPrior(view.position)) continue;
       LoopCandidate candidate;
       candidate.query_id = -1;
       candidate.match_id = view.id;

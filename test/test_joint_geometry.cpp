@@ -548,8 +548,9 @@ TEST_F(JointGeometryTest, AtlasTrackingAndReloadUseTheSameOptimizedGeometry) {
   targets.installLoadedReference(loaded.globalMap(), loaded.preparedTarget());
   const auto target = targets.acquireLoaded(0);
   ASSERT_TRUE(target.target);
-  EXPECT_EQ(target.target->plane_levels.front().cloud,
-            loaded.preparedTarget().plane_levels.front().cloud);
+  ASSERT_TRUE(target.target->plane_levels.front().mapped);
+  EXPECT_EQ(target.target->plane_levels.front().mapped,
+            loaded.preparedTarget().plane_levels.front().mapped);
   WorldLocalizing localizer(config, frames, detector, matcher);
   localizer.setMapToOdomTransform(pose(1));
   localizer.installOptimizedReference(loaded, pose(.2));

@@ -1,63 +1,79 @@
 #include "n3mapping/free_space_grid.h"
-#include "localization_atlas.pb.h"
 
+#include <cstring>
 #include <limits>
+#include <ostream>
 
 namespace n3mapping {
-void FreeSpaceGrid::encode(LocalizationAtlasFreeSpaceGrid& output) const {
-  output.Clear();
-  if (!valid_) return;
-  output.set_resolution(resolution_);
-  for (int axis = 0; axis < 3; ++axis) {
-    output.add_origin(origin_[axis]);
-    output.add_dimensions(dims_[axis]);
-  }
-  std::string occupied((occupied_.size() + 7) / 8, '\0');
-  std::string free(occupied.size(), '\0');
-  for (std::size_t i = 0; i < occupied_.size(); ++i) {
-    if (occupied_[i]) occupied[i / 8] |= static_cast<char>(1u << (i % 8));
-    if (free_[i]) free[i / 8] |= static_cast<char>(1u << (i % 8));
-  }
-  output.set_occupied(std::move(occupied));
-  output.set_free(std::move(free));
+namespace {
+struct FreeSpaceHeader {
+  double resolution;
+  std::array<double, 3> origin;
+  std::array<std::uint32_t, 3> dimensions;
+  std::uint32_t reserved = 0;
+  std::uint64_t blocks;
+};
+static_assert(sizeof(FreeSpaceHeader) == 56);
 }
 
-bool FreeSpaceGrid::decode(const LocalizationAtlasFreeSpaceGrid& input) {
-  *this = FreeSpaceGrid{};
-  if (!std::isfinite(input.resolution()) || input.resolution() <= 0 ||
-      input.origin_size() != 3 || input.dimensions_size() != 3)
+bool FreeSpaceGrid::write(std::ostream& output) const {
+  const FreeSpaceHeader header{
+      resolution_, {origin_.x(), origin_.y(), origin_.z()},
+      {std::uint32_t(dims_.x()), std::uint32_t(dims_.y()), std::uint32_t(dims_.z())},
+      0, block_index_.size()};
+  output.write(reinterpret_cast<const char*>(&header), sizeof(header));
+  const char* bytes = mapped_blocks_ ? mapped_blocks_ : reinterpret_cast<const char*>(blocks_.data());
+  if (header.blocks) output.write(bytes, header.blocks * sizeof(Block));
+  return output.good();
+}
+
+bool FreeSpaceGrid::map(const char* bytes, std::size_t size, std::shared_ptr<const void> owner) {
+  if (size < sizeof(FreeSpaceHeader)) return false;
+  FreeSpaceHeader header;
+  std::memcpy(&header, bytes, sizeof(header));
+  const auto payload = size - sizeof(header);
+  if (!std::isfinite(header.resolution) || header.resolution <= 0 ||
+      header.reserved || payload % sizeof(Block) || header.blocks != payload / sizeof(Block))
     return false;
-  std::size_t cells = 1;
+
+  FreeSpaceGrid grid;
+  grid.resolution_ = header.resolution;
   for (int axis = 0; axis < 3; ++axis) {
-    const auto dimension = input.dimensions(axis);
-    if (!std::isfinite(input.origin(axis)) || dimension == 0 ||
-        dimension > static_cast<unsigned>(std::numeric_limits<int>::max()) ||
-        cells > std::numeric_limits<std::size_t>::max() / dimension)
+    if (!std::isfinite(header.origin[axis]) || !header.dimensions[axis] ||
+        header.dimensions[axis] > std::uint32_t(std::numeric_limits<int>::max()))
       return false;
-    cells *= dimension;
-    dims_[axis] = static_cast<int>(dimension);
-    origin_[axis] = input.origin(axis);
+    grid.dims_[axis] = static_cast<int>(header.dimensions[axis]);
+    grid.origin_[axis] = header.origin[axis];
   }
-  const auto bytes = cells / 8 + (cells % 8 != 0);
-  if (input.occupied().size() != bytes || input.free().size() != bytes)
-    return false;
-  for (std::size_t i = 0; i < bytes; ++i)
-    if ((input.occupied()[i] & input.free()[i]) != 0) return false;
-  if (cells % 8 != 0 &&
-      ((static_cast<unsigned char>(input.occupied().back()) |
-        static_cast<unsigned char>(input.free().back())) >> (cells % 8)) != 0)
-    return false;
-  resolution_ = input.resolution();
-  occupied_.resize(cells);
-  free_.resize(cells);
-  for (std::size_t i = 0; i < cells; ++i) {
-    const unsigned mask = 1u << (i % 8);
-    occupied_[i] = (static_cast<unsigned char>(input.occupied()[i / 8]) & mask) != 0;
-    free_[i] = (static_cast<unsigned char>(input.free()[i / 8]) & mask) != 0;
-    occupied_cells_ += occupied_[i];
-    free_cells_ += free_[i];
+  grid.block_index_.reserve(header.blocks);
+  grid.mapped_blocks_ = bytes + sizeof(header);
+  for (std::size_t index = 0; index < header.blocks; ++index) {
+    Block block;
+    std::memcpy(&block, grid.mapped_blocks_ + index * sizeof(Block), sizeof(Block));
+    int extent[3];
+    for (int axis = 0; axis < 3; ++axis) {
+      if (block.coordinate[axis] > (header.dimensions[axis] - 1) / 8) return false;
+      extent[axis] = std::min(8u, header.dimensions[axis] - block.coordinate[axis] * 8);
+    }
+    if (block.reserved || !grid.block_index_.try_emplace(block.coordinate, index).second)
+      return false;
+    const unsigned z_mask = (1u << extent[2]) - 1;
+    bool nonempty = false;
+    for (int offset = 0; offset < 64; ++offset) {
+      const auto occupied = block.occupied[offset];
+      const auto free = block.free[offset];
+      const auto bits = occupied | free;
+      const auto allowed = offset / 8 < extent[0] && offset % 8 < extent[1] ? z_mask : 0u;
+      if ((occupied & free) || (bits & ~allowed)) return false;
+      nonempty |= bits != 0;
+      grid.occupied_cells_ += __builtin_popcount(occupied);
+      grid.free_cells_ += __builtin_popcount(free);
+    }
+    if (!nonempty) return false;
   }
-  valid_ = true;
+  grid.mapped_owner_ = std::move(owner);
+  grid.valid_ = true;
+  *this = std::move(grid);
   return true;
 }
 }

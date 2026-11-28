@@ -137,6 +137,14 @@ struct Config {
     double reloc_min_confidence;
     double reloc_min_inlier_ratio;
     double reloc_search_radius;
+    bool reloc_initial_prior_enabled;
+    double reloc_initial_prior_x;
+    double reloc_initial_prior_y;
+    double reloc_initial_prior_z;
+    double reloc_initial_prior_xy_radius;
+    double reloc_initial_prior_z_radius;
+    double reloc_initial_prior_yaw;
+    double reloc_initial_prior_yaw_tolerance;
     int reloc_max_track_failures;
     double reloc_track_max_translation;
     double reloc_track_max_rotation;
