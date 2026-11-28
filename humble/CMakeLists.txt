@@ -114,6 +114,14 @@ target_link_libraries(n3mapping_localization_atlas_compile
   glog::glog
 )
 
+add_executable(n3mapping_relocalizability_heatmap
+  ${N3MAPPING_ROOT}/tools/n3mapping_relocalizability_heatmap.cpp
+)
+target_link_libraries(n3mapping_relocalizability_heatmap
+  n3mapping_core
+  glog::glog
+)
+
 add_executable(n3mapping_rhpd_recall_eval
   ${N3MAPPING_ROOT}/tools/rhpd_recall_eval.cpp
 )
@@ -231,6 +239,7 @@ install(TARGETS
   n3mapping_humble_wrapper
   n3mapping_node
   n3mapping_localization_atlas_compile
+  n3mapping_relocalizability_heatmap
   n3mapping_filter_nav_pbstream
   n3mapping_dense_trajectory_export
   n3mapping_relocalization_manifest_eval

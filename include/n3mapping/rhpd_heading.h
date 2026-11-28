@@ -41,4 +41,7 @@ Eigen::MatrixXd rhpdHeadingDenseValues(const RHPDHeading& heading);
 std::pair<double, int> matchRHPDHeading(const RHPDHeading& query,
                                       const RHPDHeading& reference,
                                       const RHPDHeadingParams& params);
+std::array<std::pair<double, int>, 2> matchRHPDHeadingDirections(
+    const RHPDHeading& query, const RHPDHeading& reference,
+    const RHPDHeadingParams& params, double expected_shift_rad);
 }

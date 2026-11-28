@@ -62,6 +62,23 @@ RHPDHeadingPtr computeRHPDHeading(const pcl::PointCloud<pcl::PointXYZI>& cloud,
 }
 
 namespace {
+bool compatibleHeadings(const RHPDHeading& query, const RHPDHeading& reference) {
+    if (query.rings <= 0 || query.sectors <= 0 ||
+        query.rings != reference.rings || query.sectors != reference.sectors) return false;
+    const auto columns = std::size_t(query.sectors) * RHPDHeadingParams::channels;
+    for (const auto* heading : {&query, &reference}) {
+        if (heading->sector_key.rows() != 1 || heading->sector_key.cols() != query.sectors ||
+            !heading->sector_key.allFinite() ||
+            heading->column_norms.rows() != RHPDHeadingParams::channels ||
+            heading->column_norms.cols() != query.sectors ||
+            heading->offsets.size() != columns + 1 ||
+            heading->ring_indices.size() != heading->values.size() ||
+            heading->offsets.front() != 0 ||
+            static_cast<std::size_t>(heading->offsets.back()) != heading->values.size()) return false;
+    }
+    return true;
+}
+
 double sparseDot(const RHPDHeading& a, int col_a, const RHPDHeading& b, int col_b) {
     int i = a.offsets[col_a], j = b.offsets[col_b];
     double dot = 0.0;
@@ -123,7 +140,7 @@ int alignSectors(const Eigen::MatrixXd& query, const Eigen::MatrixXd& reference)
 std::pair<double, int> matchRHPDHeading(const RHPDHeading& query,
                                       const RHPDHeading& reference,
                                       const RHPDHeadingParams& params) {
-    if (query.rings != reference.rings || query.sectors != reference.sectors || query.sectors <= 0)
+    if (!compatibleHeadings(query, reference))
         return {1.0, 0};
     const int coarse = alignSectors(query.sector_key, reference.sector_key);
     const int radius = std::max(1, static_cast<int>(std::round(0.5 * params.search_ratio * query.sectors)));
@@ -142,5 +159,42 @@ std::pair<double, int> matchRHPDHeading(const RHPDHeading& query,
         consider(((coarse - i) % query.sectors + query.sectors) % query.sectors);
     }
     return {min_distance, best_shift};
+}
+
+std::array<std::pair<double, int>, 2> matchRHPDHeadingDirections(
+    const RHPDHeading& query, const RHPDHeading& reference,
+    const RHPDHeadingParams& params, double expected_shift_rad) {
+    const double infinity = std::numeric_limits<double>::infinity();
+    std::array<std::pair<double, int>, 2> best{{{infinity, 0}, {infinity, 0}}};
+    if (!compatibleHeadings(query, reference) || !std::isfinite(expected_shift_rad)) return best;
+    const int sectors = query.sectors;
+    const double sector_angle = 2.0 * M_PI / sectors;
+    const auto direction = [&](int shift) {
+        return std::abs(std::remainder(shift * sector_angle - expected_shift_rad,
+                                      2.0 * M_PI)) > M_PI / 2.0 ? 1 : 0;
+    };
+    std::array<int, 2> coarse{};
+    std::array<double, 2> best_coarse{infinity, infinity};
+    for (int shift = 0; shift < sectors; ++shift) {
+        const double error =
+            (query.sector_key.leftCols(shift) - reference.sector_key.rightCols(shift)).squaredNorm() +
+            (query.sector_key.rightCols(sectors - shift) -
+             reference.sector_key.leftCols(sectors - shift)).squaredNorm();
+        const int side = direction(shift);
+        if (error < best_coarse[side]) {
+            best_coarse[side] = error;
+            coarse[side] = shift;
+        }
+    }
+    const int radius = std::max(1, static_cast<int>(std::round(0.5 * params.search_ratio * sectors)));
+    for (int side = 0; side < 2; ++side) {
+        for (int offset = -radius; offset <= radius; ++offset) {
+            const int shift = ((coarse[side] + offset) % sectors + sectors) % sectors;
+            if (direction(shift) != side) continue;
+            const double distance = distanceAtShift(query, reference, shift, params.weights.data());
+            if (distance < best[side].first) best[side] = {distance, shift};
+        }
+    }
+    return best;
 }
 }

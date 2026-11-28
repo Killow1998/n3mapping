@@ -89,7 +89,8 @@ n3mapping_add_core_test(test_world_localizing
           ${N3MAPPING_ROOT}/test/test_directional_reference.cpp
   LIBRARIES n3mapping_core)
 n3mapping_add_core_test(test_joint_geometry LIBRARIES n3mapping_core ${JSONCPP_LIBRARIES})
-foreach(name test_localization_episode test_realtime_output test_joint_geometry)
+n3mapping_add_core_test(test_relocalizability_analyzer LIBRARIES n3mapping_core ${JSONCPP_LIBRARIES})
+foreach(name test_localization_episode test_realtime_output test_joint_geometry test_relocalizability_analyzer)
   if(TARGET ${name})
     target_include_directories(${name} PRIVATE ${JSONCPP_INCLUDE_DIRS})
   endif()

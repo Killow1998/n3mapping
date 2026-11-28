@@ -140,6 +140,14 @@ set_target_properties(n3mapping_localization_atlas_compile PROPERTIES
   RUNTIME_OUTPUT_DIRECTORY ${CATKIN_DEVEL_PREFIX}/lib/${PROJECT_NAME}
 )
 
+add_executable(n3mapping_relocalizability_heatmap
+  ${N3MAPPING_ROOT}/tools/n3mapping_relocalizability_heatmap.cpp
+)
+target_link_libraries(n3mapping_relocalizability_heatmap n3mapping_core)
+set_target_properties(n3mapping_relocalizability_heatmap PROPERTIES
+  RUNTIME_OUTPUT_DIRECTORY ${CATKIN_DEVEL_PREFIX}/lib/${PROJECT_NAME}
+)
+
 add_executable(n3mapping_filter_nav_pbstream
   ${N3MAPPING_ROOT}/tools/n3mapping_filter_nav_pbstream.cpp
 )
@@ -278,6 +286,7 @@ install(TARGETS
   n3mapping_noetic_wrapper
   n3mapping_node
   n3mapping_localization_atlas_compile
+  n3mapping_relocalizability_heatmap
   n3mapping_filter_nav_pbstream
   n3mapping_dense_trajectory_export
   n3mapping_relocalization_manifest_eval

@@ -192,17 +192,39 @@ during localization in exchange for less online preparation. Set
 `reloc_atlas_enable: false` to use the ordinary profile's local preparation path
 on a memory-constrained deployment or an older map. Product localization
 requires Atlas. Existing robot YAML files keep their explicit setting.
-The current sidecar format has a 1 GiB load limit; larger artifacts fail preparation.
-
-Newly compiled Atlases use compact v3 storage. Default v2 caches are upgraded
-on first load; explicitly managed v2 caches remain readable. Older N3M binaries
-need their original v2 Atlas, so keep separate map directories when comparing
-versions or use explicit Atlas paths to retain frozen artifacts.
+Newly compiled Atlases use the sectioned v5 format. Recompile older explicit
+sidecars with the binary that will read them. Keep separate map directories
+or explicit sidecar paths when comparing different versions.
 
 Humble launch files use a 64 MiB Fast DDS SHM profile with normal UDP interfaces
 when `FASTRTPS_DEFAULT_PROFILES_FILE` is unset. Existing profiles are preserved;
 `dds_profile` in `config/launch_humble.yaml` selects the default profile. See [DDS and container setup](logging.md#humble-and-fast-dds-shared-memory)
 for the supplied single-host profile and container capacity.
+
+## Analyze where a map can relocalize
+
+Run the offline heatmap tool against a saved map and an optional matching Atlas.
+Both ROS packages install it with research tools disabled.
+
+```bash
+ros2 run n3mapping n3mapping_relocalizability_heatmap \
+  --map /path/to/n3map.pbstream --atlas /path/to/n3map.pbstream.localization_atlas.pb \
+  --output-dir /path/to/heatmap
+```
+
+On Noetic, use `rosrun n3mapping n3mapping_relocalizability_heatmap` with the
+same arguments. The tool produces `relocalizability.json` with per-keyframe
+scores, thresholds and reasons, plus colored keyframe and full-map PCDs.
+`--help` lists threshold, output voxel size and thread overrides.
+
+Remote aliasing uses frame-level RHPD and Heading comparisons, with the best
+forward and reversed matches reported separately. Nearby observations within
+8 m horizontally and 1.8 m vertically are local unless separated by an occupied
+barrier. The geometric score uses point-to-plane linearization at the saved
+pose against nearby independent scans, then removes the effect of yaw via a
+Schur complement. Yellow or red can describe different failure modes, so use
+the reason codes before selecting a relocalization point. The tool assesses the
+supplied map and its poses offline.
 
 See [development and tests](development.md) for build profiles, E2E checks and
 offline evaluation tools, and [logging and DDS setup](logging.md) for diagnostics.
