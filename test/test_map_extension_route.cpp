@@ -1,6 +1,7 @@
 #include "n3mapping/core/n3mapping_core.h"
 #include "n3mapping/pcl_compat.h"
 #include "n3map.pb.h"
+#include "n3mapping/loop_verification_pipeline.h"
 #include "n3mapping/world_localizing.h"
 #include "../src/core/loop_closure_async.h"
 #include "../src/core/loop_closure_processing.h"
@@ -289,30 +290,46 @@ TEST_P(MapExtensionRoute, ExtendsBeyondLoadedGeometryAndRecoversWithoutAnotherIn
   }
   if (!HasFailure()) std::filesystem::remove_all(dir);
 }
-TEST(MapContinuation, OldMapLoopCandidatesStayOnTheSameFloorAndWithinHorizontalRange) {
+TEST(MapContinuation, ShortUntrackedRouteRejectsRemoteCorridorInSearchAndVerification) {
   Config config;
   config.loop_spatial_candidates_enable = true;
   config.loop_spatial_candidate_radius = 30.;
-  config.reloc_search_radius = 10.;
+  config.reloc_search_radius = 20.;
+  config.num_threads = 2;
   const auto scan = roomFrame(0, -3., 0.);
   LoopDetector detector(config);
   std::map<int64_t, Keyframe::Ptr> frames;
+  std::vector<Keyframe::Ptr> ordered;
   const Eigen::Vector3d positions[] = {
-      {0., 0., -3.9}, {5., 0., 0.}, {10.01, 0., 0.}, {0., 0., 0.}};
-  constexpr int64_t query_id = 3;
+      {0., 0., -3.9}, {1., 0., 0.}, {17.2, 0., 0.}, {-0.4, 0., 0.}, {0., 0., 0.}};
+  constexpr int64_t anchor_id = 3;
+  constexpr int64_t query_id = 4;
   for (int64_t id = 0; id <= query_id; ++id) {
     auto pose = Eigen::Isometry3d::Identity();
     pose.translation() = positions[id];
     auto keyframe = Keyframe::create(id, id, pose, scan.undistorted_cloud);
-    keyframe->session_id = id == query_id ? 1 : 0;
-    keyframe->is_from_loaded_map = id != query_id;
+    keyframe->session_id = id >= anchor_id ? 1 : 0;
+    keyframe->is_from_loaded_map = id < anchor_id;
     frames.emplace(id, keyframe);
+    ordered.push_back(keyframe);
     detector.addDescriptor(id, scan.undistorted_cloud);
     detector.addRHPD(id, scan.undistorted_cloud);
   }
+  const auto at_lock = measureLoopOdometryPaths(ordered, {{anchor_id, 0.0}});
+  EXPECT_DOUBLE_EQ(at_lock.at(query_id).untracked, 0.4);
+  const auto lock_before_first_keyframe = measureLoopOdometryPaths(ordered, {{anchor_id, 0.2}});
+  EXPECT_DOUBLE_EQ(lock_before_first_keyframe.at(query_id).untracked, 0.6);
+  const auto after_commit = measureLoopOdometryPaths(ordered, {{anchor_id, 0.0}, {query_id, 0.0}});
+  EXPECT_DOUBLE_EQ(after_commit.at(query_id).untracked, 0.0);
+  const double untracked_distance = at_lock.at(query_id).untracked;
+  EXPECT_DOUBLE_EQ(maxVerticalDrift(untracked_distance), 0.758);
+  EXPECT_DOUBLE_EQ(maxHorizontalDrift(untracked_distance, config.reloc_search_radius), 1.52);
+  EXPECT_DOUBLE_EQ(maxHorizontalDrift(200.0, config.reloc_search_radius), 11.5);
+  EXPECT_DOUBLE_EQ(maxHorizontalDrift(500.0, config.reloc_search_radius), 20.0);
   const auto& query = *frames.at(query_id);
   const auto accept = [&](int64_t id) {
-    return eligibleOldMapLoopCandidate(*frames.at(id), query, config.reloc_search_radius);
+    return eligibleOldMapLoopCandidate(*frames.at(id), query, untracked_distance,
+                                       config.reloc_search_radius);
   };
   const auto descriptors = detector.detectLoopCandidates(query_id, frames, accept);
   ASSERT_EQ(descriptors.size(), 1u);
@@ -321,11 +338,32 @@ TEST(MapContinuation, OldMapLoopCandidatesStayOnTheSameFloorAndWithinHorizontalR
   ASSERT_EQ(spatial.size(), 1u);
   EXPECT_EQ(spatial.front().match_id, 1);
 
-  frames.at(1)->pose_optimized.translation() = Eigen::Vector3d(10., 0., 2.);
-  EXPECT_TRUE(accept(1));
-  frames.at(1)->pose_optimized.translation().z() = 2.01;
-  EXPECT_TRUE(detector.detectLoopCandidates(query_id, frames, accept).empty());
-  EXPECT_TRUE(detector.detectSpatialCandidates(query_id, frames, accept).empty());
+  KeyframeManager keyframes(config);
+  MapSessionInfo old_session, new_session;
+  old_session.source_frame_id = "reference";
+  new_session.id = 1;
+  new_session.source_frame_id = "continuation";
+  ASSERT_TRUE(keyframes.loadKeyframes(ordered, {old_session, new_session}));
+  for (const auto& keyframe : keyframes.getAllKeyframes())
+    keyframe->is_from_loaded_map = keyframe->id < anchor_id;
+  PointCloudMatcher matcher(config);
+  GraphOptimizer graph(config);
+  LoopClosureManager manager(config);
+  LoopVerificationPipeline pipeline(config, keyframes, matcher, graph, manager);
+  LoopCandidate remote;
+  remote.query_id = query_id;
+  remote.match_id = 2;
+  remote.source_flags = LoopCandidate::SOURCE_RHPD;
+  LoopVerificationContext context;
+  context.cross_session = true;
+  context.max_horizontal_drift = maxHorizontalDrift(untracked_distance, config.reloc_search_radius);
+  context.max_vertical_drift = maxVerticalDrift(untracked_distance);
+  const auto rejected = pipeline.evaluate(remote, context);
+  EXPECT_TRUE(rejected.descriptor_seeded);
+  ASSERT_TRUE(rejected.verification.loop.verified);
+  EXPECT_FALSE(rejected.loop.verified);
+  EXPECT_EQ(rejected.reject_stage, "work_bound");
+  EXPECT_EQ(rejected.reject_reason, "drift_envelope_gate");
 }
 
 TEST(MapContinuation, DescriptorReturnRepairsDriftBeyondSpatialGate) {

@@ -225,14 +225,35 @@ CoreLoopClosureResult N3MappingCore::advanceAsyncLoopClosures(bool wait) {
       queries.push_back(std::move(state.pending.front()));
       state.pending.pop_front();
     }
-    if (!map_loaded_ && !queries.front().geometry_only && config_.loop_spatial_candidates_enable) {
-
+    if (!queries.front().geometry_only &&
+        (map_loaded_ || config_.loop_spatial_candidates_enable)) {
+      const auto keyframes = session_->keyframes.getAllKeyframes();
+      const auto paths = measureLoopOdometryPaths(keyframes, loop_anchor_offsets_);
       std::map<int64_t, Keyframe::Ptr> current_frames;
-      for (const auto& frame : session_->keyframes.getAllKeyframes())
-        if (frame) current_frames.emplace(frame->id, frame);
+      for (const auto& frame : keyframes)
+        current_frames.emplace_hint(current_frames.end(), frame->id, frame);
       for (auto& query : queries) {
+        const auto& query_frame = *current_frames.at(query.id);
+        const double untracked_distance = paths.at(query.id).untracked;
+        if (map_loaded_) {
+          query.max_horizontal_drift = maxHorizontalDrift(untracked_distance, config_.reloc_search_radius);
+          query.max_vertical_drift = maxVerticalDrift(untracked_distance);
+        }
+        const auto same_session_allowed = [&](int64_t match_id) {
+          return withinSameSessionDriftEnvelope(*current_frames.at(match_id), query_frame, paths);
+        };
+        auto& candidates = query.candidates;
+        candidates.erase(std::remove_if(candidates.begin(), candidates.end(),
+            [&](const auto& candidate) {
+              const auto& match = *current_frames.at(candidate.match_id);
+              return match.is_from_loaded_map
+                  ? !eligibleOldMapLoopCandidate(match, query_frame, untracked_distance,
+                                                 config_.reloc_search_radius)
+                  : !same_session_allowed(match.id);
+            }), candidates.end());
+        if (map_loaded_ || !config_.loop_spatial_candidates_enable) continue;
         const auto current = session_->detector.detectSpatialCandidates(
-            query.id, current_frames);
+            query.id, current_frames, same_session_allowed);
         for (const auto& candidate : current) {
           const auto found = std::find_if(query.candidates.begin(), query.candidates.end(),
               [&](const auto& existing) { return existing.match_id == candidate.match_id; });

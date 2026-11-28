@@ -151,6 +151,31 @@ bool FreeSpaceGrid::build(const pcl::PointCloud<pcl::PointXYZI> &map_cloud,
   return true;
 }
 
+bool FreeSpaceGrid::hasOccupiedBarrier(const Eigen::Vector3d& from,
+                                       const Eigen::Vector3d& to,
+                                       int min_occupied_voxels) const {
+  constexpr double endpoint_margin = 0.4;
+  const Eigen::Vector3d delta = to - from;
+  const double length = delta.norm();
+  if (!valid_ || length <= 2.0 * endpoint_margin) return false;
+
+  const Eigen::Vector3d direction = delta / length;
+  Eigen::Vector3i previous = Eigen::Vector3i::Constant(-1);
+  int occupied = 0;
+  for (double distance = endpoint_margin; distance <= length - endpoint_margin;
+       distance += resolution_) {
+    const Eigen::Vector3i cell = cellOf(from + direction * distance);
+    if (!inside(cell) || cell == previous) continue;
+    previous = cell;
+    const auto* bits = findBlock(blockOf(cell));
+    if (!bits) continue;
+    const int bit = bitOf(cell);
+    if ((bits[offsetof(Block, occupied) + bit / 8] & (1u << (bit % 8))) &&
+        ++occupied >= min_occupied_voxels) return true;
+  }
+  return false;
+}
+
 FreeSpaceGrid::Score
 FreeSpaceGrid::score(const pcl::PointCloud<pcl::PointXYZI> &cloud_in_sensor,
                      const Eigen::Isometry3d &T_map_sensor) const {

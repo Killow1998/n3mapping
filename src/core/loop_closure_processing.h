@@ -1,6 +1,8 @@
 #pragma once
+#include <algorithm>
 #include <chrono>
 #include <cmath>
+#include <unordered_map>
 #include "n3mapping/keyframe.h"
 #include "n3mapping/visibility_consistency.h"
 #include "n3mapping/core/loop_closure_result.h"
@@ -10,14 +12,37 @@ namespace n3mapping {
 class GraphOptimizer;
 class KeyframeManager;
 class PointCloudMatcher;
-inline constexpr double kMaxLoopVerticalSeparationM = 2.0;
+inline double maxVerticalDrift(double path_length) {
+  return 0.75 + 0.02 * std::max(0.0, path_length);
+}
+
+inline double maxHorizontalDrift(double path_length, double cap) {
+  return std::min(cap, 1.5 + 0.05 * std::max(0.0, path_length));
+}
+
+struct LoopOdometryPath {
+  double length;
+  double untracked;
+};
+using LoopOdometryPaths = std::unordered_map<int64_t, LoopOdometryPath>;
+
+LoopOdometryPaths measureLoopOdometryPaths(
+    const std::vector<Keyframe::Ptr>& keyframes,
+    const std::unordered_map<int64_t, double>& anchor_offsets);
+
+inline bool withinSameSessionDriftEnvelope(const Keyframe& match, const Keyframe& query,
+                                           const LoopOdometryPaths& paths) {
+  if (match.session_id != query.session_id) return false;
+  const double path_length = std::abs(paths.at(query.id).length - paths.at(match.id).length);
+  return std::abs(match.getPosition().z() - query.getPosition().z()) <= maxVerticalDrift(path_length);
+}
 
 inline bool eligibleOldMapLoopCandidate(const Keyframe& match, const Keyframe& query,
-                                        double horizontal_radius) {
+                                        double untracked_distance, double horizontal_radius) {
   if (!match.is_from_loaded_map) return false;
   const Eigen::Vector3d delta = match.getPosition() - query.getPosition();
-  return std::abs(delta.z()) <= kMaxLoopVerticalSeparationM &&
-      delta.head<2>().squaredNorm() <= horizontal_radius * horizontal_radius;
+  return std::abs(delta.z()) <= maxVerticalDrift(untracked_distance) &&
+      delta.head<2>().norm() <= maxHorizontalDrift(untracked_distance, horizontal_radius);
 }
 struct DetectedLoopQuery {
   int64_t id = -1;
@@ -25,6 +50,8 @@ struct DetectedLoopQuery {
   std::chrono::steady_clock::time_point enqueued =
       std::chrono::steady_clock::now();
   bool geometry_only = false;
+  double max_horizontal_drift = 0.0;
+  double max_vertical_drift = 0.0;
 };
 struct LoopClosureOutcome {
   CoreLoopClosureResult summary;

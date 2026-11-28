@@ -44,11 +44,16 @@ forms and their existing precedence.
 Mapping and map continuation use `loop_min_path_length_m` for same-session
 loop candidates from RHPD, heading fallback and spatial search. The distance is
 the odometry arc along the intervening keyframes, including frames without
-descriptors. Descriptor and spatial candidates within a session must be within
-2.0 m vertically, matching the loaded-map proposal limit. The loop referee uses
-the arc length for its temporal-gap feature. Cross-session candidates skip the
-arc-length cutoff and keep the existing cross-session verification. Use the `heading_*` settings for the
-heading descriptor and `rhpd_use_heading_yaw` to use it in RHPD matching.
+descriptors. A same-session proposal can close a vertical difference up to
+`0.75 m + 2% × arc length`. The loop referee uses the arc length for its
+temporal-gap feature. Proposals from a continuation into the loaded map use the
+arc since the latest geometric lock, loaded-map tracking frame, or committed
+cross-session loop. Their vertical bound uses the same formula and their
+horizontal bound is `1.5 m + 5% × arc length`, capped by `reloc_search_radius`.
+Both bounds apply to the predicted separation and the final cross-session
+registration correction, including descriptor seeds. Use the `heading_*`
+settings for the heading descriptor and `rhpd_use_heading_yaw` to use it in
+RHPD matching.
 The saved descriptor signature and protobuf field numbers remain compatible
 with existing maps.
 
@@ -61,6 +66,11 @@ limit the final registered heading, with wraparound at ±π. A zero radius or
 tolerance leaves that dimension unrestricted. Enabling the prior requires at
 least one positive bound. It is disabled by default. A subsequent recovery
 after tracking loss searches without the initial prior.
+
+Nearest-keyframe lookup ranks in 3D within `reloc_search_radius`. With a valid
+FreeSpace grid it skips candidates behind two or more distinct occupied voxels
+along the connecting segment, ignoring the first and last 0.4 m. A grid
+without evidence of a barrier leaves the distance ranking unchanged.
 
 The Atlas uses `global_map_voxel_size` with a
 1 mm minimum. PCD exports use `save_global_map_voxel_size`. A joint save

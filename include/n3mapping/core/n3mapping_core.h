@@ -5,6 +5,7 @@
 #include <mutex>
 #include <optional>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 #include "n3mapping/odometry_sanity.h"
@@ -114,6 +115,8 @@ class N3MappingCore {
         bool tracked_against_loaded_map = false;
     };
     std::vector<PendingLoopQuery> loop_detection_queue_;
+    std::optional<Eigen::Vector3d> pending_loop_anchor_odom_;
+    std::unordered_map<int64_t, double> loop_anchor_offsets_;
     std::vector<core::AnchoredDenseTrajectorySample> dense_trajectory_samples_;
     core::DenseTrajectoryMetadata dense_trajectory_metadata_;
     bool external_dense_trajectory_recording_enabled_ = false;

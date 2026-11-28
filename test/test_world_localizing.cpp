@@ -134,6 +134,11 @@ protected:
         localizing_.hypothesis_manager_.hypotheses()[index], ranked_score);
   }
 
+  FreeSpaceGrid& freeSpaceGrid() { return localizing_.free_space_grid_; }
+  int64_t nearestLoadedKeyframe(const Eigen::Isometry3d& pose) const {
+    return localizing_.findNearestKeyframe(pose, true);
+  }
+
   const Config config_;
   KeyframeManager keyframes_{config_};
   LoopDetector detector_{config_};
@@ -180,6 +185,41 @@ TEST_F(FreeSpaceVetoTest, ObservedFreeSpaceStillSupportsRelativeAndAbsoluteVetoe
 
   EXPECT_EQ(best(1, ranked_score), nullptr);
   EXPECT_TRUE(ranked_score.hasAbsoluteConflict());
+}
+
+TEST_F(FreeSpaceVetoTest, OccupiedSlabExcludesNearerFloorButOpenRiseRemainsReachable) {
+  const auto origin = Eigen::Isometry3d::Identity();
+  Eigen::Isometry3d below = origin, open_rise = origin;
+  below.translation().z() = -3.9;
+  open_rise.translation() = Eigen::Vector3d(3., 0., 3.);
+  ASSERT_TRUE(keyframes_.loadKeyframes({
+      Keyframe::create(0, 0., below, query_), Keyframe::create(1, 1., open_rise, query_)}));
+
+  auto& grid = freeSpaceGrid();
+  grid = FreeSpaceGrid{};
+  EXPECT_EQ(nearestLoadedKeyframe(origin), 0);
+
+  WorldLocalizing::PointCloudT obstacles;
+  const std::vector<Eigen::Vector3d> origins{origin.translation(), below.translation(),
+                                            open_rise.translation()};
+  for (const float z : {-0.1f, -1.2f}) {
+    pcl::PointXYZI point;
+    point.x = 0.f;
+    point.y = 0.f;
+    point.z = z;
+    obstacles.push_back(point);
+  }
+  ASSERT_TRUE(grid.build(obstacles, origins, 0.2, 10., 1));
+  EXPECT_FALSE(grid.hasOccupiedBarrier(origin.translation(), below.translation()));
+  EXPECT_EQ(nearestLoadedKeyframe(origin), 0);
+
+  auto slab_bottom = obstacles.back();
+  slab_bottom.z = -1.6f;
+  obstacles.push_back(slab_bottom);
+  ASSERT_TRUE(grid.build(obstacles, origins, 0.2, 10., 1));
+  EXPECT_TRUE(grid.hasOccupiedBarrier(origin.translation(), below.translation()));
+  EXPECT_FALSE(grid.hasOccupiedBarrier(origin.translation(), open_rise.translation()));
+  EXPECT_EQ(nearestLoadedKeyframe(origin), 1);
 }
 
 TEST(RelocalizationRankingTest, EqualAndInvalidScoresHaveStableIdentityTies)

@@ -35,9 +35,11 @@ std::vector<DetectedLoopQuery> N3MappingCore::detectPendingLoopCandidates(
   std::vector<DetectedLoopQuery> queries;
   if (keyframes_to_check.empty()) return queries;
 
+  const auto keyframes = session_->keyframes.getAllKeyframes();
   std::map<int64_t, Keyframe::Ptr> keyframe_map;
-  for (const auto& keyframe : session_->keyframes.getAllKeyframes())
-    keyframe_map.emplace(keyframe->id, keyframe);
+  for (const auto& keyframe : keyframes)
+    keyframe_map.emplace_hint(keyframe_map.end(), keyframe->id, keyframe);
+  const auto paths = measureLoopOdometryPaths(keyframes, loop_anchor_offsets_);
 
   for (const auto& pending : keyframes_to_check) {
     const auto query_id = pending.id;
@@ -45,11 +47,10 @@ std::vector<DetectedLoopQuery> N3MappingCore::detectPendingLoopCandidates(
     const auto query = keyframe_map.find(query_id);
     if (query == keyframe_map.end()) continue;
     const auto& query_kf = query->second;
+    const double untracked_distance = paths.at(query_id).untracked;
 
     const auto within_vertical_bound = [&](int64_t match_id) {
-      const auto& match = *keyframe_map.at(match_id);
-      return std::abs(match.getPosition().z() - query_kf->getPosition().z()) <=
-          kMaxLoopVerticalSeparationM;
+      return withinSameSessionDriftEnvelope(*keyframe_map.at(match_id), *query_kf, paths);
     };
     const auto within_work_bound = [&](int64_t match_id) {
       const auto& match = *keyframe_map.at(match_id);
@@ -57,7 +58,8 @@ std::vector<DetectedLoopQuery> N3MappingCore::detectPendingLoopCandidates(
           (match.getPosition() - query_kf->getPosition()).norm() <= config_.loop_max_range;
     };
     const auto eligible_old_map = [&](int64_t id) {
-      return eligibleOldMapLoopCandidate(*keyframe_map.at(id), *query_kf, config_.reloc_search_radius);
+      return eligibleOldMapLoopCandidate(*keyframe_map.at(id), *query_kf,
+                                         untracked_distance, config_.reloc_search_radius);
     };
     std::vector<LoopCandidate> candidates;
     if (map_loaded_) {
@@ -69,9 +71,7 @@ std::vector<DetectedLoopQuery> N3MappingCore::detectPendingLoopCandidates(
           });
       if (!pending.tracked_against_loaded_map &&
           std::any_of(keyframe_map.begin(), query,
-              [&](const auto& entry) {
-                return eligibleOldMapLoopCandidate(*entry.second, *query_kf, config_.reloc_search_radius);
-              })) {
+              [&](const auto& entry) { return eligible_old_map(entry.first); })) {
         auto old_map = session_->detector.detectLoopCandidates(query_id, keyframe_map, eligible_old_map);
         candidates.insert(candidates.end(), old_map.begin(), old_map.end());
       }
@@ -85,8 +85,7 @@ std::vector<DetectedLoopQuery> N3MappingCore::detectPendingLoopCandidates(
             if (!map_loaded_) return within_vertical_bound(id);
             const auto& match = *keyframe_map.at(id);
             if (match.is_from_loaded_map)
-              return !pending.tracked_against_loaded_map &&
-                  eligibleOldMapLoopCandidate(match, *query_kf, config_.reloc_search_radius);
+              return !pending.tracked_against_loaded_map && eligible_old_map(id);
             return match.session_id == query_kf->session_id && within_work_bound(id);
           }, true);
       for (const auto &spatial : spatial_candidates) {
@@ -125,6 +124,12 @@ std::vector<DetectedLoopQuery> N3MappingCore::detectPendingLoopCandidates(
 void N3MappingCore::publishLoopOutcome(const LoopClosureOutcome& outcome) {
   loop_count_ += outcome.summary.edge_count;
   if (outcome.summary.optimized) refreshOptimizedPoses("loop_commit");
+  if (map_loaded_) {
+    for (const auto& loop : outcome.summary.accepted_loops) {
+      if (session_->keyframes.getKeyframe(loop.match_id)->is_from_loaded_map)
+        loop_anchor_offsets_[loop.query_id] = 0.0;
+    }
+  }
   for (const auto& event : outcome.candidates) appendLoopDebugCandidate(event);
   for (const auto& event : outcome.optimizations) appendLoopDebugOptimization(event);
 }

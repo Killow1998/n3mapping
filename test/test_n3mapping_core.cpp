@@ -4,6 +4,7 @@
 #include <cmath>
 #include <fstream>
 #include <limits>
+#include <tuple>
 
 #include <gtest/gtest.h>
 #include "n3mapping/pcl_compat.h"
@@ -581,12 +582,16 @@ TEST(N3MappingCoreTest, PendingLoopClosureRejectsCandidateBeyondPredictionRange)
     EXPECT_TRUE(result.accepted_loops.empty());
 }
 
-TEST(N3MappingCoreTest, SameSessionLoopSearchExcludesStackedLandings)
+TEST(N3MappingCoreTest, SameSessionLoopSearchBoundsHeightByOdometryArcLength)
 {
-    for (const double height : {2.0, 3.9}) {
+    const std::tuple<double, double, bool> cases[] = {
+        {25.0, 3.96, false}, {25.0, 2.0, false}, {500.0, 3.5, true}};
+    for (const auto& [length, height, expected] : cases) {
         for (const bool spatial : {false, true}) {
             Config config = makeCoreTestConfig();
             config.loop_geometry_enable = false;
+            config.odom_sanity_enable = false;
+            config.loop_min_path_length_m = 0.75 * length;
             config.loop_spatial_candidates_enable = spatial;
             config.loop_spatial_candidate_radius = 5.0;
             config.loop_max_range = 5.0;
@@ -594,13 +599,16 @@ TEST(N3MappingCoreTest, SameSessionLoopSearchExcludesStackedLandings)
 
             auto pose = Eigen::Isometry3d::Identity();
             ASSERT_TRUE(core.processMappingFrame(makeFrame(1000000000, pose)).accepted_keyframe);
-            pose.translation().z() = height;
+            pose.translation().x() = (length * length - height * height) / (2.0 * length);
             ASSERT_TRUE(core.processMappingFrame(makeFrame(2000000000, pose)).accepted_keyframe);
+            pose.translation().x() = 0.0;
+            pose.translation().z() = height;
+            ASSERT_TRUE(core.processMappingFrame(makeFrame(3000000000, pose)).accepted_keyframe);
             ASSERT_NEAR(core.getAllKeyframes().back()->getPosition().z(), height, 1e-9);
 
             const auto result = core.processPendingLoopClosures();
-            EXPECT_EQ(result.detected_candidate_count, height == 2.0 ? 1U : 0U)
-                << "height=" << height << " spatial=" << spatial;
+            EXPECT_EQ(result.detected_candidate_count, expected ? 1U : 0U)
+                << "length=" << length << " height=" << height << " spatial=" << spatial;
         }
     }
 }

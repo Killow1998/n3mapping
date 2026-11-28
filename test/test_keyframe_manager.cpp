@@ -381,7 +381,7 @@ TEST_F(KeyframeManagerTest, FindNearestByPosition) {
     EXPECT_EQ(nearest->id, 2);
 }
 
-TEST_F(KeyframeManagerTest, NearestLoadedKeyframeRespectsVerticalWindow) {
+TEST_F(KeyframeManagerTest, NearestLoadedKeyframeAppliesPositionPredicate) {
     const auto cloud = createTestCloud();
     auto downstairs = Keyframe::create(0, 0., createPose(0., 0., -3.9), cloud);
     auto same_floor = Keyframe::create(1, 1., createPose(5., 0., 0.), cloud);
@@ -392,11 +392,12 @@ TEST_F(KeyframeManagerTest, NearestLoadedKeyframeRespectsVerticalWindow) {
     const auto unfiltered = manager_->findNearestByPosition(position, 20., true);
     ASSERT_NE(unfiltered, nullptr);
     EXPECT_EQ(unfiltered->id, 0);
-    const auto upstairs = manager_->findNearestByPosition(position, 20., true, 2.);
+    const auto accepts = [](const Eigen::Vector3d& candidate) { return candidate.z() >= 0.0; };
+    const auto upstairs = manager_->findNearestByPosition(position, 20., true, accepts);
     ASSERT_NE(upstairs, nullptr);
     EXPECT_EQ(upstairs->id, 1);
-    EXPECT_EQ(manager_->findNearestByPosition(position, 4.5, true, 2.), nullptr);
-    const auto nearest = manager_->findNearestByPosition(position, 20., false, 2.);
+    EXPECT_EQ(manager_->findNearestByPosition(position, 4.5, true, accepts), nullptr);
+    const auto nearest = manager_->findNearestByPosition(position, 20., false, accepts);
     ASSERT_NE(nearest, nullptr);
     EXPECT_EQ(nearest->id, 2);
 }

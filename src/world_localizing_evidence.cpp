@@ -288,8 +288,14 @@ double WorldLocalizing::computeTrackLogLikelihood(
 
 int64_t WorldLocalizing::findNearestKeyframe(const Eigen::Isometry3d &pose,
                                              bool loaded_only) const {
+  std::function<bool(const Eigen::Vector3d&)> accept_position;
+  if (free_space_grid_.valid()) {
+    accept_position = [&](const Eigen::Vector3d& candidate) {
+      return !free_space_grid_.hasOccupiedBarrier(pose.translation(), candidate);
+    };
+  }
   const auto nearest = keyframe_manager_.findNearestByPosition(
-      pose.translation(), config_.reloc_search_radius, loaded_only, 2.0);
+      pose.translation(), config_.reloc_search_radius, loaded_only, accept_position);
   return nearest ? nearest->id : -1;
 }
 

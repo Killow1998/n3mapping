@@ -24,6 +24,7 @@ bool N3MappingCore::startMapExtension(std::string* error) {
     return reject("map_extension_source_unavailable");
   if (!resuming.adoptCurrentLocalization(extension_anchor_frame_->source_frame_id))
     return reject("extension_anchor_unavailable");
+  pending_loop_anchor_odom_ = extension_anchor_frame_->T_world_lidar.translation();
   extension_anchor_frame_.reset();
   logEvent("map_extension_started", "reused_localization=true");
   return true;
@@ -106,6 +107,7 @@ N3MappingCore::processMapExtensionFrame(const core::LioFrame &frame) {
     output.relocalization_decision =
         locked ? "accepted" : "initial_relocalization_rejected";
     if (locked) {
+      pending_loop_anchor_odom_ = frame.T_world_lidar.translation();
       const double timestamp = static_cast<double>(frame.stamp.nsec) * 1e-9;
       const int64_t matched_id = localizer.getLastMatchedKeyframeId();
       output.relocalization_seed_keyframe_id = matched_id;
@@ -135,7 +137,8 @@ N3MappingCore::processMapExtensionFrame(const core::LioFrame &frame) {
       tracking.state == RelocalizationState::FULL_6DOF_LOCKED &&
       tracking.pose_source == PoseSource::GEOMETRICALLY_CORRECTED &&
       tracking.matched_keyframe_id >= 0;
-  if (!tracked) tracking.pose_source = PoseSource::ODOM_PREDICTED;
+  if (tracked) pending_loop_anchor_odom_ = frame.T_world_lidar.translation();
+  else tracking.pose_source = PoseSource::ODOM_PREDICTED;
 
   Eigen::Isometry3d pose_map = tracking.pose_in_map;
   const auto keyframe_gate_started = timingStarted();
@@ -174,6 +177,11 @@ N3MappingCore::processMapExtensionFrame(const core::LioFrame &frame) {
     performance.descriptor_update_ms = resuming_timing.descriptor_update_ms;
   }
   if (keyframe_id >= 0) {
+    if (pending_loop_anchor_odom_) {
+      loop_anchor_offsets_[keyframe_id] =
+          (frame.T_world_lidar.translation() - *pending_loop_anchor_odom_).norm();
+      pending_loop_anchor_odom_.reset();
+    }
     const auto descriptor_started = timingStarted();
     addKeyframeDescriptors(keyframe_id, frame.undistorted_cloud);
     if (performance.enabled)

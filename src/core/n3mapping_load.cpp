@@ -94,6 +94,8 @@ bool N3MappingCore::loadMap(const std::string &map_path) {
       std::lock_guard<std::mutex> lock(loop_queue_mutex_);
       loop_detection_queue_.clear();
     }
+    pending_loop_anchor_odom_.reset();
+    loop_anchor_offsets_.clear();
     last_loop_check_id_ = -1000;
     loop_count_ = 0;
     floor_attitude_accepted_ = 0;

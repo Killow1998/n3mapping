@@ -16,6 +16,31 @@
 namespace n3mapping {
 using namespace loop_diagnostics;
 
+LoopOdometryPaths measureLoopOdometryPaths(
+    const std::vector<Keyframe::Ptr>& keyframes,
+    const std::unordered_map<int64_t, double>& anchor_offsets) {
+  struct SessionPath {
+    const Keyframe* previous = nullptr;
+    double length = 0.0;
+    double anchor_length = 0.0;
+  };
+  std::unordered_map<MapSessionId, SessionPath> sessions;
+  LoopOdometryPaths paths;
+  for (const auto& keyframe : keyframes) {
+    if (keyframe->is_from_loaded_map) continue;
+    auto& session = sessions[keyframe->session_id];
+    if (session.previous) {
+      session.length += (keyframe->pose_odom.translation() -
+                         session.previous->pose_odom.translation()).norm();
+    }
+    const auto anchor = anchor_offsets.find(keyframe->id);
+    if (anchor != anchor_offsets.end()) session.anchor_length = session.length - anchor->second;
+    paths.emplace(keyframe->id, LoopOdometryPath{session.length, session.length - session.anchor_length});
+    session.previous = keyframe.get();
+  }
+  return paths;
+}
+
 LoopClosureOutcome processLoopCandidates(
     const Config& config, KeyframeManager& keyframes, PointCloudMatcher& matcher,
     GraphOptimizer& optimizer, LoopClosureManager& manager,
@@ -85,6 +110,8 @@ LoopClosureOutcome processLoopCandidates(
       LoopVerificationContext context;
       context.cross_session = cross_session;
       if (cross_session) {
+        context.max_horizontal_drift = query.max_horizontal_drift;
+        context.max_vertical_drift = query.max_vertical_drift;
         context.pose_visibility_evaluator = [&](const Eigen::Isometry3d& pose) {
           return visibility ? visibility(*query_kf->cloud, pose)
                             : VisibilityConsistencyResult{};

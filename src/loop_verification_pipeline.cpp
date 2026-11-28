@@ -355,6 +355,21 @@ LoopVerificationPipelineResult LoopVerificationPipeline::evaluate(
                                    : result.verification.reject_reason;
         return result;
     }
+    if (context.cross_session &&
+        (context.max_horizontal_drift > 0.0 || context.max_vertical_drift > 0.0)) {
+        const Eigen::Vector3d implied_delta =
+            (match->pose_optimized * result.verification.T_measured_match_query).translation() -
+            query->pose_optimized.translation();
+        if ((context.max_vertical_drift > 0.0 &&
+             std::abs(implied_delta.z()) > context.max_vertical_drift) ||
+            (context.max_horizontal_drift > 0.0 &&
+             implied_delta.head<2>().norm() > context.max_horizontal_drift)) {
+            result.loop.verified = false;
+            result.reject_stage = "work_bound";
+            result.reject_reason = "drift_envelope_gate";
+            return result;
+        }
+    }
     if (evaluate_visibility &&
         (!result.pose_visibility.valid ||
          !std::isfinite(result.pose_visibility.evidence_log_odds) ||

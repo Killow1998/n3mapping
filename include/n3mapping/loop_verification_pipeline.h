@@ -21,6 +21,8 @@ struct LoopVerificationContext {
     bool cross_session = false;
     std::function<VisibilityConsistencyResult(const Eigen::Isometry3d&)>
         pose_visibility_evaluator;
+    double max_horizontal_drift = 0.0;
+    double max_vertical_drift = 0.0;
 };
 
 struct LoopVerificationPipelineResult {

@@ -51,6 +51,8 @@ public:
 
   Score score(const pcl::PointCloud<pcl::PointXYZI> &cloud_in_sensor,
               const Eigen::Isometry3d &T_map_sensor) const;
+  bool hasOccupiedBarrier(const Eigen::Vector3d& from,
+                          const Eigen::Vector3d& to, int min_occupied_voxels = 2) const;
 
 private:
   bool inside(const Eigen::Vector3i &c) const {

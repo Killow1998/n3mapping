@@ -301,7 +301,7 @@ Keyframe::Ptr KeyframeManager::findNearestByTimestamp(double timestamp) const {
 
 Keyframe::Ptr KeyframeManager::findNearestByPosition(
     const Eigen::Vector3d& position, double max_distance, bool loaded_only,
-    double max_vertical_distance) const {
+    const std::function<bool(const Eigen::Vector3d&)>& accept_position) const {
     std::lock_guard<std::mutex> lock(mutex_);
     auto& index = loaded_only ? loaded_position_index_ : position_index_;
     if (!index || index->revision != revision_)
@@ -312,15 +312,15 @@ Keyframe::Ptr KeyframeManager::findNearestByPosition(
     if (!index->tree.knnSearch(position.data(), 1, &nearest, &distance_sq) ||
         !(distance_sq < radius_sq))
         return nullptr;
-    if (max_vertical_distance <= 0.0 ||
-        std::abs(index->entries[nearest].second.z() - position.z()) <= max_vertical_distance)
+    if (!accept_position || accept_position(index->entries[nearest].second))
         return keyframes_.at(index->entries[nearest].first);
 
     std::vector<std::pair<std::size_t, double>> nearby;
     index->tree.radiusSearch(position.data(), radius_sq, nearby, nanoflann::SearchParams{});
     for (const auto& match : nearby) {
+        if (match.first == nearest) continue;
         const auto& [id, coordinates] = index->entries[match.first];
-        if (std::abs(coordinates.z() - position.z()) <= max_vertical_distance)
+        if (accept_position(coordinates))
             return keyframes_.at(id);
     }
     return nullptr;
