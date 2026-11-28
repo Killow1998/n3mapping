@@ -18,7 +18,7 @@ using namespace loop_diagnostics;
 
 LoopOdometryPaths measureLoopOdometryPaths(
     const std::vector<Keyframe::Ptr>& keyframes,
-    const std::unordered_map<int64_t, double>& anchor_offsets) {
+    const LoopAnchorOffsets& anchor_offsets) {
   struct SessionPath {
     const Keyframe* previous = nullptr;
     double length = 0.0;
@@ -45,12 +45,16 @@ LoopClosureOutcome processLoopCandidates(
     const Config& config, KeyframeManager& keyframes, PointCloudMatcher& matcher,
     GraphOptimizer& optimizer, LoopClosureManager& manager,
     const std::vector<DetectedLoopQuery>& queries,
-    const LoadedMapVisibilityEvaluator& visibility) {
+    const LoadedMapVisibilityEvaluator& visibility,
+    const LoopAnchorOffsets& anchor_offsets) {
   LoopClosureOutcome outcome;
   auto& result = outcome.summary;
   LoopVerificationPipeline verification_pipeline(config, keyframes, matcher, optimizer, manager);
   std::vector<EdgeInfo> batch_edges;
   std::vector<VerifiedLoop> batch_loops;
+  LoopDriftBudget budget;
+  if (!optimizer.fixedNodes().empty())
+    budget.paths = measureLoopOdometryPaths(keyframes.getAllKeyframes(), anchor_offsets);
   for (const auto& query : queries) {
     const auto query_kf = keyframes.getKeyframe(query.id);
     if (!query_kf) continue;
@@ -110,8 +114,9 @@ LoopClosureOutcome processLoopCandidates(
       LoopVerificationContext context;
       context.cross_session = cross_session;
       if (cross_session) {
-        context.max_horizontal_drift = query.max_horizontal_drift;
-        context.max_vertical_drift = query.max_vertical_drift;
+        const double untracked = budget.untracked(*query_kf);
+        context.max_horizontal_drift = maxHorizontalDrift(untracked, config.reloc_search_radius);
+        context.max_vertical_drift = maxVerticalDrift(untracked);
         context.pose_visibility_evaluator = [&](const Eigen::Isometry3d& pose) {
           return visibility ? visibility(*query_kf->cloud, pose)
                             : VisibilityConsistencyResult{};
@@ -228,6 +233,9 @@ LoopClosureOutcome processLoopCandidates(
 
     const auto poses_after = optimizer.getOptimizedPoses();
     keyframes.updateOptimizedPoses(poses_after);
+    if (std::any_of(edges.begin(), edges.end(), [&](const auto& edge) {
+          return optimizer.fixedNodes().count(edge.from_id) != 0;
+        })) budget.anchor(*query_kf);
 
     recordLoopOptimization(config, edges, best_loops, poses_before, poses_after, outcome);
   }
@@ -243,7 +251,7 @@ LoopClosureOutcome processLoopCandidates(
                              optimizer.getOptimizedPoses(), outcome);
     } else {
       result.accepted_loops = std::move(batch_loops);
-      rebaseLoopOutcome(config, optimizer, manager, outcome);
+      rebaseLoopOutcome(config, optimizer, keyframes, manager, outcome, anchor_offsets);
     }
     keyframes.updateOptimizedPoses(optimizer.getOptimizedPoses());
   }

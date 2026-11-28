@@ -10,19 +10,18 @@
 
 namespace n3mapping {
 void WorldLocalizing::rebuildFreeSpaceGridIfNeeded() {
-  const KeyframeMapRevision current_revision = keyframe_manager_.revision();
+  const bool atlas_loaded = localization_atlas_->loaded();
+  const KeyframeMapRevision current_revision = atlas_loaded
+      ? loaded_atlas_revision_ : keyframe_manager_.revision();
   if (free_space_grid_revision_ != current_revision) {
-    free_space_grid_ = FreeSpaceGrid();
-    free_space_grid_keyframes_ = 0;
-    free_space_grid_failed_ = false;
+    clearFreeSpaceReference();
     free_space_grid_revision_ = current_revision;
   }
   if (free_space_grid_failed_)
     return;
   const size_t current_size = keyframe_manager_.size();
 
-  if (!free_space_grid_.valid() &&
-      current_revision == loaded_atlas_revision_)
+  if (!free_space_grid_.valid() && atlas_loaded)
     free_space_grid_ = localization_atlas_->takeFreeSpaceGrid();
   if (free_space_grid_.valid())
   {
@@ -52,7 +51,7 @@ void WorldLocalizing::rebuildFreeSpaceGridIfNeeded() {
   std::vector<Eigen::Vector3d> origins;
   origins.reserve(keyframe_manager_.size());
   for (const auto &kf : keyframe_manager_.getAllKeyframes()) {
-    if (!kf || (!localization_atlas_->loaded() && !kf->isValid()))
+    if (!kf || (!atlas_loaded && !kf->isValid()))
       continue;
     origins.push_back(kf->pose_optimized.translation());
   }
@@ -112,8 +111,7 @@ WorldLocalizing::freeSpaceBestHypothesis(const PointCloudT::Ptr &query_cloud,
         !(hyp.cumulative_log_likelihood >= config_.reloc_lock_log_likelihood_threshold))
       continue;
     const auto score = score_hypothesis(hyp);
-    if (!score.valid || (ranked_score.valid && ranked_score.value > 0.0 &&
-                         score.occupied_fraction < ranked_score.occupied_fraction))
+    if (!score.canChallenge(ranked_score))
       continue;
     if (!best || score.value > best_score.value) {
       best = &hyp;
@@ -156,7 +154,7 @@ void WorldLocalizing::killFreeSpaceDominatedHypotheses(
       continue;
     scores[i] =
         free_space_grid_.score(*query_cloud, hyp.T_map_odom * odom_pose);
-    if (!scores[i].valid)
+    if (!scores[i].canChallenge({}))
       continue;
     if (best < 0 || scores[i].value > scores[best].value)
       best = static_cast<int>(i);
@@ -186,7 +184,7 @@ void WorldLocalizing::killFreeSpaceDominatedHypotheses(
     auto &hyp = hypotheses[i];
     if (!hyp.alive || static_cast<int>(i) == best || !scores[i].valid)
       continue;
-    if (top.significantlyBetterThan(scores[i], sigmas)) {
+    if (top.canChallenge(scores[i]) && top.significantlyBetterThan(scores[i], sigmas)) {
       hyp.alive = false;
       ++killed;
     }

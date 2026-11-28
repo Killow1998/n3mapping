@@ -6,6 +6,7 @@
 #include <limits>
 #include <google/protobuf/io/coded_stream.h>
 #include <google/protobuf/io/zero_copy_stream_impl.h>
+#include <google/protobuf/io/zero_copy_stream_impl_lite.h>
 
 namespace n3mapping {
 namespace {
@@ -72,10 +73,36 @@ bool validateResourceCounts(const N3Map &map_proto,
   return true;
 }
 
+bool decodeProto(google::protobuf::io::ZeroCopyInputStream& input,
+                 const PbstreamResourceLimits& limits, N3Map& map, std::string* error) {
+  google::protobuf::io::CodedInputStream coded(&input);
+  coded.SetTotalBytesLimit(static_cast<int>(limits.max_file_bytes));
+  coded.SetRecursionLimit(limits.protobuf_recursion_limit);
+  if (!map.ParseFromCodedStream(&coded) || !coded.ConsumedEntireMessage()) {
+    map.Clear();
+    return setError(error, "failed to parse pbstream");
+  }
+  if (!validateResourceCounts(map, limits, error)) {
+    map.Clear();
+    return false;
+  }
+  return true;
+}
+
 }
 
 PbstreamResourceLimits defaultPbstreamResourceLimits() {
   return PbstreamResourceLimits{};
+}
+
+bool decodeN3MapProto(std::string_view bytes, N3Map* map_proto, std::string* error) {
+  if (!map_proto) return setError(error, "null map proto output");
+  map_proto->Clear();
+  const auto limits = defaultPbstreamResourceLimits();
+  if (bytes.size() > limits.max_file_bytes)
+    return setError(error, "pbstream exceeds file size limit");
+  google::protobuf::io::ArrayInputStream input(bytes.data(), static_cast<int>(bytes.size()));
+  return decodeProto(input, limits, *map_proto, error);
 }
 
 bool readN3MapProtoFromFile(const std::string &filepath, N3Map *map_proto,
@@ -119,19 +146,7 @@ bool readN3MapProtoFromFile(const std::string &filepath,
     return setError(error, "failed to open pbstream");
 
   google::protobuf::io::IstreamInputStream zero_copy_input(&ifs);
-  google::protobuf::io::CodedInputStream coded_input(&zero_copy_input);
-  coded_input.SetTotalBytesLimit(static_cast<int>(limits.max_file_bytes));
-  coded_input.SetRecursionLimit(limits.protobuf_recursion_limit);
-  if (!map_proto->ParseFromCodedStream(&coded_input) ||
-      !coded_input.ConsumedEntireMessage()) {
-    map_proto->Clear();
-    return setError(error, "failed to parse pbstream");
-  }
-  if (!validateResourceCounts(*map_proto, limits, error)) {
-    map_proto->Clear();
-    return false;
-  }
-  return true;
+  return decodeProto(zero_copy_input, limits, *map_proto, error);
 }
 
 }

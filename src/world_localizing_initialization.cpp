@@ -14,12 +14,15 @@ void WorldLocalizing::updateRelocalizationCandidates(
     const Eigen::Isometry3d& odom_pose, RelocalizationObservation& observation,
     RelocalizationPerformance& cost, RelocalizationDebugEvent* event) {
   const bool starting = hypothesis_manager_.empty();
+  const bool apply_initial_prior = config_.reloc_initial_prior_enabled && !has_ever_relocalized_;
   auto plan = makeRelocalizationSeedPlan(candidates, keyframe_manager_, config_);
   auto& basins = plan.basins;
   basins.erase(std::remove_if(basins.begin(), basins.end(), [&](const RelocalizationSeedPlan::Basin& basin) {
     for (const auto& hyp : hypothesis_manager_.hypotheses()) {
       if (!hyp.alive || hyp.tracking_proposal) continue;
-      const Eigen::Vector3d position = (hyp.T_map_odom * odom_pose).translation();
+      const Eigen::Isometry3d pose = hyp.T_map_odom * odom_pose;
+      if (apply_initial_prior && !place_index_.matchesInitialPriorPose(pose)) continue;
+      const Eigen::Vector3d position = pose.translation();
       const auto anchor = keyframe_manager_.getKeyframe(hyp.seed_match_id);
       if ((basin.center_pos - position).norm() <= kRelocBasinAssignRadius ||
           (anchor && (basin.center_pos - anchor->pose_optimized.translation())
@@ -74,6 +77,9 @@ std::vector<WorldLocalizing::RelocHypothesis> WorldLocalizing::seedRelocalizatio
   RelocalizationDebugEvent unused_event;
   auto &debug_event = event ? *event : unused_event;
   const bool reloc_debug_enabled = event != nullptr;
+  std::function<bool(const Eigen::Isometry3d&)> pose_allowed;
+  if (config_.reloc_initial_prior_enabled && !has_ever_relocalized_)
+    pose_allowed = [&](const auto& pose) { return place_index_.matchesInitialPriorPose(pose); };
 
   for (auto &basin : basins) {
     const auto count =
@@ -128,7 +134,7 @@ std::vector<WorldLocalizing::RelocHypothesis> WorldLocalizing::seedRelocalizatio
       RelocalizationPerformance candidate_cost;
       const auto evaluations = candidate_evaluator_.evaluate(
           prepared_query, candidate, std::move(target_request),
-          visibility_observation, odom_pose, &candidate_cost);
+          visibility_observation, odom_pose, &candidate_cost, pose_allowed);
       {
         std::lock_guard<std::mutex> cost_lock(performance_mutex);
         cost.addCandidate(candidate_cost);

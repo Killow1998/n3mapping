@@ -36,6 +36,7 @@ std::shared_ptr<MappedTargetLevel> readLevel(
   const AtlasSearchHeader expected;
   if (level->header.magic != expected.magic || level->header.points != header.points ||
       level->header.nodes == 0 || level->header.root != 0 || level->header.reserved ||
+      level->header.nodes > 2 * header.points - 1 ||
       header.search_bytes != sizeof(AtlasSearchHeader) +
           std::uint64_t(level->header.nodes) * sizeof(AtlasSearchNode)) return {};
 
@@ -43,10 +44,8 @@ std::shared_ptr<MappedTargetLevel> readLevel(
   restored->nodes.resize(level->header.nodes);
   restored->bounds.nodes.resize(level->header.nodes);
   level->search_index = restored;
-  for (std::size_t i = 0; i < header.points; ++i) {
-    if (!level->point(i).allFinite() || !level->normal(i).allFinite() ||
-        (header.explicit_covariance && !level->covariance(i).allFinite())) return {};
-  }
+  std::vector<uint8_t> parents(level->header.nodes, 0);
+  std::vector<SearchBounds::Box> occupied(level->header.nodes);
   std::uint32_t next_point = 0;
   for (std::uint32_t i = 0; i < level->header.nodes; ++i) {
     AtlasSearchNode node;
@@ -68,14 +67,49 @@ std::shared_ptr<MappedTargetLevel> readLevel(
     if (node.left == UINT32_MAX) {
       if (node.right != UINT32_MAX || node.first != next_point ||
           node.last <= node.first || node.last > header.points) return {};
+      auto& box = occupied[i];
+      box.lower.fill(std::numeric_limits<float>::infinity());
+      box.upper.fill(-std::numeric_limits<float>::infinity());
+      for (auto p = node.first; p < node.last; ++p) {
+        const Eigen::Vector4d position = level->point(p);
+        if (!position.allFinite() || !level->normal(p).allFinite() ||
+            (header.explicit_covariance && !level->covariance(p).allFinite())) return {};
+        for (int axis = 0; axis < 3; ++axis) {
+          const float value = static_cast<float>(position[axis]);
+          if (value < node.lower[axis] || value > node.upper[axis]) return {};
+          box.lower[axis] = std::min(box.lower[axis], value);
+          box.upper[axis] = std::max(box.upper[axis], value);
+        }
+      }
       next_point = node.last;
     } else if (node.first >= 3 || !std::isfinite(node.threshold) ||
                node.left <= i || node.right <= node.left ||
                node.left >= level->header.nodes || node.right >= level->header.nodes) {
       return {};
+    } else if (++parents[node.left] != 1 || ++parents[node.right] != 1) {
+      return {};
     }
   }
-  if (next_point != header.points) return {};
+  if (next_point != header.points ||
+      std::find(parents.begin() + 1, parents.end(), 0) != parents.end()) return {};
+  for (std::size_t i = restored->nodes.size(); i-- > 0;) {
+    const auto& node = restored->nodes[i];
+    if (node.left == UINT32_MAX) continue;
+    const auto& left = occupied[node.left];
+    const auto& right = occupied[node.right];
+    const auto& parent = restored->bounds.nodes[i];
+    const auto axis = node.node_type.sub.proj.axis;
+    if (left.upper[axis] > node.node_type.sub.thresh ||
+        right.lower[axis] < node.node_type.sub.thresh) return {};
+    for (int k = 0; k < 3; ++k) {
+      for (auto child : {node.left, node.right}) {
+        const auto& box = restored->bounds.nodes[child];
+        if (box.lower[k] < parent.lower[k] || box.upper[k] > parent.upper[k]) return {};
+      }
+      occupied[i].lower[k] = std::min(left.lower[k], right.lower[k]);
+      occupied[i].upper[k] = std::max(left.upper[k], right.upper[k]);
+    }
+  }
   return level;
 }
 }

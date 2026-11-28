@@ -174,7 +174,8 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
       prepared_observation, cost, reloc_debug_enabled ? &debug_event : nullptr);
   if (hypothesis_manager_.empty()) {
     if (!has_ever_relocalized_) search_offset_ = next_search_offset;
-    finish_debug("rejected", "no_valid_icp_hypothesis");
+    finish_debug("rejected", cost.initial_prior_rejections > 0
+        ? "initial_prior_pose_out_of_bounds" : "no_valid_icp_hypothesis");
     return completed_result();
   }
   if (starting) {
@@ -186,6 +187,23 @@ RelocResult WorldLocalizing::relocalize(const PointCloudT::Ptr &cloud,
     currently_registered = confirmRelocalization(
         query_cloud, odom_pose, prepared_observation,
         cost, reloc_debug_enabled);
+  }
+  if (apply_initial_prior) {
+    bool any_alive = false;
+    bool out_of_bounds = false;
+    for (auto& hyp : hypothesis_manager_.hypotheses()) {
+      if (hyp.alive && !place_index_.matchesInitialPriorPose(hyp.T_map_odom * odom_pose)) {
+        hyp.alive = false;
+        out_of_bounds = true;
+      }
+      any_alive |= hyp.alive;
+    }
+    if (!any_alive && out_of_bounds) {
+      hypothesis_manager_.reset();
+      search_offset_ = next_search_offset;
+      finish_debug("rejected", "initial_prior_pose_out_of_bounds");
+      return completed_result();
+    }
   }
 
   if (config_.reloc_free_space_mode == "kill") {

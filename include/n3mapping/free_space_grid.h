@@ -33,6 +33,7 @@ public:
     double value = 0.0;
     double stddev = 0.0;
     bool significantlyBetterThan(const Score& other, double sigmas) const;
+    bool canChallenge(const Score& other) const;
     bool hasAbsoluteConflict() const;
   };
 

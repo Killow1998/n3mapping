@@ -18,9 +18,10 @@ double elapsedMs(LoopClock::time_point start) {
 
 AsyncLoopJob::AsyncLoopJob(const Config& config, const KeyframeManager& source,
     std::unique_ptr<GraphOptimizer> graph, std::vector<DetectedLoopQuery> queries,
-    LoadedMapVisibilityEvaluator visibility)
+    LoadedMapVisibilityEvaluator visibility, LoopAnchorOffsets anchor_offsets)
     : config(config), keyframes(config), matcher(config), manager(config),
-      graph(std::move(graph)), visibility(std::move(visibility)), queries(std::move(queries)),
+      graph(std::move(graph)), visibility(std::move(visibility)),
+      anchor_offsets(std::move(anchor_offsets)), queries(std::move(queries)),
       revision(source.revision()) {
   if (this->queries.empty()) throw std::invalid_argument("Empty loop job");
   base_graph = this->graph->cloneCommitted();
@@ -43,7 +44,8 @@ void AsyncLoopJob::run() {
   started = start;
   const auto cpu_start = std::clock();
   if (!geometryOnly())
-    outcome = processLoopCandidates(config, keyframes, matcher, *graph, manager, queries, visibility);
+    outcome = processLoopCandidates(config, keyframes, matcher, *graph, manager, queries,
+                                    visibility, anchor_offsets);
   optimizeGeometry();
   worker_wall_ms += elapsedMs(start);
   cpu_upper_ms += 1000.0 * (std::clock() - cpu_start) / CLOCKS_PER_SEC;
@@ -52,7 +54,7 @@ void AsyncLoopJob::run() {
 void AsyncLoopJob::rebase() {
   const auto start = LoopClock::now();
   const auto cpu_start = std::clock();
-  if (!geometryOnly()) rebaseLoopOutcome(config, *graph, manager, outcome);
+  if (!geometryOnly()) rebaseLoopOutcome(config, *graph, keyframes, manager, outcome, anchor_offsets);
   optimizeGeometry();
   worker_wall_ms += elapsedMs(start);
   cpu_upper_ms += 1000.0 * (std::clock() - cpu_start) / CLOCKS_PER_SEC;
@@ -139,7 +141,7 @@ CoreLoopClosureResult N3MappingCore::advanceAsyncLoopClosures(bool wait) {
       auto previous = std::move(state.job);
       state.job = std::make_unique<AsyncLoopJob>(config_, session_->keyframes,
           session_->optimizer.cloneCommitted(), std::move(previous->queries),
-          std::move(previous->visibility));
+          std::move(previous->visibility), loop_anchor_offsets_);
       state.job->outcome = std::move(previous->outcome);
       state.job->worker_wall_ms = previous->worker_wall_ms;
       state.job->cpu_upper_ms = previous->cpu_upper_ms;
@@ -235,10 +237,6 @@ CoreLoopClosureResult N3MappingCore::advanceAsyncLoopClosures(bool wait) {
       for (auto& query : queries) {
         const auto& query_frame = *current_frames.at(query.id);
         const double untracked_distance = paths.at(query.id).untracked;
-        if (map_loaded_) {
-          query.max_horizontal_drift = maxHorizontalDrift(untracked_distance, config_.reloc_search_radius);
-          query.max_vertical_drift = maxVerticalDrift(untracked_distance);
-        }
         const auto same_session_allowed = [&](int64_t match_id) {
           return withinSameSessionDriftEnvelope(*current_frames.at(match_id), query_frame, paths);
         };
@@ -270,7 +268,8 @@ CoreLoopClosureResult N3MappingCore::advanceAsyncLoopClosures(bool wait) {
     state.job = std::make_unique<AsyncLoopJob>(
         config_, session_->keyframes,
         session_->optimizer.cloneCommitted(), std::move(queries),
-        map_loaded_ ? session_->localizer.snapshotLoadedMapVisibility() : LoadedMapVisibilityEvaluator{});
+        map_loaded_ ? session_->localizer.snapshotLoadedMapVisibility() : LoadedMapVisibilityEvaluator{},
+        loop_anchor_offsets_);
     result.snapshot_ms += elapsedMs(start);
     auto* job = state.job.get();
     state.future = state.worker.submit([job] { job->run(); });

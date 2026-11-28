@@ -20,7 +20,7 @@ using LoopClock = std::chrono::steady_clock;
 struct AsyncLoopJob {
   AsyncLoopJob(const Config& config, const KeyframeManager& source,
                std::unique_ptr<GraphOptimizer> graph, std::vector<DetectedLoopQuery> queries,
-               LoadedMapVisibilityEvaluator visibility = {});
+               LoadedMapVisibilityEvaluator visibility = {}, LoopAnchorOffsets anchor_offsets = {});
   void run();
   void rebase();
   void optimizeGeometry();
@@ -33,6 +33,7 @@ struct AsyncLoopJob {
   std::unique_ptr<GraphOptimizer> graph;
   std::unique_ptr<GraphOptimizer> base_graph;
   LoadedMapVisibilityEvaluator visibility;
+  LoopAnchorOffsets anchor_offsets;
   std::vector<DetectedLoopQuery> queries;
   KeyframeMapRevision revision;
   LoopClosureOutcome outcome;

@@ -1,4 +1,5 @@
 #pragma once
+#include <string_view>
 
 #include <cstdint>
 #include <string>
@@ -15,6 +16,8 @@
 #include "n3map.pb.h"
 
 namespace n3mapping {
+
+bool decodeN3MapProto(std::string_view bytes, N3Map* map_proto, std::string* error);
 
 enum class PbstreamLoadPolicy {
     STRICT,

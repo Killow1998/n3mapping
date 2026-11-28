@@ -73,6 +73,9 @@ void WorldLocalizing::releaseSearchPreparation() {
   reloc_map_cache_ = pcl::make_shared<PointCloudT>();
   reloc_map_cached_keyframes_ = 0;
   reloc_map_revision_ = {};
+}
+
+void WorldLocalizing::clearFreeSpaceReference() {
   free_space_grid_ = FreeSpaceGrid();
   free_space_grid_keyframes_ = 0;
   free_space_grid_revision_ = {};
@@ -85,6 +88,7 @@ void WorldLocalizing::notifyMapReplaced() {
 
   place_index_.resetMapDerivedState();
   releaseSearchPreparation();
+  clearFreeSpaceReference();
   tracking_targets_->clearMap();
   localization_atlas_->clear();
 }
@@ -148,6 +152,12 @@ void WorldLocalizing::installOptimizedReference(
     tracking_targets_->clearMap();
   }
   loaded_atlas_revision_ = keyframe_manager_.revision();
+  clearFreeSpaceReference();
+  if (config_.reloc_free_space_enable) {
+    free_space_grid_ = localization_atlas_->takeFreeSpaceGrid();
+    free_space_grid_revision_ = loaded_atlas_revision_;
+    if (free_space_grid_.valid()) free_space_grid_keyframes_ = keyframe_manager_.size();
+  }
   T_map_odom_ = correction * T_map_odom_;
   remaining_map_shift_.setZero();
   directional_proposal_.reset();
@@ -160,6 +170,7 @@ bool WorldLocalizing::loadLocalizationAtlas(const std::string &map_path,
                                             std::string *error,
                                             LoopDetector* restore_descriptors) {
   localization_atlas_->clear();
+  clearFreeSpaceReference();
   reference_atlas_indices_.clear();
   target_provider_->clear();
   if (!config_.reloc_atlas_enable) {
@@ -226,10 +237,11 @@ bool WorldLocalizing::loadLocalizationAtlas(const std::string &map_path,
             << " mapped_load_ms=" << stats.mapped_load_ms
             << " free_space_load_ms=" << stats.free_space_load_ms;
   loaded_atlas_revision_ = keyframe_manager_.revision();
-  free_space_grid_ = FreeSpaceGrid{};
-  free_space_grid_revision_ = loaded_atlas_revision_;
-  free_space_grid_keyframes_ = 0;
-  free_space_grid_failed_ = false;
+  if (config_.reloc_free_space_enable) {
+    free_space_grid_ = localization_atlas_->takeFreeSpaceGrid();
+    free_space_grid_revision_ = loaded_atlas_revision_;
+    if (free_space_grid_.valid()) free_space_grid_keyframes_ = keyframe_manager_.size();
+  }
   return true;
 }
 

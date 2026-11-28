@@ -19,6 +19,11 @@ bool FreeSpaceGrid::Score::significantlyBetterThan(const Score& other, double si
   return value - other.value > sigmas * std::hypot(stddev, other.stddev);
 }
 
+bool FreeSpaceGrid::Score::canChallenge(const Score& other) const {
+  return valid && known_points > 0.0 &&
+      (!other.valid || other.value <= 0.0 || occupied_fraction >= other.occupied_fraction);
+}
+
 FreeSpaceGrid::Block& FreeSpaceGrid::addBlock(const BlockCoordinate& coordinate) {
   const auto [index, inserted] = block_index_.try_emplace(coordinate, blocks_.size());
   if (inserted) blocks_.push_back(Block{coordinate});
@@ -155,23 +160,48 @@ bool FreeSpaceGrid::hasOccupiedBarrier(const Eigen::Vector3d& from,
                                        const Eigen::Vector3d& to,
                                        int min_occupied_voxels) const {
   constexpr double endpoint_margin = 0.4;
-  const Eigen::Vector3d delta = to - from;
+  const auto coordinates = [](const Eigen::Vector3d& point) {
+    return std::array<double, 3>{point.x(), point.y(), point.z()};
+  };
+  const bool reverse = coordinates(to) < coordinates(from);
+  const Eigen::Vector3d& first = reverse ? to : from;
+  const Eigen::Vector3d delta = reverse ? from - to : to - from;
   const double length = delta.norm();
   if (!valid_ || length <= 2.0 * endpoint_margin) return false;
 
-  const Eigen::Vector3d direction = delta / length;
-  Eigen::Vector3i previous = Eigen::Vector3i::Constant(-1);
+  const Eigen::Vector3d start = first + delta * (endpoint_margin / length);
+  const Eigen::Vector3d local = (start - origin_) / resolution_;
+  const Eigen::Vector3d travel = delta * ((1.0 - 2.0 * endpoint_margin / length) / resolution_);
+  Eigen::Vector3i cell = cellOf(start);
+  Eigen::Vector3i step = Eigen::Vector3i::Zero();
+  Eigen::Vector3d next = Eigen::Vector3d::Constant(std::numeric_limits<double>::infinity());
+  Eigen::Vector3d interval = next;
+  for (int axis = 0; axis < 3; ++axis) {
+    if (travel[axis] == 0.0) continue;
+    step[axis] = travel[axis] > 0.0 ? 1 : -1;
+    const double boundary = cell[axis] + (step[axis] > 0 ? 1 : 0);
+    next[axis] = (boundary - local[axis]) / travel[axis];
+    interval[axis] = 1.0 / std::abs(travel[axis]);
+  }
+
   int occupied = 0;
-  for (double distance = endpoint_margin; distance <= length - endpoint_margin;
-       distance += resolution_) {
-    const Eigen::Vector3i cell = cellOf(from + direction * distance);
-    if (!inside(cell) || cell == previous) continue;
-    previous = cell;
-    const auto* bits = findBlock(blockOf(cell));
-    if (!bits) continue;
-    const int bit = bitOf(cell);
-    if ((bits[offsetof(Block, occupied) + bit / 8] & (1u << (bit % 8))) &&
-        ++occupied >= min_occupied_voxels) return true;
+  double entered = 0.0;
+  while (entered < 1.0) {
+    const double exit = std::min(1.0, next.minCoeff());
+    if (exit > entered && inside(cell)) {
+      const auto* bits = findBlock(blockOf(cell));
+      const int bit = bitOf(cell);
+      if (bits && (bits[offsetof(Block, occupied) + bit / 8] & (1u << (bit % 8))) &&
+          ++occupied >= min_occupied_voxels) return true;
+    }
+    constexpr double tie = 8.0 * std::numeric_limits<double>::epsilon();
+    for (int axis = 0; axis < 3; ++axis) {
+      if (next[axis] <= exit + tie) {
+        cell[axis] += step[axis];
+        next[axis] += interval[axis];
+      }
+    }
+    entered = exit;
   }
   return false;
 }

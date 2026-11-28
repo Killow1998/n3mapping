@@ -11,6 +11,7 @@
 #include <algorithm>
 #include <array>
 #include <chrono>
+#include <cerrno>
 #include <cmath>
 #include <cstring>
 #include <filesystem>
@@ -22,6 +23,8 @@
 #include <utility>
 
 #include <openssl/evp.h>
+#include <ext/stdio_filebuf.h>
+#include <unistd.h>
 
 #include "n3mapping/pcl_compat.h"
 
@@ -83,6 +86,10 @@ LocalizationAtlas::LocalizationAtlas(const Config& config, PointCloudMatcher& ma
 
 std::string LocalizationAtlas::defaultAtlasPath(const std::string& map_path) {
     return map_path + ".localization_atlas.pb";
+}
+
+std::string LocalizationAtlas::sha256(std::string_view bytes) {
+    return digestBytes(bytes.data(), bytes.size());
 }
 
 std::string LocalizationAtlas::fileSha256(const std::string& path, std::string* error) {
@@ -274,14 +281,24 @@ bool LocalizationAtlas::compileAndSave(
             return false;
         }
     }
-    const std::filesystem::path temporary = output.string() + ".tmp";
+    std::string temporary_name = output.string() + ".tmp.XXXXXX";
+    const int temporary_fd = mkstemp(temporary_name.data());
+    if (temporary_fd < 0) {
+        setError(error, "failed to create atlas temporary file: " +
+                        std::error_code(errno, std::generic_category()).message());
+        return false;
+    }
+    const struct TemporaryFile {
+        std::string path;
+        ~TemporaryFile() { unlink(path.c_str()); }
+    } temporary{std::move(temporary_name)};
     {
-        std::ofstream stream(temporary, std::ios::binary | std::ios::trunc);
+        __gnu_cxx::stdio_filebuf<char> buffer(temporary_fd, std::ios::out | std::ios::binary);
+        std::ostream stream(&buffer);
         const bool written = atlas_codec::writeAtlas(
             stream, data, *global_map_, prepared_target_, free_space_grid_, error);
-        stream.close();
-        if (!written || !stream) {
-            std::filesystem::remove(temporary, ec);
+        const bool closed = buffer.close() != nullptr;
+        if (!written || !closed) {
             if (written) setError(error, "failed to close atlas sidecar");
             return false;
         }
@@ -291,15 +308,15 @@ bool LocalizationAtlas::compileAndSave(
     prepared_target_ = {};
     data.Clear();
     const auto mapped_started = Clock::now();
-    if (!registration_detail::loadMappedAtlas(temporary.string(), data,
+    if (!registration_detail::loadMappedAtlas(temporary.path, data,
             prepared_target_, mapping_, error)) {
-        std::filesystem::remove(temporary, ec);
         return false;
     }
-    std::filesystem::rename(temporary, output, ec);
+    if (overwrite) std::filesystem::rename(temporary.path, output, ec);
+    else std::filesystem::create_hard_link(temporary.path, output, ec);
     if (ec) {
-        setError(error, "failed to publish atlas sidecar: " + ec.message());
-        std::filesystem::remove(temporary, ec);
+        setError(error, !overwrite && ec == std::errc::file_exists
+            ? "atlas output already exists" : "failed to publish atlas sidecar: " + ec.message());
         return false;
     }
     local_stats.sidecar_bytes = mapping_->size();
@@ -316,6 +333,18 @@ bool LocalizationAtlas::load(const std::string& map_path,
                              LocalizationAtlasStats* stats,
                              std::string* error,
                              bool require_current_cache) {
+    const auto hash = fileSha256(map_path, error);
+    if (hash.empty()) {
+        clear();
+        return false;
+    }
+    return loadForMapSha256(hash, atlas_path, stats, error, require_current_cache);
+}
+
+bool LocalizationAtlas::loadForMapSha256(const std::string& map_sha256,
+                                        const std::string& atlas_path,
+                                        LocalizationAtlasStats* stats,
+                                        std::string* error, bool require_current_cache) {
     clear();
     LocalizationAtlasStats local_stats;
     auto start = Clock::now();
@@ -324,8 +353,7 @@ bool LocalizationAtlas::load(const std::string& map_path,
             prepared_target_, mapping_, error)) return false;
     local_stats.paged_geometry = true;
     local_stats.mapped_load_ms = elapsedMs(start);
-    map_sha256_ = fileSha256(map_path, error);
-    if (map_sha256_.empty()) return false;
+    map_sha256_ = map_sha256;
     config_sha256_ = configSha256(config_);
     if (data.map_sha256() != map_sha256_) {
         setError(error, "atlas map SHA-256 mismatch");

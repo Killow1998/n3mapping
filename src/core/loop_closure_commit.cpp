@@ -3,6 +3,8 @@
 #include "loop_closure_processing.h"
 #include "loop_closure_diagnostics.h"
 #include "n3mapping/loop_graph_trial_diagnostics.h"
+#include "n3mapping/keyframe_manager.h"
+#include "n3mapping/loop_verification_pipeline.h"
 
 #include <map>
 
@@ -55,15 +57,41 @@ void recordLoopOptimization(const Config& config, const std::vector<EdgeInfo>& e
   }
 }
 void rebaseLoopOutcome(const Config& config, GraphOptimizer& optimizer,
-                       LoopClosureManager& manager, LoopClosureOutcome& outcome) {
+                       const KeyframeManager& keyframes, LoopClosureManager& manager,
+                       LoopClosureOutcome& outcome, const LoopAnchorOffsets& anchor_offsets) {
 
   std::map<int64_t, std::vector<VerifiedLoop>> by_query;
   for (const auto& loop : outcome.summary.accepted_loops)
     by_query[loop.query_id].push_back(loop);
   outcome.summary = {};
   outcome.optimizations.clear();
+  LoopDriftBudget budget;
+  if (!optimizer.fixedNodes().empty())
+    budget.paths = measureLoopOdometryPaths(keyframes.getAllKeyframes(), anchor_offsets);
 
   for (auto& [query_id, loops] : by_query) {
+    bool accepted_anchor = false;
+    loops.erase(std::remove_if(loops.begin(), loops.end(), [&](const auto& loop) {
+      if (!optimizer.fixedNodes().count(loop.match_id) ||
+          optimizer.fixedNodes().count(query_id)) return false;
+      const double untracked = budget.untracked(*keyframes.getKeyframe(query_id));
+      if (withinLoopDriftEnvelope(optimizer.getOptimizedPose(loop.match_id),
+            optimizer.getOptimizedPose(query_id), loop.T_measured_match_query,
+            maxHorizontalDrift(untracked, config.reloc_search_radius),
+            maxVerticalDrift(untracked))) {
+        accepted_anchor = true;
+        return false;
+      }
+      for (auto& event : outcome.candidates) {
+        if (event.candidate.query_id == query_id && event.candidate.match_id == loop.match_id &&
+            event.gate_result == "accepted") {
+          event.gate_result = "rejected";
+          event.reject_reason = "async_rebase_drift_envelope_gate";
+        }
+      }
+      return true;
+    }), loops.end());
+    if (loops.empty()) continue;
     const auto edges = manager.buildLoopEdges(loops, LoopEdgeDirection::MatchToQuery);
     const auto before = optimizer.getOptimizedPoses();
     std::string rejection;
@@ -81,6 +109,7 @@ void rebaseLoopOutcome(const Config& config, GraphOptimizer& optimizer,
       if (!reason.empty()) rejection = reason;
     }
     if (rejection.empty() && optimizer.optimizeLoopEdges(edges)) {
+      if (accepted_anchor) budget.anchor(*keyframes.getKeyframe(query_id));
       outcome.summary.place_candidate_count += loops.size();
       recordLoopOptimization(config, edges, loops, before, optimizer.getOptimizedPoses(), outcome);
       continue;

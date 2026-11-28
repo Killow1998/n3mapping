@@ -1,4 +1,5 @@
 #pragma once
+#include <functional>
 
 #include <cstdint>
 #include <map>
@@ -46,7 +47,8 @@ public:
            const LoopCandidate &candidate, RelocTargetRequest target_request,
            const PreparedVisibilityObservation &visibility_observation,
            const Eigen::Isometry3d &odom_pose,
-           RelocalizationPerformance *performance = nullptr);
+           RelocalizationPerformance *performance = nullptr,
+           const std::function<bool(const Eigen::Isometry3d&)>& pose_allowed = {});
 
 private:
   Config config_;

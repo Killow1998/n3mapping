@@ -1,4 +1,5 @@
 #pragma once
+#include <string_view>
 
 #include <cstddef>
 #include <cstdint>
@@ -90,6 +91,10 @@ public:
                                           const SpatialPointBlocks* blocks = nullptr);
     static std::string defaultAtlasPath(const std::string& map_path);
     static std::string fileSha256(const std::string& path, std::string* error = nullptr);
+    static std::string sha256(std::string_view bytes);
+    bool loadForMapSha256(const std::string& map_sha256, const std::string& atlas_path,
+                          LocalizationAtlasStats* stats, std::string* error,
+                          bool require_current_cache = false);
     static std::string configSha256(const Config& config);
 
 private:

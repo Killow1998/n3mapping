@@ -25,6 +25,16 @@ struct LoopVerificationContext {
     double max_vertical_drift = 0.0;
 };
 
+inline bool withinLoopDriftEnvelope(const Eigen::Isometry3d& match_to_map,
+                                   const Eigen::Isometry3d& query_to_map,
+                                   const Eigen::Isometry3d& measured_query_to_match,
+                                   double horizontal, double vertical) {
+    const Eigen::Vector3d delta =
+        (match_to_map * measured_query_to_match).translation() - query_to_map.translation();
+    return (vertical <= 0.0 || std::abs(delta.z()) <= vertical) &&
+           (horizontal <= 0.0 || delta.head<2>().norm() <= horizontal);
+}
+
 struct LoopVerificationPipelineResult {
     LoopVerification verification;
     VerifiedLoop loop;

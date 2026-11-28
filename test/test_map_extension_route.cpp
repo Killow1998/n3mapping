@@ -399,7 +399,9 @@ TEST(MapContinuation, DescriptorReturnRepairsDriftBeyondSpatialGate) {
         frame = roomFrame(0, return_x + 0.2 * steps_to_return, 0);
       else if (id > first_new + 16)
         frame.undistorted_cloud = missing_scan;
-      frame.T_world_lidar.translation().y() = drift * (id - first_new) / (query_id - first_new);
+      const double travel = std::max(0.0, 100.0 - std::abs(id - first_new - 120.0));
+      frame.T_world_lidar.translation().y() =
+          drift * (id - first_new) / (query_id - first_new) + travel;
     }
     auto keyframe = Keyframe::create(id, id, frame.T_world_lidar, frame.undistorted_cloud);
     keyframe->session_id = reference ? 0 : 1;
@@ -536,6 +538,89 @@ TEST(MapContinuation, DescriptorReturnRepairsDriftBeyondSpatialGate) {
     EXPECT_EQ(retry.graph->getOptimizedPose(id).matrix(), graph.getOptimizedPose(id).matrix());
   RecordProperty("rebase_tail_translation_error_m", std::to_string(max_tail_error));
   RecordProperty("rebased_cross_session_edges", retry.outcome.summary.edge_count);
+}
+
+TEST(MapContinuation, AcceptedCrossSessionAnchorTightensNextQueryAndAsyncRebase) {
+  Config config;
+  config.num_threads = 1;
+  config.loop_debug_enable = true;
+  config.loop_geometry_enable = false;
+  config.gicp_submap_size = 2;
+  config.reloc_search_radius = 20.0;
+  const auto scan = roomFrame(0, -2.0, 0.0);
+  std::vector<Keyframe::Ptr> keyframes;
+  std::vector<std::pair<int64_t, Eigen::Isometry3d>> poses;
+  std::vector<EdgeInfo> odometry;
+  const Eigen::Matrix<double, 6, 6> information =
+      Eigen::Matrix<double, 6, 6>::Identity() * 100.0;
+  constexpr int64_t first_new = 10, first_query = 15, second_query = 16;
+  for (const double offset : {0.0, 0.0, 0.0, 0.0, 0.0,
+                              4.0, 4.0, 4.0, 4.0, 4.0,
+                              0.0, 50.0, 0.0, 0.0, 0.0, 0.0, 0.4, 0.4, 0.4}) {
+    const auto id = static_cast<int64_t>(poses.size());
+    auto pose = scan.T_world_lidar;
+    pose.translation().x() += offset;
+    const auto cloud = id == 11 ? pcl::make_shared<Keyframe::PointCloudT>()
+                                : scan.undistorted_cloud;
+    auto frame = Keyframe::create(id, id, pose, cloud);
+    frame->session_id = id < first_new ? 0 : 1;
+    if (id > 0)
+      odometry.push_back({id - 1, id, poses.back().second.inverse() * pose,
+                          information, id == first_new ? EdgeType::SESSION_ANCHOR
+                                                       : EdgeType::ODOMETRY});
+    keyframes.push_back(frame);
+    poses.emplace_back(id, pose);
+  }
+  KeyframeManager frames(config);
+  MapSessionInfo old_session, new_session;
+  old_session.source_frame_id = "reference";
+  new_session.id = 1;
+  new_session.source_frame_id = "continuation";
+  new_session.start_timestamp = first_new;
+  ASSERT_TRUE(frames.loadKeyframes(keyframes, {old_session, new_session}));
+  for (const auto& frame : frames.getAllKeyframes()) frame->is_from_loaded_map = frame->id < first_new;
+  GraphOptimizer graph(config);
+  ASSERT_TRUE(graph.loadGraph(poses, odometry, {}, {}, true));
+  graph.setFixedNodes({0, 1, 2, 3, 4, 5, 6, 7, 8, 9});
+
+  LoopCandidate first, second;
+  first.query_id = first_query;
+  first.match_id = 2;
+  first.source_flags = LoopCandidate::SOURCE_RHPD;
+  second.query_id = second_query;
+  second.match_id = 7;
+  second.source_flags = LoopCandidate::SOURCE_RHPD;
+  const LoadedMapVisibilityEvaluator visible = [](const auto&, const auto&) {
+    VisibilityConsistencyResult result;
+    result.valid = true;
+    result.evidence_log_odds = 1.0;
+    result.consistency_ratio = 1.0;
+    return result;
+  };
+  AsyncLoopJob job(config, frames, graph.cloneCommitted(),
+                   {{first_query, {first}}, {second_query, {second}}}, visible);
+  job.run();
+  ASSERT_EQ(job.outcome.candidates.size(), 2u);
+  ASSERT_EQ(job.outcome.summary.accepted_loops.size(), 1u)
+      << job.outcome.candidates[0].reject_reason << " " << job.outcome.candidates[1].reject_reason;
+  EXPECT_EQ(job.outcome.summary.accepted_loops.front().query_id, first_query);
+  EXPECT_EQ(job.outcome.candidates.back().reject_reason, "drift_envelope_gate");
+
+  auto stale = job.outcome.summary.accepted_loops.front();
+  stale.query_id = second_query;
+  stale.match_id = second.match_id;
+  stale.T_measured_match_query = Eigen::Isometry3d::Identity();
+  stale.T_match_query = stale.T_measured_match_query;
+  AsyncLoopJob replay(config, frames, graph.cloneCommitted(), {{second_query, {second}}},
+                      visible, {{first_query, 0.0}});
+  replay.outcome.summary.accepted_loops = {stale};
+  auto& event = replay.outcome.candidates.emplace_back();
+  event.candidate = second;
+  event.gate_result = "accepted";
+  replay.rebase();
+  EXPECT_TRUE(replay.outcome.summary.accepted_loops.empty());
+  EXPECT_EQ(replay.outcome.candidates.front().reject_reason, "async_rebase_drift_envelope_gate");
+  EXPECT_EQ(replay.graph->getEdges().size(), odometry.size());
 }
 
 TEST(ContinuationCleaning, NeedsRepeatedBackgroundAndKeepsOcclusionEdgesAndDistantFrames) {

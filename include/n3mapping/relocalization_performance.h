@@ -33,6 +33,7 @@ struct TrackingPerformance {
 };
 
 struct RelocalizationPerformance {
+  int initial_prior_rejections = 0;
   bool available = false;
   double total_ms = 0.0;
 
@@ -81,6 +82,7 @@ struct RelocalizationPerformance {
   std::uint64_t effective_cache_max_entries = 0;
 
   void addCandidate(const RelocalizationPerformance &other) {
+    initial_prior_rejections += other.initial_prior_rejections;
     target_build_ms += other.target_build_ms;
     target_prepare_ms += other.target_prepare_ms;
     align_ms += other.align_ms;

@@ -82,7 +82,8 @@ RelocalizationCandidateEvaluator::evaluate(
     const LoopCandidate &candidate, RelocTargetRequest target_request,
     const PreparedVisibilityObservation &visibility_observation,
     const Eigen::Isometry3d &odom_pose,
-    RelocalizationPerformance *performance) {
+    RelocalizationPerformance *performance,
+    const std::function<bool(const Eigen::Isometry3d&)>& pose_allowed) {
   RelocalizationPerformance unused_performance;
   auto &cost = performance ? *performance : unused_performance;
   cost.candidates = 1;
@@ -240,10 +241,17 @@ RelocalizationCandidateEvaluator::evaluate(
       return;
     }
 
+    if (pose_allowed && !pose_allowed(match.T_target_source)) {
+      ++cost.initial_prior_rejections;
+      std::lock_guard<std::mutex> lock(seed_mutex_);
+      seed_poses_.erase(stored_seed);
+      return;
+    }
     const auto initial_visibility = visibility(initial_pose);
     auto selected_visibility =
         visibility(match.T_target_source);
-    if (registrationVisibilityRegressed(initial_visibility, selected_visibility)) {
+    if ((!pose_allowed || pose_allowed(initial_pose)) &&
+        registrationVisibilityRegressed(initial_visibility, selected_visibility)) {
 
       const auto fixed_started = std::chrono::steady_clock::now();
       match = matcher_.evaluatePreparedPose(

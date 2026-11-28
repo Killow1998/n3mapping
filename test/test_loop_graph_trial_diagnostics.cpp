@@ -1,4 +1,5 @@
 #include "n3mapping/loop_graph_trial_diagnostics.h"
+#include "n3mapping/keyframe_manager.h"
 #include "n3mapping/graph_optimizer.h"
 #include "../src/core/loop_closure_processing.h"
 
@@ -104,7 +105,8 @@ TEST(LoopGraphTrialDiagnosticsTest, RebaseRetainsValidQueryWhenAnotherQueryConfl
         outcome.candidates.push_back(event);
     }
     const auto valid = outcome.summary.accepted_loops.back();
-    rebaseLoopOutcome(config, optimizer, manager, outcome);
+    KeyframeManager frames(config);
+    rebaseLoopOutcome(config, optimizer, frames, manager, outcome, {});
     ASSERT_EQ(outcome.summary.accepted_loops.size(), 1U);
     EXPECT_EQ(outcome.summary.accepted_loops.front().query_id, 3);
     EXPECT_TRUE(outcome.summary.accepted_loops.front().T_match_query.isApprox(

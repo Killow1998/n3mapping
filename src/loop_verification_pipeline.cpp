@@ -1,6 +1,7 @@
 #include "n3mapping/graph_optimizer.h"
 #include "n3mapping/rotation_utils.h"
 #include "n3mapping/loop_verification_pipeline.h"
+#include <optional>
 
 #include <algorithm>
 #include <cmath>
@@ -244,6 +245,12 @@ LoopVerificationPipelineResult LoopVerificationPipeline::evaluate(
             match->pose_optimized * verification.T_measured_match_query;
         return context.pose_visibility_evaluator(T_map_query);
     };
+    const auto inside_drift_envelope = [&](const LoopVerification& verification) {
+        return !context.cross_session || withinLoopDriftEnvelope(
+            match->pose_optimized, query->pose_optimized,
+            verification.T_measured_match_query,
+            context.max_horizontal_drift, context.max_vertical_drift);
+    };
     if (result.descriptor_seeded) {
         const auto yaw_hypotheses =
             buildDescriptorYawHypotheses(candidate, config_);
@@ -254,6 +261,7 @@ LoopVerificationPipelineResult LoopVerificationPipeline::evaluate(
         const auto prepared_source =
             matcher_.prepareSourceCloud(result.source_registration_cloud);
         bool has_verification = false;
+        std::optional<LoopVerification> outside_envelope;
         VisibilityConsistencyResult selected_visibility;
         for (double yaw : yaw_hypotheses) {
             Eigen::Isometry3d initial = Eigen::Isometry3d::Identity();
@@ -264,6 +272,10 @@ LoopVerificationPipelineResult LoopVerificationPipeline::evaluate(
             auto verification = loop_verifier_.verifyQueryToMatchResult(
                 candidate, query, match, result.source_registration_cloud,
                 result.target_registration_cloud, registration);
+            if (verification.loop.verified && !inside_drift_envelope(verification)) {
+                if (!outside_envelope) outside_envelope = std::move(verification);
+                continue;
+            }
             const auto visibility = pose_visibility(verification);
             if (betterRegistration(
                     verification, visibility, result.verification,
@@ -275,6 +287,8 @@ LoopVerificationPipelineResult LoopVerificationPipeline::evaluate(
                 has_verification = true;
             }
         }
+        if (!result.verification.loop.verified && outside_envelope)
+            result.verification = std::move(*outside_envelope);
         result.pose_visibility = selected_visibility;
     } else {
         result.registration_hypothesis_count = 1;
@@ -284,6 +298,13 @@ LoopVerificationPipelineResult LoopVerificationPipeline::evaluate(
         result.pose_visibility = pose_visibility(result.verification);
     }
     result.pose_visibility_evaluated = evaluate_visibility;
+    if (result.verification.loop.verified && !inside_drift_envelope(result.verification)) {
+        result.loop = result.verification.loop;
+        result.loop.verified = false;
+        result.reject_stage = "work_bound";
+        result.reject_reason = "drift_envelope_gate";
+        return result;
+    }
     const double temporal_gap = query->session_id != match->session_id
         ? 1.0
         : std::clamp(candidate.path_length_m / std::max(1.0, config_.loop_min_path_length_m),
@@ -325,7 +346,7 @@ LoopVerificationPipelineResult LoopVerificationPipeline::evaluate(
                 auto verification = loop_verifier_.verifyQueryToMatchResult(
                     candidate, query, match, query->cloud,
                     result.target_registration_cloud, supported);
-                if (verification.loop.verified) {
+                if (verification.loop.verified && inside_drift_envelope(verification)) {
                     result.verification = std::move(verification);
                     pair_refined = true;
                 }
@@ -355,20 +376,11 @@ LoopVerificationPipelineResult LoopVerificationPipeline::evaluate(
                                    : result.verification.reject_reason;
         return result;
     }
-    if (context.cross_session &&
-        (context.max_horizontal_drift > 0.0 || context.max_vertical_drift > 0.0)) {
-        const Eigen::Vector3d implied_delta =
-            (match->pose_optimized * result.verification.T_measured_match_query).translation() -
-            query->pose_optimized.translation();
-        if ((context.max_vertical_drift > 0.0 &&
-             std::abs(implied_delta.z()) > context.max_vertical_drift) ||
-            (context.max_horizontal_drift > 0.0 &&
-             implied_delta.head<2>().norm() > context.max_horizontal_drift)) {
-            result.loop.verified = false;
-            result.reject_stage = "work_bound";
-            result.reject_reason = "drift_envelope_gate";
-            return result;
-        }
+    if (!inside_drift_envelope(result.verification)) {
+        result.loop.verified = false;
+        result.reject_stage = "work_bound";
+        result.reject_reason = "drift_envelope_gate";
+        return result;
     }
     if (evaluate_visibility &&
         (!result.pose_visibility.valid ||

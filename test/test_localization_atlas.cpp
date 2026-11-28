@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <atomic>
 #include <chrono>
 #include <cstring>
 #include <filesystem>
@@ -6,6 +7,7 @@
 #include <limits>
 #include <sstream>
 #include <string>
+#include <thread>
 #include <vector>
 
 #include <gtest/gtest.h>
@@ -730,6 +732,128 @@ TEST(LocalizationAtlasTest, ValidatesSectionDirectoryAndReadsOffsetsBeyond32Bits
   }
   ASSERT_TRUE(atlas.load(files.map().string(), files.atlas().string(), nullptr, &error)) << error;
   EXPECT_EQ(atlas.globalMap()->size(), point_count);
+}
+
+TEST(LocalizationAtlasTest, ConcurrentPublishUsesIndependentFilesAndNeverClobbersWithoutPermission) {
+  TemporaryAtlasFiles files;
+  const auto config = makeConfig();
+  const auto frames = makeKeyframes();
+  for (bool overwrite : {false, true}) {
+    std::array<bool, 2> results{};
+    std::array<std::string, 2> errors;
+    std::atomic<int> ready{0};
+    const auto compile = [&](int i) {
+      PointCloudMatcher matcher(config);
+      LocalizationAtlas atlas(config, matcher);
+      ++ready;
+      while (ready.load() < 2) std::this_thread::yield();
+      results[i] = atlas.compileAndSave(files.map().string(), frames,
+                                       files.atlas().string(), overwrite, nullptr, &errors[i]);
+    };
+    std::thread first(compile, 0), second(compile, 1);
+    first.join();
+    second.join();
+    if (overwrite) {
+      EXPECT_TRUE(results[0] && results[1]) << errors[0] << " " << errors[1];
+    } else {
+      EXPECT_NE(results[0], results[1]);
+      EXPECT_NE(errors[results[0] ? 1 : 0].find("already exists"), std::string::npos);
+    }
+    PointCloudMatcher matcher(config);
+    LocalizationAtlas loaded(config, matcher);
+    std::string error;
+    ASSERT_TRUE(loaded.load(files.map().string(), files.atlas().string(), nullptr, &error)) << error;
+    ASSERT_FALSE(loaded.globalMap()->empty());
+    const auto sha = LocalizationAtlas::fileSha256(files.atlas().string());
+    auto other = frames;
+    other.pop_back();
+    EXPECT_FALSE(loaded.compileAndSave(files.map().string(), other, files.atlas().string(),
+                                       false, nullptr, &error));
+    EXPECT_EQ(LocalizationAtlas::fileSha256(files.atlas().string()), sha);
+    for (const auto& entry : std::filesystem::directory_iterator(files.atlas().parent_path()))
+      EXPECT_EQ(entry.path().filename().string().find(".tmp."), std::string::npos);
+  }
+}
+
+TEST(LocalizationAtlasTest, RejectsOrphanLeafRepeatedChildAndInvalidPruningBox) {
+  using namespace atlas_codec;
+  using namespace registration_detail;
+  TemporaryAtlasFiles files;
+  const auto config = makeConfig();
+  PointCloudMatcher matcher(config);
+  LocalizationAtlas atlas(config, matcher);
+  std::string error;
+  ASSERT_TRUE(atlas.compileAndSave(files.map().string(), makeKeyframes(), files.atlas().string(),
+                                  false, nullptr, &error)) << error;
+  AtlasTestFile original(files.atlas());
+  const auto section = original.section(SectionTag::RefineLevel);
+  LevelHeader level;
+  std::memcpy(&level, original.bytes.data() + section.offset, sizeof(level));
+  const auto start = section.offset + section.size - level.search_bytes + sizeof(AtlasSearchHeader);
+  const auto read = [&](std::uint32_t i) {
+    AtlasSearchNode node;
+    std::memcpy(&node, original.bytes.data() + start + i * sizeof(node), sizeof(node));
+    return node;
+  };
+  AtlasSearchHeader search;
+  std::memcpy(&search, original.bytes.data() + start - sizeof(search), sizeof(search));
+  const auto root = read(0);
+  const auto left = read(root.left);
+  ASSERT_LT(left.right, root.right);
+  for (int corruption = 0; corruption < 3; ++corruption) {
+    SCOPED_TRACE(corruption);
+    auto file = original;
+    auto index = std::uint32_t{0};
+    auto node = root;
+    if (corruption == 0) {
+      index = search.nodes - 1;
+      node = read(index);
+      ASSERT_EQ(node.left, UINT32_MAX);
+      ASSERT_GT(node.last - node.first, 1u);
+      auto orphan = node;
+      orphan.first = --node.last;
+      auto content = file.bytes.substr(section.offset, section.size);
+      const auto offset = start - section.offset;
+      std::memcpy(content.data() + offset + index * sizeof(node), &node, sizeof(node));
+      content.append(reinterpret_cast<const char*>(&orphan), sizeof(orphan));
+      auto augmented_search = search;
+      ++augmented_search.nodes;
+      auto augmented_level = level;
+      augmented_level.search_bytes += sizeof(orphan);
+      std::memcpy(content.data(), &augmented_level, sizeof(augmented_level));
+      std::memcpy(content.data() + offset - sizeof(search), &augmented_search, sizeof(search));
+      file.replaceSection(SectionTag::RefineLevel, content);
+    } else if (corruption == 1) {
+      node.left = left.right;
+    } else {
+      index = root.left;
+      while (read(index).left != UINT32_MAX) index = read(index).left;
+      node = read(index);
+      node.lower = node.upper;
+    }
+    if (corruption != 0)
+      std::memcpy(file.bytes.data() + start + index * sizeof(node), &node, sizeof(node));
+    ASSERT_TRUE(file.write(files.atlas()));
+    EXPECT_FALSE(atlas.load(files.map().string(), files.atlas().string(), nullptr, &error));
+    EXPECT_NE(error.find("invalid search index"), std::string::npos);
+  }
+}
+
+TEST(FreeSpaceGridTest, ObliqueBarrierCountsShortVoxelCrossingsSymmetrically) {
+  const Eigen::Vector3d from(0.2, 0.6, 0.5), to(4.2, 4.6, 0.5);
+  pcl::PointCloud<pcl::PointXYZI> cloud;
+  for (const auto& point : {Eigen::Vector3f(0.f, 0.f, -1.f), Eigen::Vector3f(4.9f, 4.9f, 1.5f),
+                           Eigen::Vector3f(1.5f, 2.5f, .5f), Eigen::Vector3f(3.5f, 4.5f, .5f)}) {
+    pcl::PointXYZI hit;
+    hit.getVector3fMap() = point;
+    cloud.push_back(hit);
+  }
+  FreeSpaceGrid grid;
+  ASSERT_TRUE(grid.build(cloud, {from, to}, 1.0, 10.0, 1));
+  EXPECT_TRUE(grid.hasOccupiedBarrier(from, to));
+  EXPECT_TRUE(grid.hasOccupiedBarrier(to, from));
+  EXPECT_FALSE(grid.hasOccupiedBarrier(from, to, 3));
+  EXPECT_FALSE(grid.hasOccupiedBarrier({0.2, 0.2, 0.5}, {4.2, 4.2, 0.5}));
 }
 
 }

@@ -148,6 +148,7 @@ private:
 
   void rebuildRelocMapCacheIfNeeded();
   void rebuildFreeSpaceGridIfNeeded();
+  void clearFreeSpaceReference();
   void killFreeSpaceDominatedHypotheses(const PointCloudT::Ptr &query_cloud,
                                         const Eigen::Isometry3d &odom_pose);
   const RelocHypothesis *

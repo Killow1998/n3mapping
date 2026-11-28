@@ -25,10 +25,26 @@ struct LoopOdometryPath {
   double untracked;
 };
 using LoopOdometryPaths = std::unordered_map<int64_t, LoopOdometryPath>;
+using LoopAnchorOffsets = std::unordered_map<int64_t, double>;
 
 LoopOdometryPaths measureLoopOdometryPaths(
     const std::vector<Keyframe::Ptr>& keyframes,
-    const std::unordered_map<int64_t, double>& anchor_offsets);
+    const LoopAnchorOffsets& anchor_offsets);
+
+struct LoopDriftBudget {
+  LoopOdometryPaths paths;
+  std::unordered_map<MapSessionId, double> accepted_anchors;
+
+  double untracked(const Keyframe& query) const {
+    const auto& path = paths.at(query.id);
+    const auto anchor = accepted_anchors.find(query.session_id);
+    return anchor == accepted_anchors.end() ? path.untracked
+        : std::min(path.untracked, path.length - anchor->second);
+  }
+  void anchor(const Keyframe& query) {
+    accepted_anchors[query.session_id] = paths.at(query.id).length;
+  }
+};
 
 inline bool withinSameSessionDriftEnvelope(const Keyframe& match, const Keyframe& query,
                                            const LoopOdometryPaths& paths) {
@@ -50,8 +66,6 @@ struct DetectedLoopQuery {
   std::chrono::steady_clock::time_point enqueued =
       std::chrono::steady_clock::now();
   bool geometry_only = false;
-  double max_horizontal_drift = 0.0;
-  double max_vertical_drift = 0.0;
 };
 struct LoopClosureOutcome {
   CoreLoopClosureResult summary;
@@ -68,7 +82,9 @@ LoopClosureOutcome processLoopCandidates(
     const Config& config, KeyframeManager& keyframes, PointCloudMatcher& matcher,
     GraphOptimizer& optimizer, LoopClosureManager& manager,
     const std::vector<DetectedLoopQuery>& queries,
-    const LoadedMapVisibilityEvaluator& visibility = {});
+    const LoadedMapVisibilityEvaluator& visibility = {},
+    const LoopAnchorOffsets& anchor_offsets = {});
 void rebaseLoopOutcome(const Config& config, GraphOptimizer& optimizer,
-                       LoopClosureManager& manager, LoopClosureOutcome& outcome);
+                       const KeyframeManager& keyframes, LoopClosureManager& manager,
+                       LoopClosureOutcome& outcome, const LoopAnchorOffsets& anchor_offsets);
 }
